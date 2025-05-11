@@ -1,8 +1,8 @@
 ﻿<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="ApplyMigration" type="ShConfigurationType">
+  <configuration default="false" name="EFApplyMigration" type="ShConfigurationType">
     <option name="SCRIPT_TEXT" value="dotnet tool install --ignore-failed-sources --add-source https://api.nuget.org/v3/index.json --global dotnet-ef; echo %MIGRATION_NAME%" />
     <option name="INDEPENDENT_SCRIPT_PATH" value="false" />
-    <option name="SCRIPT_PATH" value="$PROJECT_DIR$/Backend/_tools/scripts/apply_migration.ps1" />
+    <option name="SCRIPT_PATH" value="$PROJECT_DIR$/Backend/_tools/scripts/ef_apply_migration.ps1" />
     <option name="SCRIPT_OPTIONS" value="-MigrationName" />
     <option name="INDEPENDENT_SCRIPT_WORKING_DIRECTORY" value="true" />
     <option name="SCRIPT_WORKING_DIRECTORY" value="$PROJECT_DIR$/Backend" />
