@@ -1,6 +1,11 @@
 using Backend.Data;
+using Backend.Services;
 using Microsoft.AspNetCore.HttpOverrides;
-
+using System.IdentityModel.Tokens.Jwt;
+using System.Net;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 namespace Backend;
 
 internal static class Program
@@ -21,6 +26,8 @@ internal static class Program
         builder.Services.Configure<RouteOptions>(o => o.LowercaseUrls = true);
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddDbContext<AppDbContext>();
+        builder.Services.AddScoped<JwtService>();
+        builder.Services.AddSingleton<EmailService>();
         
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
@@ -102,6 +109,64 @@ internal static class Program
         }
     }
 
+    private static void ConfigureAuthentication(WebApplicationBuilder builder)
+    {
+        builder.Services.AddAuthentication(o =>
+        {
+            o.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            o.DefaultChallengeScheme    = JwtBearerDefaults.AuthenticationScheme;
+            o.DefaultScheme             = JwtBearerDefaults.AuthenticationScheme;
+        }).AddJwtBearer(o =>
+        {
+            o.Events = new JwtBearerEvents
+            { 
+                OnTokenValidated = TokenValidatedEvent,
+                OnMessageReceived = MessageRecievedEvent
+            };
+
+            o.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidIssuer              = _app.Configuration["JwtSettings:Issuer"],
+                IssuerSigningKey         = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(_app.Configuration["JwtSettings:Key"]!)),
+                ValidateIssuer           = true,
+                ValidateAudience = false,
+                ValidateIssuerSigningKey = true,
+                ValidateLifetime         = false,
+            };
+        });
+        
+        return;
+
+        static Task TokenValidatedEvent(TokenValidatedContext context)
+        {
+            if (context.SecurityToken.ValidTo >= DateTime.UtcNow) 
+                return Task.CompletedTask;
+            
+            using var scope      = _app.Services.CreateScope();
+            var       jwtService = scope.ServiceProvider.GetService(typeof(JwtService)) as JwtService;
+            
+            //We used only unique claims for easy to use
+            var payload = (context.SecurityToken as JwtSecurityToken)!.Payload;
+            
+            if(jwtService!.RefreshSession(payload, context.Request.Cookies["refresh_token"]))
+                return Task.CompletedTask;
+            
+            
+            context.Fail("Forbidden");
+            return Task.CompletedTask;
+        }
+
+        static Task MessageRecievedEvent(MessageReceivedContext context)
+        {
+            if (!context.Request.Headers.ContainsKey("Authorization") &&
+                context.Request.Cookies.TryGetValue("access_token",out var token))
+            {
+                context.Request.Headers.Add("Authorization" , $"Bearer {token}");
+            }
+            return Task.CompletedTask;
+        }
+    }
     private static void ConfigureAuthStrategy()
     {
         // TODO: Implement authentication strategy
