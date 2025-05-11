@@ -1,14 +1,17 @@
 ﻿using Backend.Data.Entities;
 using Backend.Repositories.Abstraction;
 using Backend.Services.Filters;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers.Abstraction;
 
 [ApiController]
+[Route(Constants.DefaultRoutePattern)]
 public abstract class BaseCrudController<T>(IAsyncCrudRepository<T> repository): ControllerBase where T : class
 {
-#if DEBUG
+#if !DEBUG
+    [Authorize]
     [RequireRole(EUserRole.Admin)]
 #endif
     [HttpPost]
@@ -29,7 +32,8 @@ public abstract class BaseCrudController<T>(IAsyncCrudRepository<T> repository):
     }
 
 #if !DEBUG
-    [RequireRole(UserAccessRights.Admin)]
+    [Authorize]
+    [RequireRole(EUserRole.Admin]
 #endif
     [HttpPatch]
     public virtual async Task<IActionResult> Update([FromBody] T entity)
@@ -39,7 +43,8 @@ public abstract class BaseCrudController<T>(IAsyncCrudRepository<T> repository):
     }
 
 #if !DEBUG
-    [RequireRole(UserAccessRights.Admin)]
+    [Authorize]
+    [RequireRole(EUserRole.Admin]
 #endif
     [HttpDelete("{id}")]
     public virtual async Task<IActionResult> Delete(int id)

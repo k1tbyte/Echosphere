@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Text;
+using Backend.Repositories.Abstraction.Account;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 namespace Backend;
@@ -22,11 +23,14 @@ internal static class Program
             options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
             options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
         });
-        
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGen();
+        builder.Services.AddMemoryCache();
         builder.Services.Configure<RouteOptions>(o => o.LowercaseUrls = true);
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddDbContext<AppDbContext>();
         builder.Services.AddScoped<JwtService>();
+        builder.Services.AddScoped<IAccountRepository,AccountRepository>();
         builder.Services.AddSingleton<EmailService>();
         
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -37,11 +41,18 @@ internal static class Program
         if (_app.Environment.IsDevelopment())
         {
             _app.MapOpenApi();
+            _app.UseSwagger();
+            _app.UseSwaggerUI();
         }
 
         _app.UseHttpsRedirection();
 
+        _app.UseRouting();
         _app.UseAuthorization();
+        _app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers(); // <-- вот это обязательно
+        });
         _app.MapControllers();
         
         // For reverse proxy support

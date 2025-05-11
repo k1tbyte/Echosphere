@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers.Abstraction;
 
-[ApiController]
+[Route(Constants.DefaultRoutePattern)]
 public class AuthController(IAccountRepository accountRepository, EmailService emailService): ControllerBase
 {
     [HttpPost]
@@ -21,7 +21,7 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
         return Ok();
     }
 
-
+    [HttpPost]
     public async Task<IActionResult> ConfirmEmail(Guid token)
     {
         if (!await accountRepository.SignupAsync(token))
@@ -57,18 +57,18 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
             return Conflict("A user with this email is already registered");
         }
 
-        var uri = $"{Request.Scheme}://{Request.Host}/account/confirmEmail?token={token}";
-        if (!await emailService.SendMailAsync(user.Email, 
-                "Email confirmation", 
-                $"<a href=\"{uri}\">Click to confirm email</a>")
-            )
-        {
-            return BadRequest("Unable to send confirmation email");
-        }
+        // var uri = $"{Request.Scheme}://{Request.Host}/account/confirmEmail?token={token}";
+        // if (!await emailService.SendMailAsync(user.Email, 
+        //         "Email confirmation", 
+        //         $"<a href=\"{uri}\">Click to confirm email</a>")
+        //     )
+        // {
+        //     return BadRequest("Unable to send confirmation email");
+        // }
 
-        return Ok();
+        return Ok(token);
     }
-    
+    [HttpPost]
     public async Task<IActionResult> LogOut()
     {
         if (User.Identity?.IsAuthenticated != false)
