@@ -18,6 +18,9 @@ public sealed class User
     [Column("user_id")]
     public int Id { get; set; }
     
+    [Column("email")]
+    public required string Email { get; init; }
+    
     [Column("username")]
     public required string Username { get; init; }
     

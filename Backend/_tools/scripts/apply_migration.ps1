@@ -40,7 +40,7 @@ if ($LASTEXITCODE -eq 0) {
 $confirmation = Read-Host "Do you want to update the database? (y/n)"
 if ($confirmation -eq 'y') {
     Write-Host "Updating database..."
-    dotnet ef database update --project Backend\Backend.csproj --startup-project Backend\Backend.csproj --context Backend.Data.AppDbContext
+    dotnet ef database update --project Backend.csproj --startup-project Backend.csproj --context Backend.Data.AppDbContext
     
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to update database. Exit code: $LASTEXITCODE"

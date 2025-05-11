@@ -7,6 +7,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IConfig
     : DbContext(options)
 {
     public DbSet<User> Users { get; set; } = null!;
+    public DbSet<RefreshSession> Sessions { get; set; } = null!;
  
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
