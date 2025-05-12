@@ -1,4 +1,6 @@
 import type { MetaFunction } from "@remix-run/node";
+import {useTheme} from "@heroui/use-theme";
+import {useEffect} from "react";
 
 export const meta: MetaFunction = () => {
   return [
@@ -9,9 +11,10 @@ export const meta: MetaFunction = () => {
 
 
 export default function Index() {
+
   return (
-    <div className="flex flex-col h-screen">
-      Echosphere
+    <div className="relative flex flex-col h-screen">
+      <div className="bg-background" >Echosphere</div>
     </div>
   );
 }

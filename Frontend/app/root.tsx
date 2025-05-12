@@ -1,5 +1,5 @@
 import {
-  Links,
+  Links, LiveReload,
   Meta,
   Outlet,
   Scripts,
@@ -8,6 +8,7 @@ import {
 import type { LinksFunction } from "@remix-run/node";
 
 import "./tailwind.css";
+import {HeroUIProvider} from "@heroui/react";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -22,24 +23,24 @@ export const links: LinksFunction = () => [
   },
 ];
 
-export function Layout({ children }: { children: React.ReactNode }) {
+function App(){
   return (
-    <html lang="en">
+      <html  lang="en" className='dark'>
       <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>Echosphere</title>
+          <meta charSet="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
       </head>
       <body>
-        {children}
+      <HeroUIProvider>
+        <Outlet />
         <ScrollRestoration />
         <Scripts />
+ {/*       <LiveReload />*/}
+      </HeroUIProvider>
       </body>
-    </html>
+      </html>
   );
-}
-
-export default function App() {
-  return <Outlet />;
 }
