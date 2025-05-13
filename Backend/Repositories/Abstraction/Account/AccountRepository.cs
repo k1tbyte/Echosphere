@@ -46,7 +46,7 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
     }
 
 
-    public async Task LogOutAsync(string refreshToken)
+    public async Task LogOutAsync(string? refreshToken)
     {
         jwtAuth.CloseSession(refreshToken);
         await SaveAsync();
@@ -75,22 +75,22 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
         return tokens;
     }
 
-    public async Task<bool> SignupAsync(Guid id)
+    public async Task<Tokens?> SignupAsync(Guid id)
     {
         var token = id.ToString();
         if (!signupCache.TryGetValue(token, out var value) || value is not User user ||
             await context.Users.AnyAsync(o => o.Email == user.Email))
-            return false;
+            return null;
         
         var addedUser = await context.Users.AddAsync(user).ConfigureAwait(false);
         //We need to save to get the ID
         await context.SaveChangesAsync().ConfigureAwait(false);
         
-        jwtAuth.CreateNewSession(addedUser.Entity,false);
+        var tokens = jwtAuth.CreateNewSession(addedUser.Entity,false);
         await SaveAsync();
         
         signupCache.Remove(token);
-        return true;
+        return tokens;
     }
 
     public async Task SendFriendshipRequestAsync(Guid userId, Guid friendshipId)

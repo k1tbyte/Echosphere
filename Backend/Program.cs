@@ -129,12 +129,6 @@ internal static class Program
             o.DefaultScheme             = JwtBearerDefaults.AuthenticationScheme;
         }).AddJwtBearer(o =>
         {
-            o.Events = new JwtBearerEvents
-            { 
-                OnTokenValidated = TokenValidatedEvent,
-                OnMessageReceived = MessageRecievedEvent
-            };
-
             o.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidIssuer              = _app.Configuration["JwtSettings:Issuer"],
@@ -146,35 +140,6 @@ internal static class Program
                 ValidateLifetime         = false,
             };
         });
-        
-        return;
-
-        static Task TokenValidatedEvent(TokenValidatedContext context)
-        {
-            if (context.SecurityToken.ValidTo >= DateTime.UtcNow) 
-                return Task.CompletedTask;
-            
-            using var scope      = _app.Services.CreateScope();
-            var       jwtService = scope.ServiceProvider.GetService(typeof(JwtService)) as JwtService;
-            
-            //We used only unique claims for easy to use
-            var payload = (context.SecurityToken as JwtSecurityToken)!.Payload;
-            var tokens = jwtService!.RefreshSession(payload, context.Request.Cookies["refresh_token"]);
-            if( tokens!= null)
-                return Task.CompletedTask;
-            context.Fail("Forbidden");
-            return Task.CompletedTask;
-        }
-
-        static Task MessageRecievedEvent(MessageReceivedContext context)
-        {
-            if (!context.Request.Headers.ContainsKey("Authorization") &&
-                context.Request.Cookies.TryGetValue("access_token",out var token))
-            {
-                context.Request.Headers.Add("Authorization" , $"Bearer {token}");
-            }
-            return Task.CompletedTask;
-        }
     }
     private static void ConfigureAuthStrategy()
     {

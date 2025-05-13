@@ -10,8 +10,8 @@ namespace Backend.Services;
 
 public class Tokens
 {
-    public string access_token { get; set; }
-    public string refresh_token { get; set; }
+    public string? AccessToken { get; set; }
+    public string? RefreshToken { get; set; }
 }
 public sealed class JwtService
 {
@@ -75,8 +75,8 @@ public sealed class JwtService
         
         return new Tokens
         {
-            access_token = accessToken,
-            refresh_token = refreshToken.ToString(),
+            AccessToken = accessToken,
+            RefreshToken = refreshToken.ToString(),
         };
     }
 
@@ -95,9 +95,8 @@ public sealed class JwtService
     }
     
 
-    public void CloseSession(string refreshToken)
+    public void CloseSession(string? refreshToken)
     {
-        //var cookie = _httpContext.Request.Cookies["refresh_token"];
         if (refreshToken == null || !Guid.TryParse(refreshToken, out var token))
             return;
         
