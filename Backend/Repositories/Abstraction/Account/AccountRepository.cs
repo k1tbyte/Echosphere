@@ -46,9 +46,9 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
     }
 
 
-    public async Task LogOutAsync()
+    public async Task LogOutAsync(string refreshToken)
     {
-        jwtAuth.CloseSession();
+        jwtAuth.CloseSession(refreshToken);
         await SaveAsync();
     }
 
@@ -63,16 +63,16 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
     }
     
 
-    public async Task<bool> AuthenticateAsync(string email, string password,bool remember)
+    public async Task<Tokens?> AuthenticateAsync(string email, string password,bool remember)
     {
         var user = await context.Users.FirstOrDefaultAsync(o => o.Email == email);
         
         if (user == null || !PasswordManager.CheckPassword(password, user.PasswordSalt, user.Password))
-            return false;
+            return null;
         
-        jwtAuth.CreateNewSession(user,remember);
-        await context.SaveChangesAsync().ConfigureAwait(false);
-        return true;
+        var tokens=jwtAuth.CreateNewSession(user,remember);
+        await SaveAsync();
+        return tokens;
     }
 
     public async Task<bool> SignupAsync(Guid id)
@@ -87,11 +87,32 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
         await context.SaveChangesAsync().ConfigureAwait(false);
         
         jwtAuth.CreateNewSession(addedUser.Entity,false);
-        await SaveAsync().ConfigureAwait(false);
+        await SaveAsync();
         
         signupCache.Remove(token);
         return true;
     }
+
+    public async Task SendFriendshipRequestAsync(Guid userId, Guid friendshipId)
+    {
+        //context.Friendships.
+    }
+
+    public async Task AcceptFriendshipRequestAsync(Guid userId, Guid friendshipId)
+    {
+        
+    }
+
+    public async Task RejectFriendshipRequestAsync(Guid userId, Guid friendshipId)
+    {
+        
+    }
+
+    public async Task DeleteFriendAsync(Guid userId, Guid friendshipId)
+    {
+        
+    }
+
     public async Task SaveAsync()
     {
         if (!Autosave)

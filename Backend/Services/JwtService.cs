@@ -7,6 +7,12 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Backend.Services;
 
+
+public class Tokens
+{
+    public string access_token { get; set; }
+    public string refresh_token { get; set; }
+}
 public sealed class JwtService
 {
     private const int RefreshTokenExtendedLifetime = 7; //days
@@ -45,7 +51,7 @@ public sealed class JwtService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private void _createSession(string accessToken, long userId, bool extended)
+    private Tokens _createSession(string accessToken, long userId, bool extended)
     {
         var refreshToken = Guid.NewGuid();
         var expires= extended ? DateTimeOffset.UtcNow.AddDays(RefreshTokenExtendedLifetime) :
@@ -67,15 +73,15 @@ public sealed class JwtService
             UserId    = userId,
         });
         
-        _httpContext.Response.Cookies.Append("refresh_token",refreshToken.ToString(),
-            new CookieOptions { HttpOnly = true, Expires = expires });
-        
-        _httpContext.Response.Cookies.Append("access_token",accessToken,
-            new CookieOptions { HttpOnly = true });
+        return new Tokens
+        {
+            access_token = accessToken,
+            refresh_token = refreshToken.ToString(),
+        };
     }
 
 
-    public void CreateNewSession(User user,bool extended)
+    public Tokens CreateNewSession(User user,bool extended)
     {
         var accessToken = GenerateAccessToken(new List<Claim>
         {
@@ -85,24 +91,16 @@ public sealed class JwtService
             new("remember", "")
         });
         
-        _createSession(accessToken, user.Id, extended);
+        return _createSession(accessToken, user.Id, extended);
     }
     
 
-    private void DeleteCookie()
+    public void CloseSession(string refreshToken)
     {
-        _httpContext.Response.Cookies.Delete("refresh_token");
-        _httpContext.Response.Cookies.Delete("access_token");
-    }
-
-    public void CloseSession()
-    {
-        var cookie = _httpContext.Request.Cookies["refresh_token"];
-        if (cookie == null || !Guid.TryParse(cookie, out var token))
+        //var cookie = _httpContext.Request.Cookies["refresh_token"];
+        if (refreshToken == null || !Guid.TryParse(refreshToken, out var token))
             return;
         
-        DeleteCookie();
-
         var session = _dbContext.Sessions.FirstOrDefault(o => o.Token == token);
         if (session == null)
             return;
@@ -110,20 +108,19 @@ public sealed class JwtService
         _dbContext.Sessions.Remove(session);
     }
 
-    public bool RefreshSession(JwtPayload payload, string? rawRefreshToken)
+    public Tokens? RefreshSession(JwtPayload payload, string? rawRefreshToken)
     {
-        DeleteCookie();
 
         if (!long.TryParse(payload["userid"].ToString(), out var userId) ||
             !Guid.TryParse(rawRefreshToken, out var refreshToken))
-            return false;
+            return null;
         
         var session = _dbContext.Sessions
             .FirstOrDefault(o => o.Token == refreshToken && o.UserId == userId);
 
         //Invalid token
         if (session == null)
-            return false;
+            return null;
         
         _dbContext.Sessions.Remove(session);
         
@@ -131,7 +128,7 @@ public sealed class JwtService
         if (session.ExpiresIn <= DateTimeOffset.UtcNow.ToUnixTimeSeconds())
         {
             _dbContext.SaveChanges();
-            return false;
+            return null;
         }
         
         var accessToken = GenerateAccessToken(new List<Claim>
@@ -141,9 +138,9 @@ public sealed class JwtService
             new("role", payload["role"].ToString()!),
         });
 
-        _createSession(accessToken, userId, payload.ContainsKey("remember"));
+        var tokens = _createSession(accessToken, userId, payload.ContainsKey("remember"));
         _dbContext.SaveChanges();
 
-        return true;
+        return tokens;
     }
 }

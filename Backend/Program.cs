@@ -159,11 +159,9 @@ internal static class Program
             
             //We used only unique claims for easy to use
             var payload = (context.SecurityToken as JwtSecurityToken)!.Payload;
-            
-            if(jwtService!.RefreshSession(payload, context.Request.Cookies["refresh_token"]))
+            var tokens = jwtService!.RefreshSession(payload, context.Request.Cookies["refresh_token"]);
+            if( tokens!= null)
                 return Task.CompletedTask;
-            
-            
             context.Fail("Forbidden");
             return Task.CompletedTask;
         }

@@ -32,4 +32,6 @@ public sealed class User
     
     [Column("role")] 
     public EUserRole Role { get; init; } = EUserRole.None;
+    public ICollection<Friendship> SentFriendRequests { get; set; }
+    public ICollection<Friendship> ReceivedFriendRequests { get; set; }
 }

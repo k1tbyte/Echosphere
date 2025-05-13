@@ -15,10 +15,11 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
     //[TypeFilter(typeof(CaptchaRequired))]
     public async Task<IActionResult> Login(string email, string password,string remember)
     {
-        if(!await accountRepository.AuthenticateAsync(email, password, remember == "on").ConfigureAwait(false))
+        var tokens = await accountRepository.AuthenticateAsync(email, password, remember == "on").ConfigureAwait(false);
+        if(tokens==null)
             return BadRequest("Please check your password and email and try again");
         
-        return Ok();
+        return Ok(tokens);
     }
 
     [HttpPost]
@@ -29,7 +30,7 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
             return BadRequest("Unavailable confirmation token");
         }
 
-        return RedirectToAction("Profile");
+        return Ok("Profile");
     }
 
 
@@ -69,13 +70,13 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
         return Ok(token);
     }
     [HttpPost]
-    public async Task<IActionResult> LogOut()
+    public async Task<IActionResult> LogOut(string refreshToken)
     {
-        if (User.Identity?.IsAuthenticated != false)
+        if (User.Identity?.IsAuthenticated == false)
         {
-            await accountRepository.LogOutAsync().ConfigureAwait(false);
+            await accountRepository.LogOutAsync(refreshToken).ConfigureAwait(false);
         }
         
-        return RedirectToAction("Index","Home");
+        return Ok();
     }
 }
