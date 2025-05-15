@@ -1,5 +1,7 @@
-﻿using Backend.Data;
+﻿using System.Collections.ObjectModel;
+using Backend.Data;
 using Backend.Data.Entities;
+using Backend.DTO;
 using Backend.Infrastructure;
 using Backend.Services;
 using Microsoft.EntityFrameworkCore;
@@ -18,9 +20,9 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
         return entry.Entity;
     }
 
-    public async Task<User?> Get(long id)
+    public async Task<User?> Get(int id)
     {
-        return await context.Users.FindAsync(id);
+        return await context.Users.FirstOrDefaultAsync(u => u.Id == id);
     }
 
     public async Task Update(User entity)
@@ -93,24 +95,158 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
         return tokens;
     }
 
-    public async Task SendFriendshipRequestAsync(Guid userId, Guid friendshipId)
+    public async Task<bool> SendFriendshipRequestAsync(int userId, int friendId)
     {
-        //context.Friendships.
+        if (userId == friendId)
+            return false; 
+        
+        bool exists = await context.Friendships.AnyAsync(f =>
+            (f.RequesterId == userId && f.AddresseeId == friendId) ||
+            (f.RequesterId == friendId && f.AddresseeId == userId));
+
+        if (exists)
+            return false; 
+
+
+        var requester = await context.Users
+            .Include(u => u.SentFriendRequests)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        var addressee = await context.Users
+            .Include(u => u.ReceivedFriendRequests)
+            .FirstOrDefaultAsync(u => u.Id == friendId);
+
+        if (requester == null || addressee == null)
+            return false;
+
+
+        var friendship = new Friendship
+        {
+            RequesterId = userId,
+            AddresseeId = friendId,
+            Status = EFriendshipStatus.Pending
+        };
+        
+        requester.SentFriendRequests.Add(friendship);
+        addressee.ReceivedFriendRequests.Add(friendship);
+        
+        await context.SaveChangesAsync();
+        return true;
     }
 
-    public async Task AcceptFriendshipRequestAsync(Guid userId, Guid friendshipId)
+    public async Task AcceptFriendshipAsync(int userId, int friendId)
     {
-        
+        var friendship = await context.Friendships
+            .FirstOrDefaultAsync(f => (f.RequesterId == friendId && f.AddresseeId == userId)||
+                                      (f.RequesterId == userId && f.AddresseeId == friendId));
+
+        if (friendship == null)
+            throw new InvalidOperationException("Friendship not found.");
+
+        if (friendship.Status != EFriendshipStatus.Pending)
+            throw new InvalidOperationException("Friendship is already accepted.");
+
+        friendship.Status = EFriendshipStatus.Accepted;
+        await context.SaveChangesAsync();
     }
 
-    public async Task RejectFriendshipRequestAsync(Guid userId, Guid friendshipId)
+    public async Task DeleteFriendshipAsync(int userId, int friendId)
     {
-        
+        var friendship = await context.Friendships
+            .FirstOrDefaultAsync(f => (f.RequesterId == friendId && f.AddresseeId == userId)||
+                                      (f.RequesterId == userId && f.AddresseeId == friendId));
+
+    if (friendship == null)
+            throw new InvalidOperationException("Friendship not found.");
+
+        if (friendship.Status != EFriendshipStatus.Accepted)
+            throw new InvalidOperationException("Friendship is not accepted yet.");
+
+        context.Friendships.Remove(friendship);
+        await context.SaveChangesAsync();
     }
 
-    public async Task DeleteFriendAsync(Guid userId, Guid friendshipId)
+    public async Task<List<UserSimplified>> GetFriends(int userId, int page, int pageSize)
     {
+        var user = await context.Users
+            .Include(u => u.SentFriendRequests)
+            .ThenInclude(f => f.Addressee)
+            .Include(u => u.ReceivedFriendRequests)
+            .ThenInclude(f => f.Requester)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null)
+            throw new InvalidOperationException("User not found.");
+
+        List<UserSimplified> friendsList = new List<UserSimplified>();
         
+        foreach (var f in user.SentFriendRequests.Where(f => f.Status == EFriendshipStatus.Accepted))
+        {
+            var friend = f.Addressee;
+            friendsList.Add(new UserSimplified
+            {
+                Id = friend.Id,
+                Username = friend.Username,
+                Avatar = friend.Avatar
+            });
+        }
+        foreach (var f in user.ReceivedFriendRequests.Where(f => f.Status == EFriendshipStatus.Accepted))
+        {
+            var friend = f.Requester;
+            friendsList.Add(new UserSimplified
+            {
+                Id = friend.Id,
+                Username = friend.Username,
+                Avatar = friend.Avatar
+            });
+        }
+        var pagedFriends = friendsList
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+        return pagedFriends;
+    }
+    
+
+    public async Task<List<UserSimplified>> GetPendingFriends(int userId, bool pendingFromYou)
+    {
+        var user = await context.Users
+            .Include(u => u.SentFriendRequests)
+            .ThenInclude(f => f.Addressee)
+            .Include(u => u.ReceivedFriendRequests)
+            .ThenInclude(f => f.Requester)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null)
+            throw new InvalidOperationException("User not found.");
+
+        List<UserSimplified> pendingList = new List<UserSimplified>();
+        if (pendingFromYou)
+        {
+            foreach (var f in user.SentFriendRequests.Where(f => f.Status == EFriendshipStatus.Pending))
+            {
+                var friend = f.Addressee;
+                pendingList.Add(new UserSimplified
+                {
+                    Id = friend.Id,
+                    Username = friend.Username,
+                    Avatar = friend.Avatar
+                });
+            }
+            return pendingList;
+        }
+        foreach (var f in user.ReceivedFriendRequests.Where(f => f.Status == EFriendshipStatus.Pending))
+        {
+            var friend = f.Requester;
+            pendingList.Add(new UserSimplified
+            {
+                Id = friend.Id,
+                Username = friend.Username,
+                Avatar = friend.Avatar
+            });
+        }
+
+        return pendingList;
     }
 
     public async Task SaveAsync()

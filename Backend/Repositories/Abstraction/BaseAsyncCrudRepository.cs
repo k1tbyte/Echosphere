@@ -11,7 +11,7 @@ public class BaseAsyncCrudRepository<T>(DbContext context, DbSet<T> set) : IAsyn
         return entry.Entity;
     }
 
-    public async Task<T?> Get(long id)
+    public async Task<T?> Get(int id)
     {
         return await set.FindAsync(id);
     }

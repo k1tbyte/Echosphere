@@ -4,7 +4,7 @@ public interface IAsyncCrudRepository<T>
 {
     public Task<T> Add(T entity);
 
-    public Task<T?> Get(long id);
+    public Task<T?> Get(int id);
 
     public Task Update(T entity);
 

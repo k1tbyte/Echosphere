@@ -21,15 +21,10 @@ public sealed class JwtService
     private const int MaxSessionsAmount = 5;
     private readonly IConfiguration _config;
     private readonly AppDbContext _dbContext;
-    private readonly HttpContext _httpContext;
-    public JwtService(IConfiguration configuration, AppDbContext dbContext,
-        IHttpContextAccessor httpContextAccessor)
+    public JwtService(IConfiguration configuration, AppDbContext dbContext)
     {
-        ArgumentNullException.ThrowIfNull(httpContextAccessor.HttpContext);
-        
         _config      = configuration;
         _dbContext   = dbContext;
-        _httpContext = httpContextAccessor.HttpContext;
     }
     
     private string GenerateAccessToken(List<Claim> claims)

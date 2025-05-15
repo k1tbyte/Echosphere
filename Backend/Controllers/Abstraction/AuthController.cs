@@ -35,6 +35,9 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
 
         return Ok(tokens);
     }
+    
+
+    
     [HttpPost]
     [Authorize]
     public async Task<IActionResult> RefreshSession(string accessToken,string refreshToken)

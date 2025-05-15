@@ -7,6 +7,7 @@ public enum EUserRole
 {
     None,
     User,
+    Moder,
     Admin
 }
 
@@ -23,6 +24,8 @@ public sealed class User
     
     [Column("username")]
     public required string Username { get; init; }
+    [Column("avatar")]
+    public string Avatar { get; init; }
     
     [Column("password")]
     public required string Password { get; init; }
