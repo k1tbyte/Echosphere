@@ -5,6 +5,7 @@ using Backend.Infrastructure;
 using Backend.Repositories.Abstraction.Account;
 using Backend.Requests;
 using Backend.Services;
+using Backend.Services.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -39,7 +40,7 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
 
     
     [HttpPost]
-    [Authorize]
+    [RequireRole(EUserRole.User)]
     public async Task<IActionResult> RefreshSession(string accessToken,string refreshToken)
     {
         if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(refreshToken))
@@ -103,6 +104,7 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
         return Ok(token);
     }
     [HttpPost]
+    [RequireRole(EUserRole.User)]
     public async Task<IActionResult> LogOut(string? refreshToken)
     {
         if (User.Identity?.IsAuthenticated != false)

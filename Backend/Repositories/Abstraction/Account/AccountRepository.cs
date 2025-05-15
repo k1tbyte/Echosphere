@@ -168,46 +168,27 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
 
     public async Task<List<UserSimplified>> GetFriends(int userId, int page, int pageSize)
     {
-        var user = await context.Users
-            .Include(u => u.SentFriendRequests)
-            .ThenInclude(f => f.Addressee)
-            .Include(u => u.ReceivedFriendRequests)
-            .ThenInclude(f => f.Requester)
-            .FirstOrDefaultAsync(u => u.Id == userId);
+        int offset = (page - 1) * pageSize;
 
-        if (user == null)
-            throw new InvalidOperationException("User not found.");
+        var result = await context.UserSimplified
+            .FromSqlRaw(@"
+            SELECT 
+                u.user_id, 
+                u.username, 
+                u.avatar
+            FROM friendship f
+            JOIN ""user"" u ON 
+                (f.requester_id = {0} AND f.addressee_id = u.user_id) OR
+                (f.addressee_id = {0} AND f.requester_id = u.user_id)
+            WHERE f.status = 1
+            ORDER BY u.username
+            OFFSET {1} ROWS FETCH NEXT {2} ROWS ONLY
+        ", userId, offset, pageSize)
+            .ToListAsync();
 
-        List<UserSimplified> friendsList = new List<UserSimplified>();
-        
-        foreach (var f in user.SentFriendRequests.Where(f => f.Status == EFriendshipStatus.Accepted))
-        {
-            var friend = f.Addressee;
-            friendsList.Add(new UserSimplified
-            {
-                Id = friend.Id,
-                Username = friend.Username,
-                Avatar = friend.Avatar
-            });
-        }
-        foreach (var f in user.ReceivedFriendRequests.Where(f => f.Status == EFriendshipStatus.Accepted))
-        {
-            var friend = f.Requester;
-            friendsList.Add(new UserSimplified
-            {
-                Id = friend.Id,
-                Username = friend.Username,
-                Avatar = friend.Avatar
-            });
-        }
-        var pagedFriends = friendsList
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-        return pagedFriends;
+        return result;
     }
     
-
     public async Task<List<UserSimplified>> GetPendingFriends(int userId, bool pendingFromYou)
     {
         var user = await context.Users

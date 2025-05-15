@@ -30,7 +30,7 @@ namespace Backend.Migrations
 
                     b.Property<int>("AddresseeId")
                         .HasColumnType("integer")
-                        .HasColumnName("adressee_id");
+                        .HasColumnName("addressee_id");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer")

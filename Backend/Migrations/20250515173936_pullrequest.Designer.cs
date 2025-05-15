@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250515131850_test")]
-    partial class test
+    [Migration("20250515173936_pullrequest")]
+    partial class pullrequest
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -33,7 +33,7 @@ namespace Backend.Migrations
 
                     b.Property<int>("AddresseeId")
                         .HasColumnType("integer")
-                        .HasColumnName("adressee_id");
+                        .HasColumnName("addressee_id");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer")

@@ -15,6 +15,6 @@ public interface IAccountRepository :IAsyncCrudRepository<User>
     public Task<bool> SendFriendshipRequestAsync(int userId, int friendId);
     public Task AcceptFriendshipAsync(int userId, int friendId);
     public Task DeleteFriendshipAsync(int userId, int friendId);
-    public Task<List<UserSimplified>> GetFriends(int userId, int page, int pageSize); 
+    public Task<List<UserSimplified>> GetFriends(int userId, int page, int pageSize);
     public Task<List<UserSimplified>> GetPendingFriends(int userId, bool pendingFromYou); 
 }
