@@ -1,4 +1,6 @@
-﻿using Backend.Repositories.Abstraction.Account;
+﻿using Backend.Data.Entities;
+using Backend.Repositories.Abstraction;
+using Backend.Services.Filters;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers.Abstraction;
@@ -6,6 +8,7 @@ namespace Backend.Controllers.Abstraction;
 public class InteractionController(IAccountRepository accountRepository): ControllerBase
 {
     [HttpPost]
+    [RequireRole(EUserRole.User)]
     public async Task<IActionResult> SendFriendship(int userId, int friendId)
     {
         await accountRepository.SendFriendshipRequestAsync(userId, friendId);
@@ -13,24 +16,28 @@ public class InteractionController(IAccountRepository accountRepository): Contro
         return Ok();
     }
     [HttpPost]
+    [RequireRole(EUserRole.User)]
     public async Task<IActionResult> AcceptFriendship(int userId, int friendId)
     {
         await accountRepository.AcceptFriendshipAsync(userId, friendId);
         return Ok();
     }
     [HttpPost]
+    [RequireRole(EUserRole.User)]
     public async Task<IActionResult> RejectFriendship(int userId, int friendId)
     {
         await accountRepository.DeleteFriendshipAsync(userId, friendId);
         return Ok();
     }
     [HttpPost]
+    [RequireRole(EUserRole.User)]
     public async Task<IActionResult> DeleteFriend(int userId, int friendId)
     {
         await accountRepository.DeleteFriendshipAsync(userId, friendId);
         return Ok();
     }
     [HttpPost]
+    [RequireRole(EUserRole.User)]
     public async Task<IActionResult> GetFriends(int userId,bool includeSentRequests, bool includeReceivedRequests, int page=1, int pageSize=50)
     {
         var friends = await accountRepository.GetFriends(userId,page,pageSize);

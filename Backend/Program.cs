@@ -1,10 +1,10 @@
 using Backend.Data;
 using Backend.Services;
 using Microsoft.AspNetCore.HttpOverrides;
-using System.IdentityModel.Tokens.Jwt;
-using System.Net;
 using System.Text;
-using Backend.Repositories.Abstraction.Account;
+using System.Text.Json;
+using Backend.Repositories;
+using Backend.Repositories.Abstraction;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 namespace Backend;
@@ -21,8 +21,11 @@ internal static class Program
         builder.Services.AddControllers().AddJsonOptions(options =>
         {
             options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+            options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
         });
+
+        builder.Services.AddHttpContextAccessor();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
         builder.Services.AddMemoryCache();
@@ -32,6 +35,12 @@ internal static class Program
         builder.Services.AddScoped<JwtService>();
         builder.Services.AddScoped<IAccountRepository,AccountRepository>();
         builder.Services.AddSingleton<EmailService>();
+        builder.Services.AddCors(o => o.AddPolicy("AllowAll", o =>
+        {
+            o.AllowAnyOrigin()
+                .AllowAnyMethod()
+                .AllowAnyHeader();
+        }));
         
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
@@ -49,10 +58,10 @@ internal static class Program
 
         _app.UseRouting();
         _app.UseAuthorization();
-        _app.UseEndpoints(endpoints =>
-        {
-            endpoints.MapControllers(); // <-- вот это обязательно
-        });
+        #if DEBUG
+        _app.UseCors("AllowAll");
+        
+        #endif
         _app.MapControllers();
         
         // For reverse proxy support

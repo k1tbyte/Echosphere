@@ -15,7 +15,7 @@ public class Friendship
 {
     [Column("requester_id")]
     public int RequesterId { get; set; }
-    [Column("adressee_id")]
+    [Column("addressee_id")]
     public int AddresseeId { get; set; }
     
     public User Requester { get; set; }

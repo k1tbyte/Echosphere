@@ -1,4 +1,5 @@
 ﻿using Backend.Data.Entities;
+using Backend.DTO;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Data;
@@ -8,7 +9,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IConfig
 {
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<RefreshSession> Sessions { get; set; } = null!;
-    public DbSet<Friendship> Friendships { get; set; }
+    public DbSet<Friendship> Friendships { get; set; } = null!;
+    public DbSet<UserSimplifiedDTO> UserSimplified { get; set; }= null!;
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Key generation strategy based on the database provider
@@ -27,7 +29,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IConfig
             .WithMany(u => u.ReceivedFriendRequests)
             .HasForeignKey(f => f.AddresseeId)
             .OnDelete(DeleteBehavior.Restrict);
-        
+        modelBuilder.Entity<UserSimplifiedDTO>().HasNoKey().ToView(null);
         
         base.OnModelCreating(modelBuilder);
     }

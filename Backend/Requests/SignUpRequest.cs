@@ -11,6 +11,4 @@ public class SignUpRequest
     
     [StringLength(128,MinimumLength = 8)]
     public required string Password { get; init; }
-    [Compare(nameof(Password))]
-    public required string ConfirmPassword { get; init; }
 }

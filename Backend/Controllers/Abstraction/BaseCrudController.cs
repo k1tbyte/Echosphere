@@ -33,7 +33,7 @@ public abstract class BaseCrudController<T>(IAsyncCrudRepository<T> repository):
 
 #if !DEBUG
     [Authorize]
-    [RequireRole(EUserRole.Admin]
+    [RequireRole(EUserRole.Admin)]
 #endif
     [HttpPatch]
     public virtual async Task<IActionResult> Update([FromBody] T entity)
@@ -44,7 +44,7 @@ public abstract class BaseCrudController<T>(IAsyncCrudRepository<T> repository):
 
 #if !DEBUG
     [Authorize]
-    [RequireRole(EUserRole.Admin]
+    [RequireRole(EUserRole.Admin)]
 #endif
     [HttpDelete("{id}")]
     public virtual async Task<IActionResult> Delete(int id)

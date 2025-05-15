@@ -1,17 +1,19 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using Backend.Data.Entities;
+using Backend.DTO;
 using Backend.Infrastructure;
-using Backend.Repositories.Abstraction.Account;
+using Backend.Repositories.Abstraction;
 using Backend.Requests;
 using Backend.Services;
+using Backend.Services.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers.Abstraction;
 
 [Route(Constants.DefaultRoutePattern)]
-public class AuthController(IAccountRepository accountRepository, EmailService emailService,JwtService jwtService): ControllerBase
+public class AuthController(IAccountRepository accountRepository, EmailService emailService,JwtService jwtService, IHttpContextAccessor accessor): ControllerBase
 {
     [HttpPost]
     //[TypeFilter(typeof(CaptchaRequired))]
@@ -25,21 +27,18 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
     }
 
     [HttpPost]
-    public async Task<IActionResult> ConfirmEmail(Guid token)
+    public async Task<IActionResult> ConfirmEmail([FromBody] TokenDTO token)
     {
-        var tokens = await accountRepository.SignupAsync(token);
-        if (tokens==null)
-        {
-            return BadRequest("Unavailable confirmation token");
-        }
-
-        return Ok(tokens);
+        // read request body string
+        var s = await new StreamReader(Request.Body).ReadToEndAsync();
+        var result = await accountRepository.SignupAsync(token.Token);
+        return result == null ? BadRequest("Unavailable confirmation token") : Ok(result);
     }
     
 
     
     [HttpPost]
-    [Authorize]
+    [RequireRole(EUserRole.User)]
     public async Task<IActionResult> RefreshSession(string accessToken,string refreshToken)
     {
         if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(refreshToken))
@@ -69,7 +68,7 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
 
     [HttpPost]
     //[TypeFilter(typeof(CaptchaRequired))]
-    public async Task<IActionResult> Signup(SignUpRequest user)
+    public async Task<IActionResult> Signup([FromBody] SignUpRequest user)
     {
         var context = new ValidationContext(user);
         var results = new List<ValidationResult>();
@@ -100,9 +99,12 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
             return BadRequest("Unable to send confirmation email");
         }*/
 
-        return Ok(token);
+        return Ok(new {
+            confirmationToken = token,
+        });
     }
     [HttpPost]
+    [RequireRole(EUserRole.User)]
     public async Task<IActionResult> LogOut(string? refreshToken)
     {
         if (User.Identity?.IsAuthenticated != false)
