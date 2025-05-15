@@ -1,5 +1,3 @@
-/*
-import { Label, ILabelProps, ELabelVariant } from "./Label"
+import { Label } from "./Label"
 
-export { Label, ELabelVariant }
-export type { ILabelProps }*/
+export { Label }
