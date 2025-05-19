@@ -2,6 +2,13 @@ import {FC, SVGProps} from "react";
 
 export const enum EIcon {
     Google = 1,
+    Check,
+    CrossFill,
+    Close,
+    AlertCircleOutline,
+    InfoCircleOutline,
+    CloseCircleOutline,
+    CheckCircleOutline,
 }
 
 export interface ISvgIconProps extends SVGProps<SVGSVGElement> {
@@ -10,7 +17,7 @@ export interface ISvgIconProps extends SVGProps<SVGSVGElement> {
     icon: EIcon;
 }
 
-export const SvgIcon: FC<ISvgIconProps> = ({size , className, icon, fill, ...props}) => {
+export const SvgIcon: FC<ISvgIconProps> = ({size, icon, fill, ...props}) => {
     return (
         <svg fill={fill ?? "currentColor"}
              stroke={props.stroke ?? "currentColor"}

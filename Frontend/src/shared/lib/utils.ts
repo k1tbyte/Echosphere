@@ -1,3 +1,6 @@
+import {ClassValue, clsx} from "clsx";
+import {twMerge} from "tailwind-merge";
+
 export const debounce = <T extends (...args: any[]) => any>(func: T, delay: number) => {
     let timerId: ReturnType<typeof setTimeout>;
     return (...args: Parameters<T>): void => {
@@ -8,3 +11,7 @@ export const debounce = <T extends (...args: any[]) => any>(func: T, delay: numb
     };
 };
 
+
+export function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs))
+}

@@ -1,12 +1,13 @@
 "use client"
 
 import {ComponentPropsWithoutRef, FC} from "react";
-import {cn} from "@/lib/utils";
 import {Button} from "@/shared/ui/Button/Button";
 import {Label} from "@/shared/ui/Label/Label";
 import {Input} from "@/shared/ui/Input/Input";
 import {EIcon, SvgIcon} from "@/shared/ui/Icon";
 import Link from "next/link";
+import {toast, ToastVariant} from "@/shared/ui/Toast";
+import {cn} from "@/shared/lib/utils";
 
 export const LoginForm: FC<ComponentPropsWithoutRef<'form'>> = ({ className }, ...props) => {
     return (
@@ -32,7 +33,7 @@ export const LoginForm: FC<ComponentPropsWithoutRef<'form'>> = ({ className }, .
                         Forgot your password?
                     </a>
                 </div>
-                <Button type="submit" className="w-full">
+                <Button type="button" className="w-full">
                     Login
                 </Button>
                 <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">

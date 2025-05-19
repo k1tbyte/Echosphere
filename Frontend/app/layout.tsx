@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
 import { ThemeProvider } from "@/providers/theme-provider";
 import {GetCheckeredClass} from "@/shared/ui/Container/CheckeredContainer";
+import {ToastsHost} from "@/shared/ui/Toast";
+import "../globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,6 +38,7 @@ export default function RootLayout({
         >
           {children}
         </ThemeProvider>
+        <ToastsHost/>
       </body>
     </html>
   );

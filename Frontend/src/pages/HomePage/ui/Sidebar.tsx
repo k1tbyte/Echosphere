@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import React, {ComponentProps, FC, useContext, useEffect, useState} from "react";
-import {cn} from "@/lib/utils";
 import {ChevronLeft, Clapperboard, House, Library, Users} from "lucide-react";
 import {Label} from "@/shared/ui/Label";
 import { motion } from "motion/react";
@@ -12,6 +11,7 @@ import Image from "next/image";
 import {clsx} from "clsx";
 import {useUiStore} from "@/store/client";
 import useMediaQuery from "@/shared/hooks/useMediaQuery";
+import {cn} from "@/shared/lib/utils";
 
 interface ISidebarItemProps extends ComponentProps<'div'> {
     children: React.ReactElement;
