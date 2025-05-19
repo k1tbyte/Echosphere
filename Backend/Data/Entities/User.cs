@@ -7,6 +7,7 @@ public enum EUserRole
 {
     None,
     User,
+    Moder,
     Admin
 }
 
@@ -23,6 +24,9 @@ public sealed class User
     
     [Column("username")]
     public required string Username { get; init; }
+
+    [Column("avatar")] 
+    public string? Avatar { get; init; } = null;
     
     [Column("password")]
     public required string Password { get; init; }
@@ -32,4 +36,6 @@ public sealed class User
     
     [Column("role")] 
     public EUserRole Role { get; init; } = EUserRole.None;
+    public ICollection<Friendship> SentFriendRequests { get; set; }
+    public ICollection<Friendship> ReceivedFriendRequests { get; set; }
 }
