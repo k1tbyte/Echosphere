@@ -11,3 +11,21 @@ public class TokenDTO
 {
     public required Guid Token { get; set; }
 }
+
+public class RefreshSessionDTO
+{
+    public required string AccessToken { get; set; }
+    public required string RefreshToken { get; set; } 
+}
+
+public class LoginRequestDTO
+{
+    public required string Email { get; set; }
+    public required string Password { get; set; }
+    public required string Remember { get; set; }
+}
+
+public class LogOutDTO
+{
+    public required string RefreshToken { get; set; } 
+}

@@ -8,6 +8,7 @@ using Backend.Requests;
 using Backend.Services;
 using Backend.Services.Filters;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers.Abstraction;
@@ -17,9 +18,9 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
 {
     [HttpPost]
     //[TypeFilter(typeof(CaptchaRequired))]
-    public async Task<IActionResult> Login(string email, string password,string remember)
+    public async Task<IActionResult> Login([FromBody] LoginRequestDTO dto)
     {
-        var tokens = await accountRepository.AuthenticateAsync(email, password, remember == "on").ConfigureAwait(false);
+        var tokens = await accountRepository.AuthenticateAsync(dto.Email, dto.Password, dto.Remember == "on").ConfigureAwait(false);
         if(tokens==null)
             return BadRequest("Please check your password and email and try again");
         
@@ -27,11 +28,11 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
     }
 
     [HttpPost]
-    public async Task<IActionResult> ConfirmEmail([FromBody] TokenDTO token)
+    public async Task<IActionResult> ConfirmEmail([FromBody] TokenDTO dto)
     {
         // read request body string
         var s = await new StreamReader(Request.Body).ReadToEndAsync();
-        var result = await accountRepository.SignupAsync(token.Token);
+        var result = await accountRepository.SignupAsync(dto.Token);
         return result == null ? BadRequest("Unavailable confirmation token") : Ok(result);
     }
     
@@ -39,15 +40,15 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
     
     [HttpPost]
     [RequireRole(EUserRole.User)]
-    public async Task<IActionResult> RefreshSession(string accessToken,string refreshToken)
+    public IActionResult RefreshSession([FromBody] RefreshSessionDTO dto)
     {
-        if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(refreshToken))
+        if (string.IsNullOrEmpty(dto.AccessToken) || string.IsNullOrEmpty(dto.RefreshToken))
             return BadRequest("Both tokens are required.");
         var handler = new JwtSecurityTokenHandler();
         JwtSecurityToken jwtToken;
         try
         {
-            jwtToken = handler.ReadJwtToken(accessToken);
+            jwtToken = handler.ReadJwtToken(dto.AccessToken);
             if ((jwtToken.ValidTo - DateTime.UtcNow) > TimeSpan.FromMinutes(1))
             {
                 return BadRequest("Token is still valid. Refresh is not needed yet.");
@@ -58,7 +59,7 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
             return Unauthorized("Invalid access token format.");
         }
         var payload = jwtToken.Payload;
-        var tokens = jwtService.RefreshSession(payload, refreshToken);
+        var tokens = jwtService.RefreshSession(payload, dto.RefreshToken);
 
         if (tokens == null)
             return Unauthorized("Invalid refresh token or session expired.");
@@ -105,11 +106,11 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
     }
     [HttpPost]
     [RequireRole(EUserRole.User)]
-    public async Task<IActionResult> LogOut(string? refreshToken)
+    public async Task<IActionResult> LogOut([FromBody] LogOutDTO dto)
     {
         if (User.Identity?.IsAuthenticated != false)
         {
-            await accountRepository.LogOutAsync(refreshToken).ConfigureAwait(false);
+            await accountRepository.LogOutAsync(dto.RefreshToken).ConfigureAwait(false);
         }
         
         return Ok();

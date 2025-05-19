@@ -3,6 +3,7 @@ using Backend.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Text;
 using System.Text.Json;
+using Amazon.S3;
 using Backend.Repositories;
 using Backend.Repositories.Abstraction;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -35,12 +36,42 @@ internal static class Program
         builder.Services.AddScoped<JwtService>();
         builder.Services.AddScoped<IAccountRepository,AccountRepository>();
         builder.Services.AddSingleton<EmailService>();
-        builder.Services.AddCors(o => o.AddPolicy("AllowAll", o =>
+        builder.Services.AddSingleton<IAmazonS3>(sp =>
         {
-            o.AllowAnyOrigin()
-                .AllowAnyMethod()
-                .AllowAnyHeader();
-        }));
+            var config = builder.Configuration.GetSection("Minio");
+
+            var s3Config = new AmazonS3Config
+            {
+                ServiceURL = config["URL"],
+                ForcePathStyle = true 
+            };
+
+            return new AmazonS3Client(config["Username"], config["Password"], s3Config);
+        });
+        builder.Services.AddScoped<MinioService>();
+        
+        
+        
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowFrontend", policy =>
+            {
+                var frontendUrl = builder.Configuration["Frontend:URL"];
+                if (!string.IsNullOrEmpty(frontendUrl))
+                {
+                    policy.WithOrigins(frontendUrl)
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                }
+            });
+
+            options.AddPolicy("AllowAll", policy =>
+            {
+                policy.AllowAnyOrigin()
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+            });
+        });
         
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
@@ -60,7 +91,8 @@ internal static class Program
         _app.UseAuthorization();
         #if DEBUG
         _app.UseCors("AllowAll");
-        
+        #else
+        _app.UseCors("AllowFrontend");
         #endif
         _app.MapControllers();
         

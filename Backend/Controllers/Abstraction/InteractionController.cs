@@ -1,4 +1,5 @@
 ﻿using Backend.Data.Entities;
+using Backend.DTO;
 using Backend.Repositories.Abstraction;
 using Backend.Services.Filters;
 using Microsoft.AspNetCore.Mvc;
@@ -9,34 +10,33 @@ public class InteractionController(IAccountRepository accountRepository): Contro
 {
     [HttpPost]
     [RequireRole(EUserRole.User)]
-    public async Task<IActionResult> SendFriendship(int userId, int friendId)
+    public async Task<IActionResult> SendFriendship([FromBody] FriendshipRequestDTO dto)
     {
-        await accountRepository.SendFriendshipRequestAsync(userId, friendId);
-        //var user = await accountRepository.Get(3);
+        await accountRepository.SendFriendshipRequestAsync(dto.UserId, dto.FriendId);
         return Ok();
     }
     [HttpPost]
     [RequireRole(EUserRole.User)]
-    public async Task<IActionResult> AcceptFriendship(int userId, int friendId)
+    public async Task<IActionResult> AcceptFriendship([FromBody] FriendshipRequestDTO dto)
     {
-        await accountRepository.AcceptFriendshipAsync(userId, friendId);
+        await accountRepository.AcceptFriendshipAsync(dto.UserId, dto.FriendId);
         return Ok();
     }
     [HttpPost]
     [RequireRole(EUserRole.User)]
-    public async Task<IActionResult> RejectFriendship(int userId, int friendId)
+    public async Task<IActionResult> RejectFriendship([FromBody] FriendshipRequestDTO dto)
     {
-        await accountRepository.DeleteFriendshipAsync(userId, friendId);
+        await accountRepository.DeleteFriendshipAsync(dto.UserId, dto.FriendId);
         return Ok();
     }
     [HttpPost]
     [RequireRole(EUserRole.User)]
-    public async Task<IActionResult> DeleteFriend(int userId, int friendId)
+    public async Task<IActionResult> DeleteFriend([FromBody] FriendshipRequestDTO dto)
     {
-        await accountRepository.DeleteFriendshipAsync(userId, friendId);
+        await accountRepository.DeleteFriendshipAsync(dto.UserId, dto.FriendId);
         return Ok();
     }
-    [HttpPost]
+    [HttpGet]
     [RequireRole(EUserRole.User)]
     public async Task<IActionResult> GetFriends(int userId,bool includeSentRequests, bool includeReceivedRequests, int page=1, int pageSize=50)
     {
