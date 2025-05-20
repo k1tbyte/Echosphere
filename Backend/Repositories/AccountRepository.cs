@@ -65,7 +65,7 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
     }
     
 
-    public async Task<Tokens?> AuthenticateAsync(string email, string password,bool remember)
+    public async Task<AuthTokensDTO?> AuthenticateAsync(string email, string password,bool remember)
     {
         var user = await context.Users.FirstOrDefaultAsync(o => o.Email == email);
         

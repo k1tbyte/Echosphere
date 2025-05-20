@@ -3,16 +3,13 @@ using System.Text;
 using Backend.Data;
 using Backend.Data.Entities;
 using System.IdentityModel.Tokens.Jwt;
+using Backend.DTO;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Backend.Services;
 
 
-public class Tokens
-{
-    public string? AccessToken { get; set; }
-    public string? RefreshToken { get; set; }
-}
+
 public sealed class JwtService
 {
     private const int RefreshTokenExtendedLifetime = 7; //days
@@ -46,7 +43,7 @@ public sealed class JwtService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private Tokens _createSession(string accessToken, long userId, bool extended)
+    private AuthTokensDTO _createSession(string accessToken, long userId, bool extended)
     {
         var refreshToken = Guid.NewGuid();
         var expires= extended ? DateTimeOffset.UtcNow.AddDays(RefreshTokenExtendedLifetime) :
@@ -68,7 +65,7 @@ public sealed class JwtService
             UserId    = userId,
         });
         
-        return new Tokens
+        return new AuthTokensDTO
         {
             AccessToken = accessToken,
             RefreshToken = refreshToken.ToString(),
@@ -76,7 +73,7 @@ public sealed class JwtService
     }
 
 
-    public Tokens CreateNewSession(User user,bool extended)
+    public AuthTokensDTO CreateNewSession(User user,bool extended)
     {
         var accessToken = GenerateAccessToken(new List<Claim>
         {
@@ -102,7 +99,7 @@ public sealed class JwtService
         _dbContext.Sessions.Remove(session);
     }
 
-    public Tokens? RefreshSession(JwtPayload payload, string? rawRefreshToken)
+    public AuthTokensDTO? RefreshSession(JwtPayload payload, string? rawRefreshToken)
     {
 
         if (!long.TryParse(payload["userid"].ToString(), out var userId) ||

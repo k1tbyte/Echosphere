@@ -8,7 +8,7 @@ public interface IAccountRepository :IAsyncCrudRepository<User>
 {
     public bool Autosave { get; set; }
     public Task LogOutAsync(string? refreshToken);
-    public Task<Tokens?> AuthenticateAsync(string email,string password,bool isRemember);
+    public Task<AuthTokensDTO?> AuthenticateAsync(string email,string password,bool isRemember);
     public Task<string?> GetSignupToken(User user);
     public Task<SignupResultDTO?> SignupAsync(Guid token);
     public Task<bool> SendFriendshipRequestAsync(int userId, int friendId);

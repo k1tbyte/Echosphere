@@ -18,16 +18,20 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
 {
     [HttpPost]
     //[TypeFilter(typeof(CaptchaRequired))]
+    [ProducesResponseType(typeof(AuthTokensDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] LoginRequestDTO dto)
     {
         var tokens = await accountRepository.AuthenticateAsync(dto.Email, dto.Password, dto.Remember == "on").ConfigureAwait(false);
         if(tokens==null)
-            return BadRequest("Please check your password and email and try again");
+            return Unauthorized("Please check your password and email and try again");
         
         return Ok(tokens);
     }
 
     [HttpPost]
+    [ProducesResponseType(typeof(SignupResultDTO), StatusCodes.Status200OK)] // Замените SomeResultDTO на реальный тип
+    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ConfirmEmail([FromBody] TokenDTO dto)
     {
         // read request body string
@@ -40,7 +44,10 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
     
     [HttpPost]
     [RequireRole(EUserRole.User)]
-    public IActionResult RefreshSession([FromBody] RefreshSessionDTO dto)
+    [ProducesResponseType(typeof(AuthTokensDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
+    public IActionResult RefreshSession([FromBody] AuthTokensDTO dto)
     {
         if (string.IsNullOrEmpty(dto.AccessToken) || string.IsNullOrEmpty(dto.RefreshToken))
             return BadRequest("Both tokens are required.");
@@ -68,7 +75,9 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
 
 
     [HttpPost]
-    //[TypeFilter(typeof(CaptchaRequired))]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Signup([FromBody] SignUpRequest user)
     {
         var context = new ValidationContext(user);
@@ -106,6 +115,7 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
     }
     [HttpPost]
     [RequireRole(EUserRole.User)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> LogOut([FromBody] LogOutDTO dto)
     {
         if (User.Identity?.IsAuthenticated != false)
