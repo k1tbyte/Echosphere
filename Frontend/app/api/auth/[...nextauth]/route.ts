@@ -89,7 +89,7 @@ const handler = NextAuth({
         async session({ session, token }) {
 
             if (session.user) {
-                session.user.role = token.role as EUserRole;
+                session.user.role = token.role as EUserRole; // Ensure role is assigned from token
                 session.user.id = token.id as string;
                 session.user.avatar = token.avatar as string;
             }
