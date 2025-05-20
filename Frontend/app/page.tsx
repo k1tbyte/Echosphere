@@ -21,7 +21,7 @@ export default function Home() {
             {session?.user?.avatar && (
                 <img
                     src={session.user.avatar}
-                    alt="Avatar"
+                    alt={`${session.user.name || 'User'}'s avatar`}
                     width={50}
                     height={50}
                     style={{ borderRadius: '50%' }}
