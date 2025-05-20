@@ -73,7 +73,7 @@ export const RegisterForm: FC<ComponentPropsWithoutRef<'form'>> = ({ className }
                 })
                 .catch((err) => {
                     setIsLoading(false);
-                    switch(err) {
+                    switch(err.message) {
                         case "500":
                             setError("Server error, please try again later");
                             return;

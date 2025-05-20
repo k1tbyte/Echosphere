@@ -1,5 +1,8 @@
+"use client";
 
 import {RxStore, useStoreState} from "@/shared/lib/rxStore";
+
+export const isClientSide = typeof window !== "undefined";
 
 export interface IUiMetadata {
     isSidebarOpen: boolean | null;

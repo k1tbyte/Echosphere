@@ -33,7 +33,7 @@ export const EmailConfirmation = ({ confirmationUrl}: {confirmationUrl: string})
                     textAlign: 'center' as const,
                 }}>
                     <Img
-                        src={`${process.env.NEXT_PUBLIC_APP_URL}/logo.svg`}
+                        src={`${process.env.NEXT_PUBLIC_APP_URL}/images/logo.svg`}
                         width="140"
                         height="40"
                         alt="Echosphere"

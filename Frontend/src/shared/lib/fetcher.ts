@@ -2,18 +2,19 @@ import {toast, ToastVariant} from "@/shared/ui/Toast";
 import {isClientSide} from "@/store/client";
 
 type TypeFetcher = {
-    postJson: (url: string, data: object) => Promise<Response>;
+    postJson: (url: string, data: object, props?: RequestInit) => Promise<Response>;
     noexceptRequest: <T>(Promise: Promise<T>, handleWithPopup?: boolean) => Promise<T | undefined>;
 }
 
 const fetcher: TypeFetcher = {
-    postJson: async (url: string, data: object) => {
+    postJson: async (url: string, data: object, props?: RequestInit) => {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(data),
+            ...props
         });
 
         if (!response.ok) {

@@ -10,7 +10,7 @@ import { Label} from "@/shared/ui/Label/Label";
 import { motion } from "motion/react";
 import {RegisterForm} from "@/widgets/auth/RegisterForm";
 
-export const AuthPage = () => {
+export const AuthPage = ({ callbackUrl = "/" }) => {
     const searchParams = useSearchParams();
     const mode = searchParams?.get('mode');
 
@@ -22,7 +22,7 @@ export const AuthPage = () => {
                         {mode === 'signup' ? (
                             <RegisterForm className="border border-border p-7 rounded-md"/>
                         ) : (
-                            <LoginForm className="border border-border p-10 rounded-md"/>
+                            <LoginForm className="border border-border p-10 rounded-md" callbackUrl={callbackUrl}/>
                         )}
                     </div>
 
@@ -41,7 +41,7 @@ export const AuthPage = () => {
                                 >
                                     <Image
                                         draggable={false}
-                                        src="/logo.svg"
+                                        src="/images/logo.svg"
                                         alt="test"
                                         fill
                                         className="object-contain"

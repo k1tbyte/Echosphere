@@ -24,7 +24,7 @@ export const SvgIcon: FC<ISvgIconProps> = ({size, icon, fill, ...props}) => {
              strokeWidth={0}
              width={size ?? props.width}
              height={size ?? props.height} {...props} >
-            <use xlinkHref={`/sprites.svg#i${icon}`}/>
+            <use xlinkHref={`/images/sprites.svg#i${icon}`}/>
         </svg>
     )
 }

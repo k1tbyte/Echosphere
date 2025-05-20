@@ -65,7 +65,7 @@ export const Sidebar: FC<ComponentProps<'div'>> = ({ className, ...props}) => {
 
                 <Image
                     draggable={false}
-                    src="/logo.svg"
+                    src="/images/logo.svg"
                     alt="test"
                     width={120} height={120}
                     className="mx-auto"

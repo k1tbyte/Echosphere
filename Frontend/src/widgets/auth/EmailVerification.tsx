@@ -1,40 +1,15 @@
+"use client";
+
 import {EchoContainer} from "@/shared/ui/Container";
 import {Button} from "@/shared/ui/Button";
 import {EIcon, SvgIcon} from "@/shared/ui/Icon";
 import {Badge} from "@/shared/ui/Badge";
 import {Separator} from "@/shared/ui/Separator";
 import {Label} from "@/shared/ui/Label";
-import {auth} from "@/shared/services/authService";
-import fetcher from "@/shared/lib/fetcher";
-
-export default async function EmailVerification({ token }: { token: string }) {
-    const verificationStatus =  await fetcher.noexceptRequest(auth.confirmEmail(token));
-    console.log(verificationStatus)
-
-    if (verificationStatus?.email) {
-        return (
-            <EchoContainer className="text-center max-w-md w-full py-12">
-                <div>
-
-                    <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <SvgIcon icon={EIcon.Check} className="text-foreground" />
-                    </div>
-                    <h2 className="text-2xl font-bold">Email verified!</h2>
-                </div>
-                <Separator className="my-6"/>
-
-                <Label size={"md"}  className="text-sm/8 text-foreground mb-6">
-                    Your <Badge>{verificationStatus.email} </Badge> email address has been successfully verified.
-                    Now you can use all the features of Echosphere.
-                </Label>
 
 
-                <Button href={"/"} className="mt-6 w-full" variant={"outline"}>
-                    Go to the main page
-                </Button>
-            </EchoContainer>
-        );
-    }
+export default function EmailVerification({ verifiedEmail }: { verifiedEmail?: string }) {
+    if (!verifiedEmail) {
 
         return (
             <EchoContainer className="text-center max-w-md w-full py-12">
@@ -54,5 +29,31 @@ export default async function EmailVerification({ token }: { token: string }) {
                 </Button>
             </EchoContainer>
         );
+    }
+
+
+    return (
+        <EchoContainer className="text-center max-w-md w-full py-12">
+            <div>
+
+                <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <SvgIcon icon={EIcon.Check} className="text-foreground" />
+                </div>
+                <h2 className="text-2xl font-bold">Email verified!</h2>
+            </div>
+            <Separator className="my-6"/>
+
+            <Label size={"md"}  className="text-sm/8 text-foreground mb-6">
+                Your <Badge>{verifiedEmail} </Badge> email address has been successfully verified.
+                Now you can use all the features of Echosphere.
+            </Label>
+
+
+            <Button href={"/"} className="mt-6 w-full" variant={"outline"}>
+                Go to the main page
+            </Button>
+        </EchoContainer>
+    );
+
 
 }
