@@ -23,19 +23,19 @@ public sealed class User
     public required string Email { get; init; }
     
     [Column("username")]
-    public required string Username { get; init; }
+    public required string Username { get; set; }
 
     [Column("avatar")] 
-    public string? Avatar { get; init; } = null;
-    
+    public string? Avatar { get; set; }
+     
     [Column("password")]
-    public required string Password { get; init; }
+    public required string Password { get; set; }
     
     [Column("password_salt")]
-    public required string PasswordSalt { get; init; }
+    public required string PasswordSalt { get; set; }
     
     [Column("role")] 
-    public EUserRole Role { get; init; } = EUserRole.None;
+    public EUserRole Role { get; set; } = EUserRole.None;
     public ICollection<Friendship> SentFriendRequests { get; set; }
     public ICollection<Friendship> ReceivedFriendRequests { get; set; }
 }

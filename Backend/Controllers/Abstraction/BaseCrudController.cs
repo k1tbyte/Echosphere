@@ -11,7 +11,6 @@ namespace Backend.Controllers.Abstraction;
 public abstract class BaseCrudController<T>(IAsyncCrudRepository<T> repository): ControllerBase where T : class
 {
 #if !DEBUG
-    [Authorize]
     [RequireRole(EUserRole.Admin)]
 #endif
     [HttpPost]

@@ -100,18 +100,17 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
         };
     }
 
-    public async Task<bool> SendFriendshipRequestAsync(int userId, int friendId)
+    public async Task SendFriendshipRequestAsync(int userId, int friendId)
     {
         if (userId == friendId)
-            return false; 
-        
+            throw new ArgumentException("User cannot send a friendship request to themselves.");
+
         bool exists = await context.Friendships.AnyAsync(f =>
             (f.RequesterId == userId && f.AddresseeId == friendId) ||
             (f.RequesterId == friendId && f.AddresseeId == userId));
 
         if (exists)
-            return false; 
-
+            throw new InvalidOperationException("Friendship request already exists or users are already friends.");
 
         var requester = await context.Users
             .Include(u => u.SentFriendRequests)
@@ -121,9 +120,11 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
             .Include(u => u.ReceivedFriendRequests)
             .FirstOrDefaultAsync(u => u.Id == friendId);
 
-        if (requester == null || addressee == null)
-            return false;
+        if (requester == null)
+            throw new KeyNotFoundException($"User with ID {userId} not found.");
 
+        if (addressee == null)
+            throw new KeyNotFoundException($"User with ID {friendId} not found.");
 
         var friendship = new Friendship
         {
@@ -131,12 +132,11 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
             AddresseeId = friendId,
             Status = EFriendshipStatus.Pending
         };
-        
+
         requester.SentFriendRequests.Add(friendship);
         addressee.ReceivedFriendRequests.Add(friendship);
-        
+
         await context.SaveChangesAsync();
-        return true;
     }
 
     public async Task AcceptFriendshipAsync(int userId, int friendId)

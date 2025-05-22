@@ -10,34 +10,95 @@ public class InteractionController(IAccountRepository accountRepository): Contro
 {
     [HttpPost]
     [RequireRole(EUserRole.User)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> SendFriendship([FromBody] FriendshipRequestDTO dto)
     {
-        await accountRepository.SendFriendshipRequestAsync(dto.UserId, dto.FriendId);
-        return Ok();
+        try
+        {
+            await accountRepository.SendFriendshipRequestAsync(dto.UserId, dto.FriendId);
+            return Ok();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Internal server error." });
+        }
+        
     }
     [HttpPost]
     [RequireRole(EUserRole.User)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> AcceptFriendship([FromBody] FriendshipRequestDTO dto)
     {
-        await accountRepository.AcceptFriendshipAsync(dto.UserId, dto.FriendId);
-        return Ok();
+        try
+        {
+            await accountRepository.AcceptFriendshipAsync(dto.UserId, dto.FriendId);
+            return Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Internal server error." });
+        }
+        
     }
     [HttpPost]
     [RequireRole(EUserRole.User)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> RejectFriendship([FromBody] FriendshipRequestDTO dto)
     {
-        await accountRepository.DeleteFriendshipAsync(dto.UserId, dto.FriendId);
-        return Ok();
+        try
+        {
+            await accountRepository.DeleteFriendshipAsync(dto.UserId, dto.FriendId);
+            return Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Internal server error." });
+        }
+        
     }
     [HttpPost]
     [RequireRole(EUserRole.User)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeleteFriend([FromBody] FriendshipRequestDTO dto)
     {
-        await accountRepository.DeleteFriendshipAsync(dto.UserId, dto.FriendId);
-        return Ok();
+        try
+        {
+            await accountRepository.DeleteFriendshipAsync(dto.UserId, dto.FriendId);
+            return Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Internal server error." });
+        }
+        
     }
     [HttpGet]
     [RequireRole(EUserRole.User)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFriends(int userId,bool includeSentRequests, bool includeReceivedRequests, int page=1, int pageSize=50)
     {
         var friends = await accountRepository.GetFriends(userId,page,pageSize);

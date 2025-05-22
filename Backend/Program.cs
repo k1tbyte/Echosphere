@@ -8,6 +8,8 @@ using Backend.Repositories;
 using Backend.Repositories.Abstraction;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Minio;
+
 namespace Backend;
 
 internal static class Program
@@ -36,20 +38,18 @@ internal static class Program
         builder.Services.AddScoped<JwtService>();
         builder.Services.AddScoped<IAccountRepository,AccountRepository>();
         builder.Services.AddSingleton<EmailService>();
-        builder.Services.AddSingleton<IAmazonS3>(sp =>
+
+
+        builder.Services.AddSingleton<IMinioClient>(sp =>
         {
             var config = builder.Configuration.GetSection("Minio");
-
-            var s3Config = new AmazonS3Config
-            {
-                ServiceURL = config["URL"],
-                ForcePathStyle = true 
-            };
-
-            return new AmazonS3Client(config["Username"], config["Password"], s3Config);
+            return new MinioClient()
+                .WithEndpoint(config["Endpoint"].Replace("https://", "").Replace("http://", ""))
+                .WithCredentials(config["Username"], config["Password"])
+                .WithSSL(bool.Parse(config["WithSSL"]))
+                .Build();
         });
-        builder.Services.AddScoped<MinioService>();
-        
+        builder.Services.AddScoped<IS3FileService, MinioFileService>();
         
         
         builder.Services.AddCors(options =>
