@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers.Abstraction;
 [Route(Constants.DefaultRoutePattern)]
-public class InteractionController(IAccountRepository accountRepository): ControllerBase
+public class UserController(IAccountRepository accountRepository): ControllerBase
 {
     [HttpPost]
     [RequireRole(EUserRole.User)]
@@ -137,9 +137,17 @@ public class InteractionController(IAccountRepository accountRepository): Contro
             friends
         });
     }
-   
-    
-    
-    
+
+    [HttpGet]
+    [RequireRole(EUserRole.User)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Avatar(){
+        var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
+        if (!int.TryParse(userId, out int id)) return NotFound();
+        var user = await accountRepository.Get(id);
+        if (user == null) return NotFound();
+        return Ok(user.Avatar);
+    }
 }
 

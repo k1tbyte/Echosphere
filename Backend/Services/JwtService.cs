@@ -80,7 +80,8 @@ public sealed class JwtService
             new("userid",user.Id.ToString()),
             new ("display_name", user.Username),
             new("role", user.Role.ToString()),
-            new("remember", "")
+            new("email", user.Email),
+            new("remember", extended.ToString())
         });
         
         return _createSession(accessToken, user.Id, extended);
@@ -127,8 +128,9 @@ public sealed class JwtService
             new("userid",userId.ToString()),
             new ("display_name", payload["display_name"].ToString()!),
             new("role", payload["role"].ToString()!),
+            new("email", payload["email"].ToString()!),
+            new("remember", payload["remember"].ToString()!)
         });
-
         var tokens = _createSession(accessToken, userId, payload.ContainsKey("remember"));
         _dbContext.SaveChanges();
 
