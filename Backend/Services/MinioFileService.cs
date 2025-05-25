@@ -1,11 +1,12 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Options;
+using Minio;
 using Minio.DataModel.Args;
 
 namespace Backend.Services;
 
-public class MinioFileService(Minio.MinioClient minioClient) : IS3FileService
+public class MinioFileService(IMinioClient minioClient) : IS3FileService
 {
     public async Task<string> UploadFileStreamAsync(Stream stream, string filename, string bucketName = "avatars")
     {
