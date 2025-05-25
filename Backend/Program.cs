@@ -106,15 +106,29 @@ internal static class Program
         _app.Run();
     }
     
+    private static string CheckEnvPaths(params string[] paths)
+    {
+        foreach (var path in paths)
+        {
+            if (File.Exists(path))
+            {
+                return path;
+            }
+            #if DEBUG
+            if (File.Exists(Path.Combine("../../../", path)))
+            {
+                return Path.Combine("../../../", path);
+            }
+            #endif
+        }
+        return string.Empty;
+    }
+    
     private static void MapEnvToConfig(ConfigurationManager configuration)
     {
-        var path = File.Exists(".env") ? ".env" 
-#if DEBUG
-            : File.Exists("../../../.env") ? "../../../.env" 
-#endif
-            : null;
+        var path = CheckEnvPaths(".env.development.local", ".env.local", ".env");
 
-        if (path == null)
+        if (string.IsNullOrEmpty(path))
         {
             return;
         }

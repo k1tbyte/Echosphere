@@ -20,9 +20,13 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
     //[TypeFilter(typeof(CaptchaRequired))]
     [ProducesResponseType(typeof(AuthTokensDTO), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> Login([FromBody] LoginRequestDTO dto)
+    public async Task<IActionResult> Login([FromBody] LoginRequestDTO? dto)
     {
-        var tokens = await accountRepository.AuthenticateAsync(dto.Email, dto.Password, dto.Remember == "on").ConfigureAwait(false);
+        if (dto == null) {
+            return BadRequest();
+        }
+        
+        var tokens = await accountRepository.AuthenticateAsync(dto.Email, dto.Password, dto.Remember).ConfigureAwait(false);
         if(tokens==null)
             return Unauthorized("Please check your password and email and try again");
         
