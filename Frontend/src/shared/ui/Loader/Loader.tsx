@@ -9,10 +9,7 @@ const loaderVariants = cva(
         variants: {
             variant: {
                 dots: 'flex justify-center items-center space-x-2',
-                spinner: 'border-4 rounded-full border-t-current border-r-transparent border-b-transparent border-l-transparent',
-                pulse: 'rounded-full',
-                wave: 'flex justify-center items-end space-x-1',
-                circle: 'relative'
+                wave: 'flex justify-center items-end space-x-1'
             },
             size: {
                 none: "",
@@ -55,29 +52,6 @@ const WaveLoader = ({ className }: { className?: string }) => (
     </>
 );
 
-const CircleLoader = ({ className }: { className?: string }) => (
-    <svg className="w-full h-full" viewBox="0 0 50 50">
-        <circle
-            className="stroke-current opacity-25"
-            cx="25"
-            cy="25"
-            r="20"
-            fill="none"
-            strokeWidth="4"
-        />
-        <circle
-            className={cn("stroke-current", styles.circleLoader, className)}
-            cx="25"
-            cy="25"
-            r="20"
-            fill="none"
-            strokeWidth="4"
-            strokeDasharray="125"
-            strokeDashoffset="125"
-        />
-    </svg>
-);
-
 export const Loader = React.forwardRef<
     HTMLDivElement,
     React.HTMLAttributes<HTMLDivElement> & LoaderProps
@@ -87,14 +61,8 @@ export const Loader = React.forwardRef<
         switch (variant) {
             case 'dots':
                 return <DotsLoader className={size === 'sm' ? 'h-1.5 w-1.5' : size === 'md' ? 'h-2 w-2' : 'h-3 w-3'} />;
-            case 'pulse':
-                return <div className={styles.pulse}></div>;
-            case 'spinner':
-                return <div className={styles.spinner}></div>;
             case 'wave':
                 return <WaveLoader />;
-            case 'circle':
-                return <CircleLoader />;
             default:
                 return <DotsLoader className={size === 'sm' ? 'h-1.5 w-1.5' : size === 'md' ? 'h-2 w-2' : 'h-3 w-3'} />;
         }
@@ -108,6 +76,19 @@ export const Loader = React.forwardRef<
     );
 });
 
-Loader.displayName = 'Loader';
+interface SpinnerProps {
+    size?: number;
+    className?: string;
+}
 
-export default Loader;
+export const Spinner: React.FC<SpinnerProps> = ({
+                                                    size = 36,
+                                                    className = ''
+                                                }) => {
+    return (
+        <span
+            className={`${styles.spinner} ${className}`}
+            style={{ '--spinner-size': `${size}px` } as React.CSSProperties}
+        ></span>
+    );
+};

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import React, {ComponentProps, FC, useContext, useEffect, useState} from "react";
-import {ChevronLeft, Clapperboard, House, Library, Users} from "lucide-react";
+import {ChevronLeft, Clapperboard, House, Library, LoaderCircle, Users} from "lucide-react";
 import {Label} from "@/shared/ui/Label";
 import { motion } from "motion/react";
 import Image from "next/image";
@@ -12,6 +12,23 @@ import {clsx} from "clsx";
 import {useUiStore} from "@/store/client";
 import useMediaQuery from "@/shared/hooks/useMediaQuery";
 import {cn} from "@/shared/lib/utils";
+import {signOut, useSession} from "next-auth/react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuGroup,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuPortal,
+    DropdownMenuSeparator,
+    DropdownMenuShortcut,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+    DropdownMenuTrigger
+} from "@/shared/ui/DropdownMenu";
+import {Loader, Spinner} from "@/shared/ui/Loader";
+import {openAccountModal} from "@/widgets/account/AccountModal";
 
 interface ISidebarItemProps extends ComponentProps<'div'> {
     children: React.ReactElement;
@@ -40,12 +57,17 @@ export const SidebarItem: FC<ISidebarItemProps> = ({children, text, href, classN
 }
 
 export const Sidebar: FC<ComponentProps<'div'>> = ({ className, ...props}) => {
+    const { data: session, status } = useSession({ required: true});
+    const [isLoading, setIsLoading] = useState(false);
+
     const [isOpen , setIsOpen] = useUiStore<boolean | null>("isSidebarOpen")
     const isPhone = useMediaQuery(640);
     const isSmall = useMediaQuery(1023);
     useEffect(() => {
         setIsOpen(isPhone ? null : !isSmall);
     },[isPhone, isSmall])
+
+
 
 
     return (
@@ -56,37 +78,98 @@ export const Sidebar: FC<ComponentProps<'div'>> = ({ className, ...props}) => {
                 <div className="fixed inset-0 bg-background/50 z-0" onClick={() => setIsOpen(null)}></div>
             }
 
-            <div className={cn("overflow-clip sm:overflow-visible flex flex-col gap-3 h-full bg-background md:bg-background/75 p-3 border border-border rounded-sm relative transition-all",
+            <div className={cn("overflow-clip sm:overflow-visible flex justify-between flex-col h-full bg-background md:bg-background/75 border border-border rounded-sm relative transition-all",
                 isOpen ? "w-56" : "w-[70px]", { "w-0 p-0": isOpen === null})} {...props}>
 
                 <button className={clsx("hidden sm:block rounded-full p-1 border border-border absolute right-0 top-6 translate-x-1/2 z-10 bg-background cursor-pointer hover:bg-white hover:text-background transition-all", {"rotate-180": !isOpen  }  )} onClick={() => setIsOpen(prev => !prev)}>
                     <ChevronLeft size={15}/>
                 </button>
 
-                <Image
-                    draggable={false}
-                    src="/images/logo.svg"
-                    alt="test"
-                    width={120} height={120}
-                    className="mx-auto"
-                />
+                <div className="gap-3 flex flex-col p-3">
+                    <Image
+                        draggable={false}
+                        src="/images/logo.svg"
+                        alt="test"
+                        width={120} height={120}
+                        className="mx-auto"
+                    />
 
-                <hr className="bg-border -mt-1 mb-1"/>
-                {/*// @ts-ignore*/}
-                <SidebarContext.Provider value={isOpen}>
-                    <SidebarItem text="Home" href="/home" className="">
-                        <House/>
-                    </SidebarItem>
-                    <SidebarItem text="Profile" href="/home/test" className="">
-                        <Users/>
-                    </SidebarItem>
-                    <SidebarItem text="Movies" href="/home/movies">
-                        <Clapperboard/>
-                    </SidebarItem>
-                    <SidebarItem text="Libraries" href="/home/library">
-                        <Library/>
-                    </SidebarItem>
-                </SidebarContext.Provider>
+                    <hr className="bg-border -mt-1 mb-1"/>
+                    {/*// @ts-ignore*/}
+                    <SidebarContext.Provider value={isOpen}>
+                        <SidebarItem text="Home" href="/home" className="">
+                            <House/>
+                        </SidebarItem>
+                        <SidebarItem text="Profile" href="/home/test" className="">
+                            <Users/>
+                        </SidebarItem>
+                        <SidebarItem text="Movies" href="/home/movies">
+                            <Clapperboard/>
+                        </SidebarItem>
+                        <SidebarItem text="Libraries" href="/home/library">
+                            <Library/>
+                        </SidebarItem>
+                    </SidebarContext.Provider>
+                </div>
+
+                { status === "loading" ?
+                    <div className="flex justify-center items-center h-16 w-full">
+                        <Spinner className="mx-auto"/>
+                    </div>
+                    :
+                    <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <div className="p-3 flex gap-3 items-center hover:bg-accent/30 transition-colors rounded-xs cursor-pointer border-t-border border-t overflow-clip">
+                            <div className="flex shrink-0 gap-3 items-center">
+                                <Image
+                                    src={`https://ui-avatars.com/api/?name=${session?.user.name}.svg`}
+                                    alt="Avatar"
+                                    width={45}
+                                    height={45}
+                                    className="rounded border border-border"
+                                />
+                            </div>
+                            <div className="flex flex-col justify-start min-w-0 flex-1 gap-1 ">
+                                <Label
+                                    variant="filled"
+                                    className="p-0.5 px-1 w-fit max-w-full text-ellipsis overflow-hidden whitespace-nowrap cursor-pointer"
+                                    size="sm"
+                                >
+                                    {session?.user.name}
+                                </Label>
+                                <Label size={"sm"}
+                                       className="text-muted-foreground text-ellipsis overflow-hidden whitespace-nowrap max-w-full cursor-pointer"
+                                >
+                                    {session?.user.email}
+                                </Label>
+                            </div>
+                        </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56">
+                        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuGroup>
+                            <DropdownMenuItem onClick={openAccountModal}>
+                                Account
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                                Lobby
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                                Settings
+                            </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={async () => {
+                            setIsLoading(true);
+                            // test sleep 2 sec
+                            await signOut({ redirect: true, callbackUrl: "/" });
+                        }}>
+                            {isLoading ? <Loader className="w-full mx-auto" variant={"dots"} size={"sm"}/> : "Log out" }
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                }
             </div>
         </div>
     );

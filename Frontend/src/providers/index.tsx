@@ -5,7 +5,7 @@ import {ThemeProvider} from "@/providers/ThemeProvider";
 
 export const Providers = ({ children }: { children: React.ReactNode }) => {
     return (
-        <SessionProvider>
+        <SessionProvider refetchInterval={30}>
             <ThemeProvider>
                 {children}
             </ThemeProvider>

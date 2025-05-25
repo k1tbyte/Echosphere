@@ -11,7 +11,7 @@ export interface IUiMetadata {
 
 export let uiStore: RxStore<IUiMetadata> = new RxStore<IUiMetadata>({
     breadcrumbs: [],
-    isSidebarOpen: null
+    isSidebarOpen: true
 });
 
 

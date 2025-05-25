@@ -3,6 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import {decodeJwt} from "jose";
 import fetcher from '@/shared/lib/fetcher';
 import {EUserRole} from "@/types/user-role";
+import {auth} from "@/shared/services/authService";
 
 
 const handler = NextAuth({
@@ -19,16 +20,17 @@ const handler = NextAuth({
                     return null;
                 }
 
-                const response = await fetcher.postJson(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-                    email: credentials.email,
-                    password: credentials.password,
-                    remember: true
-                },{ cache: 'no-store' }).catch(error => {
+                let response;
+                try {
+                    response = await auth.login(credentials.email, credentials.password, true);
+                } catch (error: any) {
                     if (error.cause?.code === 'ECONNREFUSED' || error.cause?.code === 'ECONNRESET') {
                         throw new Error("server_unavailable");
                     }
+                    console.error("Error during login:", error);
                     throw new Error(error.message);
-                });
+                }
+
 
                 const data = await response.json();
 
@@ -43,6 +45,8 @@ const handler = NextAuth({
                     id: jwt.userid as string,
                     name: jwt.display_name as string,
                     avatar: jwt.avatar as string,
+                    email: jwt.email as string,
+                    accessExp: jwt.exp as number,
                     accessToken: data.accessToken,
                     refreshToken: data.refreshToken,
                 };
@@ -74,10 +78,25 @@ const handler = NextAuth({
     ],
     pages: {
         signIn: '/auth',
+/*        signOut: '/auth'*/
     /*    error: '/auth/error'*/
+    },
+    events: {
+        async signOut({ session, token}) {
+            await auth.logout(token.refreshToken, token.accessToken!);
+        }
     },
     callbacks: {
         async jwt({ token, user, account }) {
+            if(token && token.accessExp && (token.accessExp - 10) < (Date.now() / 1000)) {
+                console.log("Refreshing session", token.refreshToken);
+                const data = await auth.refreshSession(token.refreshToken, token.accessToken)
+                return {
+                    ...token,
+                    accessToken: data.accessToken,
+                    refreshToken: data.refreshToken,
+                }
+            }
 
             if (user) {
                 // @ts-ignore
@@ -87,24 +106,23 @@ const handler = NextAuth({
             return token;
         },
         async session({ session, token }) {
-
-            if (session.user) {
-                session.user.role = token.role as EUserRole;
+            if (token) {
+                session.user.role = token.access_role as EUserRole;
                 session.user.id = token.id as string;
                 session.user.avatar = token.avatar as string;
+                session.accessToken = token.accessToken!;
             }
-            session.accessToken = token.accessToken!;
 
             return session;
         }
     },
     secret: process.env.NEXTAUTH_SECRET,
     jwt: {
-        maxAge: 60 * 60 * 24 * 30, // 30 дней
+        maxAge: 60 * 60 * 24 * 30
     },
     session: {
         strategy: 'jwt',
-        maxAge: 60 * 60 * 24 * 30, // 30 дней
+        maxAge: 60 * 60 * 24 * 30,
     },
     debug: process.env.NODE_ENV !== 'production',
 });

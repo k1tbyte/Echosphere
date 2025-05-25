@@ -8,11 +8,12 @@ type TypeFetcher = {
 
 const fetcher: TypeFetcher = {
     postJson: async (url: string, data: object, props?: RequestInit) => {
+        let headers = props?.headers || {};
+        // @ts-ignore
+        headers['Content-Type'] = 'application/json';
         const response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: headers,
             body: JSON.stringify(data),
             ...props
         });

@@ -6,8 +6,9 @@ declare module 'next-auth' {
     interface Session {
         user: {
             id: string;
-            name?: string;
-            avatar?: string;
+            name: string;
+            email: string;
+            avatar: string;
             role: EUserRole;
         };
         accessToken: string;
@@ -16,10 +17,10 @@ declare module 'next-auth' {
 
     interface User {
         id: string;
-        name?: string;
-        avatar?: string;
-        accessToken?: string;
-        refreshToken?: string;
+        name: string;
+        avatar: string;
+        accessToken: string;
+        refreshToken: string;
         // Другие поля пользователя
     }
 }
@@ -27,10 +28,11 @@ declare module 'next-auth' {
 declare module 'next-auth/jwt' {
     interface JWT {
         id: string;
-        accessToken?: string;
-        refreshToken?: string;
+        accessToken: string;
+        refreshToken: string;
         avatar?: string;
         error?: string;
+        accessExp: number;
         // Другие поля JWT
     }
 }

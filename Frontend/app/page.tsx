@@ -1,11 +1,10 @@
-"use client"
+import {HomePage} from "@/pages/HomePage/HomePage";
+import {redirect} from "next/navigation";
 
-import Loader from "@/shared/ui/Loader/Loader";
-import { useSession } from "next-auth/react";
-import LogoutButton from "@/widgets/auth/LogoutButton";
+/*
 
 export default function Home() {
-    const { data: session, status } = useSession();
+/!*    const { data: session, status } = useSession();
     if (status === "loading") {
         return <div>Loading...</div>;
     }
@@ -30,5 +29,10 @@ export default function Home() {
             <p>ID: {session?.user?.id}</p>
             <LogoutButton/>
         </div>
-    );
+    );*!/
 }
+*/
+
+export default function Root() {
+    redirect("/home")
+};
