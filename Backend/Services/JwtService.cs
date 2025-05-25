@@ -14,7 +14,11 @@ public sealed class JwtService
 {
     private const int RefreshTokenExtendedLifetime = 7; //days
     private const int RefreshTokenLifetime = 30;//minutes
+    #if DEBUG
+    private const int AccessTokenLifetime = 200; //minutes
+    #else
     private const int AccessTokenLifetime = 1; //minutes
+    #endif
     private const int MaxSessionsAmount = 5;
     private readonly IConfiguration _config;
     private readonly AppDbContext _dbContext;
@@ -79,7 +83,7 @@ public sealed class JwtService
         {
             new("userid",user.Id.ToString()),
             new ("display_name", user.Username),
-            new("role", user.Role.ToString()),
+            new("access_role", user.Role.ToString()),
             new("email", user.Email),
             new("remember", extended.ToString())
         });
@@ -130,6 +134,7 @@ public sealed class JwtService
         if (session.ExpiresIn <= DateTimeOffset.UtcNow.ToUnixTimeSeconds())
         {
             _dbContext.SaveChanges();
+            Console.WriteLine($"Session expired for user {userId}");
             return null;
         }
         
@@ -137,7 +142,7 @@ public sealed class JwtService
         {
             new("userid",userId.ToString()),
             new ("display_name", payload["display_name"].ToString()!),
-            new("role", payload["role"].ToString()!),
+            new("access_role", payload["access_role"].ToString()!),
             new("email", payload["email"].ToString()!),
             new("remember", payload["remember"].ToString()!)
         });
