@@ -100,11 +100,21 @@ public sealed class JwtService
         _dbContext.Sessions.Remove(session);
     }
 
-    public AuthTokensDTO? RefreshSession(JwtPayload payload, string? rawRefreshToken)
+    public AuthTokensDTO? RefreshSession(AuthTokensDTO dto)
     {
-
+        var handler = new JwtSecurityTokenHandler();
+        JwtSecurityToken jwtToken;
+        try
+        {
+            jwtToken = handler.ReadJwtToken(dto.AccessToken);
+        }
+        catch
+        {
+            return null;
+        }
+        var payload = jwtToken.Payload;
         if (!long.TryParse(payload["userid"].ToString(), out var userId) ||
-            !Guid.TryParse(rawRefreshToken, out var refreshToken))
+            !Guid.TryParse(dto.RefreshToken, out var refreshToken))
             return null;
         
         var session = _dbContext.Sessions
@@ -123,7 +133,7 @@ public sealed class JwtService
             return null;
         }
         
-        var accessToken = GenerateAccessToken(new List<Claim>
+        var newAccessToken = GenerateAccessToken(new List<Claim>
         {
             new("userid",userId.ToString()),
             new ("display_name", payload["display_name"].ToString()!),
@@ -131,7 +141,7 @@ public sealed class JwtService
             new("email", payload["email"].ToString()!),
             new("remember", payload["remember"].ToString()!)
         });
-        var tokens = _createSession(accessToken, userId, payload.ContainsKey("remember"));
+        var tokens = _createSession(newAccessToken, userId, payload.ContainsKey("remember"));
         _dbContext.SaveChanges();
 
         return tokens;

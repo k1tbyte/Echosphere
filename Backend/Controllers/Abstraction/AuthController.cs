@@ -47,31 +47,12 @@ public class AuthController(IAccountRepository accountRepository, EmailService e
 
     
     [HttpPost]
-    [RequireRole(EUserRole.User)]
     [ProducesResponseType(typeof(AuthTokensDTO), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
     public IActionResult RefreshSession([FromBody] AuthTokensDTO dto)
     {
-        if (string.IsNullOrEmpty(dto.AccessToken) || string.IsNullOrEmpty(dto.RefreshToken))
-            return BadRequest("Both tokens are required.");
-        var handler = new JwtSecurityTokenHandler();
-        JwtSecurityToken jwtToken;
-        try
-        {
-            jwtToken = handler.ReadJwtToken(dto.AccessToken);
-            if ((jwtToken.ValidTo - DateTime.UtcNow) > TimeSpan.FromMinutes(1))
-            {
-                return BadRequest("Token is still valid. Refresh is not needed yet.");
-            }
-        }
-        catch
-        {
-            return Unauthorized("Invalid access token format.");
-        }
-        var payload = jwtToken.Payload;
-        var tokens = jwtService.RefreshSession(payload, dto.RefreshToken);
-
+        var tokens = jwtService.RefreshSession(dto);
         if (tokens == null)
             return Unauthorized("Invalid refresh token or session expired.");
         return Ok(tokens);

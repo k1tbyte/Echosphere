@@ -140,14 +140,16 @@ public class UserController(IAccountRepository accountRepository): ControllerBas
 
     [HttpGet]
     [RequireRole(EUserRole.User)]
-    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Avatar(){
         var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
         if (!int.TryParse(userId, out int id)) return NotFound();
         var user = await accountRepository.Get(id);
         if (user == null) return NotFound();
-        return Ok(user.Avatar);
+        return Ok(new {
+            avatar = user.Avatar,
+        });
     }
 }
 
