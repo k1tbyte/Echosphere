@@ -1,7 +1,4 @@
-﻿using Amazon.S3;
-using Amazon.S3.Model;
-using Microsoft.Extensions.Options;
-using Minio;
+﻿using Minio;
 using Minio.DataModel.Args;
 
 namespace Backend.Services;
@@ -23,21 +20,23 @@ public class MinioFileService(IMinioClient minioClient) : IS3FileService
         {
             await minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucketName));
         }
+        
+        await PutObjectAsync(bucketName,objName, stream);
 
-        // Для stream.Length лучше передавать, но если неизвестна - можно убрать с миньо 8+ версии
+        return objName;
+    }
+
+    public async Task PutObjectAsync(string bucketName, string objName,Stream stream, string contentType = "application/octet-stream")
+    {
         long objectSize = stream.CanSeek ? stream.Length : -1;
-
-        // Загружаем объект
         await minioClient.PutObjectAsync(new PutObjectArgs()
             .WithBucket(bucketName)
             .WithObject(objName)
             .WithStreamData(stream)
             .WithObjectSize(objectSize)
-            .WithContentType("application/octet-stream"));
-
-        return objName;
+            .WithContentType(contentType));
     }
-
+        
     public async Task<(Stream Stream, string ContentType, string FileName)> DownloadFileStreamAsync(string bucketName, string objectName)
     {
         var bucketExists = await minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(bucketName));

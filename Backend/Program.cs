@@ -3,7 +3,6 @@ using Backend.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Text;
 using System.Text.Json;
-using Amazon.S3;
 using Backend.Repositories;
 using Backend.Repositories.Abstraction;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -50,7 +49,7 @@ internal static class Program
                 .Build();
         });
         builder.Services.AddScoped<IS3FileService, MinioFileService>();
-        
+        builder.Services.AddScoped<IVideoProcessingService, XabeFfmpegService>();
         
         builder.Services.AddCors(options =>
         {

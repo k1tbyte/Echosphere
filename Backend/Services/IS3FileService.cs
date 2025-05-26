@@ -4,4 +4,6 @@ public interface IS3FileService
 {
     Task<string> UploadFileStreamAsync(Stream stream, string filename, string bucketName = "avatars");
     Task<(Stream Stream, string ContentType, string FileName)> DownloadFileStreamAsync(string bucketName, string objectName);
+    Task PutObjectAsync(string bucketName, string objName, Stream stream,
+        string contentType = "application/octet-stream");
 }

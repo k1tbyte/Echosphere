@@ -11,7 +11,7 @@ namespace Backend.Controllers.Abstraction;
 
 [Route(Constants.DefaultRoutePattern)]
 
-public class FilesController(IS3FileService fileService, IConfiguration config,IAccountRepository accountRepository) : ControllerBase
+public class FilesController(IS3FileService fileService, IConfiguration config, IAccountRepository accountRepository, IVideoProcessingService videoProcessingService) : ControllerBase
 {
     [HttpPost]
     [RequireRole(EUserRole.User)]
@@ -27,13 +27,31 @@ public class FilesController(IS3FileService fileService, IConfiguration config,I
         if (bucketName == "avatars")
         {
             var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
-            if (userId != null && int.TryParse(userId, out int id))
+            await accountRepository.SetAvatar(userId, objName);
+        }
+
+        if (bucketName == "videos")
+        {
+            string tempFilePath = Path.Combine(Path.GetTempPath(), filename);
+
+            using (var fs = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write))
             {
-                var user = await accountRepository.Get(id);
-                if (user != null)
+                await Request.Body.CopyToAsync(fs);
+            }
+            try
+            {
+                string outputPrefix = Path.GetFileNameWithoutExtension(filename);
+                await videoProcessingService.ProcessAndUploadHlsAsync(tempFilePath, bucketName, outputPrefix);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error during HLS processing: {ex.Message}");
+            }
+            finally
+            {
+                if (System.IO.File.Exists(tempFilePath))
                 {
-                    user.Avatar = objName;
-                    await accountRepository.Update(user);
+                    System.IO.File.Delete(tempFilePath);
                 }
             }
         }
@@ -59,6 +77,20 @@ public class FilesController(IS3FileService fileService, IConfiguration config,I
         catch (Exception ex)
         {
             return NotFound(ex.Message);
+        }
+    }
+    [HttpGet]
+    public async Task<IActionResult> TestHls()
+    {
+        string testFile = @"D:\test.mp4";
+        try
+        {
+            await videoProcessingService.ProcessFullVideoPipelineAsync(testFile, "videos", "test_video_hls");
+            return Ok("HLS processing done");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Error: {ex.Message}");
         }
     }
 }
