@@ -27,6 +27,7 @@ export const TabTitle: FC<ITabTitleProps> = ({ children, className }) => {
 export const TabPanel: FC<ITabPanelProps> = forwardRef<HTMLDivElement,ITabPanelProps> (
     ({ children, activeKey, className, indicator, onTabChange }, ref) => {
         const [active, setActive] = useState(activeKey);
+        const [indicatorId] = useState<string>(`tab-indicator-${Math.random().toString(36).substring(2, 15)}`);
         let renderContent: ReactNode;
 
         useEffect(() => {
@@ -62,7 +63,7 @@ export const TabPanel: FC<ITabPanelProps> = forwardRef<HTMLDivElement,ITabPanelP
                                     >
                                         {isActive && (indicator === undefined) && (
                                             <motion.div
-                                                layoutId="active-pill"
+                                                layoutId={indicatorId}
                                                 style={{borderRadius: 8}}
                                                 transition={{type: "spring", duration: 0.4, bounce: 0.3}}
                                                 className="absolute inset-0 bg-secondary z-0"

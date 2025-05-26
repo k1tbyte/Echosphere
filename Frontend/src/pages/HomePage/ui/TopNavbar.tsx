@@ -9,11 +9,10 @@ import {useSession} from "next-auth/react";
 
 export const TopNavbar: FC = () => {
     const [isOpen , setIsOpen] = useUiStore<boolean | null>("isSidebarOpen")
-    const { data: session, status } = useSession();
 
     console.log()
     return (
-        <div className="bg-background/75 border-border border rounded-sm px-3 py-2 h-10 flex items-center justify-between">
+        <div className="bg-background/75 border-border border rounded-sm px-3 py-2 h-10 flex items-center justify-between shrink-0">
             <div>
                 <AlignJustify className="sm:hidden block hover:text-foreground text-foreground/85 transition-colors" onClick={() => {
                     setIsOpen(prev => prev === null);

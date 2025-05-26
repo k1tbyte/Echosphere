@@ -5,6 +5,8 @@ import fetcher from '@/shared/lib/fetcher';
 import {EUserRole} from "@/types/user-role";
 import {auth} from "@/shared/services/authService";
 
+type RefreshSession = { accessToken: string, refreshToken: string };
+const refreshingUsers = new Map<number, Promise<RefreshSession> | null>();
 
 const handler = NextAuth({
     providers: [
@@ -89,12 +91,27 @@ const handler = NextAuth({
     callbacks: {
         async jwt({ token, user, account }) {
             if(token && token.accessExp && (token.accessExp - 10) < (Date.now() / 1000)) {
-                console.log("Refreshing session", token.refreshToken);
-                const data = await auth.refreshSession(token.refreshToken, token.accessToken)
-                return {
-                    ...token,
-                    accessToken: data.accessToken,
-                    refreshToken: data.refreshToken,
+
+                console.log(token.id);
+                const idNumber = Number(token.id);
+                try {
+                    let refreshPromise: Promise<RefreshSession>;
+                    if(refreshingUsers.has(idNumber)) {
+                        console.log("User is already being refreshed", idNumber);
+                        refreshPromise = refreshingUsers.get(idNumber)!;
+                    } else {
+                        refreshPromise =  auth.refreshSession(token.refreshToken, token.accessToken)
+                    }
+
+                    let data = await refreshPromise;
+
+                    return {
+                        ...token,
+                        accessToken: data.accessToken,
+                        refreshToken: data.refreshToken,
+                    }
+                } finally {
+                    refreshingUsers.delete(idNumber)
                 }
             }
 
