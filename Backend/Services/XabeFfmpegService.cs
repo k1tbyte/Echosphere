@@ -23,7 +23,7 @@ public class XabeFfmpegService : IVideoProcessingService
         FFmpeg.SetExecutablesPath(ffmpegPath);
     }
 
-    public async Task ProcessFullVideoPipelineAsync(string inputFilePath, string bucketName, string outputPrefix)
+    public async Task ProcessFullVideoPipelineAsync(string inputFilePath, string bucketName, string outputPrefix,int previewTimecode=5)
     {
         string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         // Generate sprite and VTT for preview thumbnails
@@ -34,8 +34,9 @@ public class XabeFfmpegService : IVideoProcessingService
         
         await GenerateAdaptiveHlsAsync(inputFilePath, tempDir);
         
-        string posterPath = Path.Combine(tempDir, "poster.jpg");
-        await GeneratePosterAsync(inputFilePath, posterPath);
+        string posterPath = Path.Combine(tempDir, "preview.jpg");
+        
+        await GeneratePreviewAsync(inputFilePath, posterPath,TimeSpan.FromSeconds(previewTimecode));
         
         
         foreach (var file in Directory.GetFiles(tempDir, "*", SearchOption.AllDirectories))
@@ -58,9 +59,9 @@ public class XabeFfmpegService : IVideoProcessingService
         var conversion = FFmpeg.Conversions.New()
             .AddParameter($"-i \"{inputFile}\"")
             // Video codec settings
-            .AddParameter("-c:v h264_nvenc")
+            .AddParameter("-c:v h264")
             // Use a faster preset for better performance
-            /*.AddParameter("-preset fast") */ // TODO optional
+            /*.AddParameter("-preset fast")*/ // TODO optional
             // Create multiple quality renditions
             // 1080p - high quality
             .AddParameter("-map 0:v:0 -map 0:a:0")
@@ -94,19 +95,15 @@ public class XabeFfmpegService : IVideoProcessingService
         await conversion.Start();
     }
     
-    private async Task GeneratePosterAsync(string inputFile, string outputImage)
+    private async Task GeneratePreviewAsync(string inputFile, string outputImage, TimeSpan previewTime)
     {
+        string timeArg = previewTime.ToString(@"hh\:mm\:ss");
+
         await FFmpeg.Conversions.New()
-            .AddParameter($"-ss 00:00:05 -i \"{inputFile}\" -frames:v 1 -q:v 2 \"{outputImage}\"")
+            .AddParameter($"-ss {timeArg} -i \"{inputFile}\" -frames:v 1 -q:v 2 \"{outputImage}\"")
             .Start();
     }
     
-    /// <summary>
-    /// Generate a thumbnail sprite image and corresponding WebVTT file for video previews
-    /// </summary>
-    /// <param name="inputFile">Path to the input video file</param>
-    /// <param name="spriteOutputPath">Path where the sprite image will be saved</param>
-    /// <param name="vttOutputPath">Path where the VTT file will be saved</param>
     private async Task GenerateSpriteAndVttAsync(string inputFile, string spriteOutputPath, string vttOutputPath)
     {
         // First, get video duration to calculate number of thumbnails
@@ -160,9 +157,7 @@ public class XabeFfmpegService : IVideoProcessingService
         }
     }
     
-    /// <summary>
-    /// Generate WebVTT file for the sprite image
-    /// </summary>
+
     private async Task GenerateVttFileAsync(string vttPath, int totalThumbs, int columns, int rows, 
         int thumbWidth, int thumbHeight, int interval)
     {
@@ -189,9 +184,6 @@ public class XabeFfmpegService : IVideoProcessingService
         await File.WriteAllTextAsync(vttPath, vttBuilder.ToString());
     }
     
-    /// <summary>
-    /// Format TimeSpan to WebVTT format (HH:MM:SS.mmm)
-    /// </summary>
     private string FormatTimeSpan(TimeSpan time)
     {
         return $"{(int)time.TotalHours:00}:{time.Minutes:00}:{time.Seconds:00}.{time.Milliseconds:000}";

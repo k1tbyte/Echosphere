@@ -11,6 +11,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IConfig
     public DbSet<RefreshSession> Sessions { get; set; } = null!;
     public DbSet<Friendship> Friendships { get; set; } = null!;
     public DbSet<UserSimplifiedDTO> UserSimplified { get; set; }= null!;
+    public DbSet<Video> Videos { get; set; } = null!;
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Key generation strategy based on the database provider
@@ -29,6 +30,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IConfig
             .WithMany(u => u.ReceivedFriendRequests)
             .HasForeignKey(f => f.AddresseeId)
             .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<Video>()
+            .HasOne(v => v.Owner)  
+            .WithMany(u => u.Videos)           
+            .HasForeignKey(v => v.OwnerId);
         modelBuilder.Entity<UserSimplifiedDTO>().HasNoKey().ToView(null);
         
         base.OnModelCreating(modelBuilder);

@@ -38,4 +38,5 @@ public sealed class User
     public EUserRole Role { get; set; } = EUserRole.None;
     public ICollection<Friendship> SentFriendRequests { get; set; }
     public ICollection<Friendship> ReceivedFriendRequests { get; set; }
+    public ICollection<Video> Videos { get; set; } = new List<Video>();
 }

@@ -41,7 +41,8 @@ public class FilesController(IS3FileService fileService, IConfiguration config, 
             try
             {
                 string outputPrefix = Path.GetFileNameWithoutExtension(filename);
-                await videoProcessingService.ProcessAndUploadHlsAsync(tempFilePath, bucketName, outputPrefix);
+                await videoProcessingService.ProcessFullVideoPipelineAsync(tempFilePath,bucketName, outputPrefix);
+                //await videoProcessingService.ProcessAndUploadHlsAsync(tempFilePath, bucketName, outputPrefix);
             }
             catch (Exception ex)
             {
@@ -68,7 +69,6 @@ public class FilesController(IS3FileService fileService, IConfiguration config, 
     {
         if (string.IsNullOrEmpty(bucketName) || string.IsNullOrEmpty(objectName))
             return BadRequest("Bucket name and object name are required.");
-
         try
         {
             var (stream, contentType, fileName) = await fileService.DownloadFileStreamAsync(bucketName, objectName);
@@ -79,6 +79,9 @@ public class FilesController(IS3FileService fileService, IConfiguration config, 
             return NotFound(ex.Message);
         }
     }
+
+    
+    
     [HttpGet]
     public async Task<IActionResult> TestHls()
     {

@@ -7,12 +7,11 @@ public class MinioFileService(IMinioClient minioClient) : IS3FileService
 {
     public async Task<string> UploadFileStreamAsync(Stream stream, string filename, string bucketName = "avatars")
     {
-        if (string.IsNullOrWhiteSpace(filename))
-            throw new ArgumentException("Filename must be provided", nameof(filename));
+        /*if (string.IsNullOrWhiteSpace(filename))
+            throw new ArgumentException("Filename must be provided", nameof(filename));*/
 
-        var objName = $"{Guid.NewGuid()}_{filename}";
-
-        // Проверяем есть ли бакет, если нет - создаём
+        var objName = $"{Guid.NewGuid()}";
+        
         var bucketExists = await minioClient.BucketExistsAsync(
             new BucketExistsArgs().WithBucket(bucketName));
 

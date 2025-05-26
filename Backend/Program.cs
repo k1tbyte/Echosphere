@@ -36,6 +36,7 @@ internal static class Program
         builder.Services.AddDbContext<AppDbContext>();
         builder.Services.AddScoped<JwtService>();
         builder.Services.AddScoped<IAccountRepository,AccountRepository>();
+        builder.Services.AddScoped<IVideoRepository,VideoRepository>();
         builder.Services.AddSingleton<EmailService>();
 
 
