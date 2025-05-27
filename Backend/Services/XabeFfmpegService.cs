@@ -31,24 +31,33 @@ public class XabeFfmpegService : IVideoProcessingService
         string vttPath = Path.Combine(tempDir, "thumbnails.vtt");
         await GenerateSpriteAndVttAsync(inputFilePath, spritePath, vttPath);
         Directory.CreateDirectory(tempDir);
-        
-        await GenerateAdaptiveHlsAsync(inputFilePath, tempDir);
-        
-        string posterPath = Path.Combine(tempDir, "preview.jpg");
-        
-        await GeneratePreviewAsync(inputFilePath, posterPath,TimeSpan.FromSeconds(previewTimecode));
-        
-        
-        foreach (var file in Directory.GetFiles(tempDir, "*", SearchOption.AllDirectories))
+        try
         {
-            string relativePath = Path.GetRelativePath(tempDir, file).Replace("\\", "/");
-            string objectName = $"{outputPrefix}/{relativePath}";
+            await GenerateAdaptiveHlsAsync(inputFilePath, tempDir);
+        
+            string posterPath = Path.Combine(tempDir, "preview.jpg");
+        
+            await GeneratePreviewAsync(inputFilePath, posterPath,TimeSpan.FromSeconds(previewTimecode));
+            
+            foreach (var file in Directory.GetFiles(tempDir, "*", SearchOption.AllDirectories))
+            {
+                string relativePath = Path.GetRelativePath(tempDir, file).Replace("\\", "/");
+                string objectName = $"{outputPrefix}/{relativePath}";
 
-            using var stream = File.OpenRead(file);
-            await _s3FileService.PutObjectAsync(bucketName, objectName, stream);
+                using var stream = File.OpenRead(file);
+                await _s3FileService.PutObjectAsync(stream,bucketName, objectName);
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
         }
 
-        Directory.Delete(tempDir, true);
     }
 
     private async Task GenerateAdaptiveHlsAsync(string inputFile, string outputDir)
@@ -203,7 +212,7 @@ public class XabeFfmpegService : IVideoProcessingService
 
             using var fileStream = File.OpenRead(file);
             
-            await _s3FileService.PutObjectAsync("videos", objectName, fileStream);
+            await _s3FileService.PutObjectAsync(fileStream, "videos", objectName);
         }
 
         Directory.Delete(outputDirectory, true);

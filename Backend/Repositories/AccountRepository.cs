@@ -31,7 +31,7 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
         await SaveAsync();
     }
 
-    public async Task<bool> DeleteById(long id)
+    public async Task<bool> DeleteById(int id)
     {
         var entity = await context.Users.FindAsync(id);
         return await Delete(entity);

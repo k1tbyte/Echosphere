@@ -5,7 +5,7 @@ namespace Backend.Services;
 
 public class MinioFileService(IMinioClient minioClient) : IS3FileService
 {
-    public async Task<string> UploadFileStreamAsync(Stream stream, string filename, string bucketName = "avatars")
+    public async Task<string> UploadFileStreamAsync(Stream stream, string bucketName = "avatars", string contentType = "application/octet-stream")
     {
         /*if (string.IsNullOrWhiteSpace(filename))
             throw new ArgumentException("Filename must be provided", nameof(filename));*/
@@ -19,13 +19,12 @@ public class MinioFileService(IMinioClient minioClient) : IS3FileService
         {
             await minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucketName));
         }
-        
-        await PutObjectAsync(bucketName,objName, stream);
+        await PutObjectAsync(stream ,bucketName,objName+"_raw",contentType);
 
         return objName;
     }
 
-    public async Task PutObjectAsync(string bucketName, string objName,Stream stream, string contentType = "application/octet-stream")
+    public async Task PutObjectAsync(Stream stream,string bucketName, string objName, string contentType = "application/octet-stream")
     {
         long objectSize = stream.CanSeek ? stream.Length : -1;
         await minioClient.PutObjectAsync(new PutObjectArgs()
@@ -56,7 +55,38 @@ public class MinioFileService(IMinioClient minioClient) : IS3FileService
         var stat = await minioClient.StatObjectAsync(new StatObjectArgs()
             .WithBucket(bucketName)
             .WithObject(objectName));
-
+        var extension = GetExtensionFromContentType(stat.ContentType);
+        if ( extension!= null)
+        {
+            objectName += extension;
+        }
+        
         return (ms, stat.ContentType ?? "application/octet-stream", objectName);
+    }
+    private static string? GetExtensionFromContentType(string contentType)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "image/jpeg", ".jpg" },
+            { "image/png", ".png" },
+            { "image/gif", ".gif" },
+            { "image/bmp", ".bmp" },
+            { "image/webp", ".webp" },
+            { "image/svg+xml", ".svg" },
+            { "image/tiff", ".tiff" },
+            { "image/x-icon", ".ico" },
+
+            { "video/mp4", ".mp4" },
+            { "video/quicktime", ".mov" },
+            { "video/x-msvideo", ".avi" },
+            { "video/x-ms-wmv", ".wmv" },
+            { "video/x-matroska", ".mkv" },
+            { "video/webm", ".webm" },
+            { "video/x-flv", ".flv" },
+            { "video/mpeg", ".mpeg" },
+            { "video/3gpp", ".3gp" },
+            { "video/x-m4v", ".m4v" }
+        };
+        return map.TryGetValue(contentType, out var extension) ? extension : null;
     }
 }

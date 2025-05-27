@@ -17,16 +17,19 @@ public class VideoRepository(AppDbContext context):IVideoRepository
 
     public async Task<Video?> Get(int id)
     {
-        return await context.Videos.FirstOrDefaultAsync(u => u.Id == id);
+        return await context.Videos.FirstOrDefaultAsync(v => v.Id == id);
     }
-
+    public async Task<Video?> GetVideoByUrlAsync(string url)
+    {
+        return await context.Videos.FirstOrDefaultAsync(v => v.Url == url);
+    }
     public async Task Update(Video entity)
     {
         context.Videos.Update(entity);
         await SaveAsync();
     }
 
-    public async Task<bool> DeleteById(long id)
+    public async Task<bool> DeleteById(int id)
     {
         var entity = await context.Videos.FindAsync(id);
         return await Delete(entity);
@@ -49,4 +52,6 @@ public class VideoRepository(AppDbContext context):IVideoRepository
         
         await context.SaveChangesAsync().ConfigureAwait(false);
     }
+
+
 }

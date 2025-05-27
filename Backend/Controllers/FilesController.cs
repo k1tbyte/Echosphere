@@ -14,54 +14,57 @@ namespace Backend.Controllers.Abstraction;
 public class FilesController(IS3FileService fileService, IConfiguration config, IAccountRepository accountRepository, IVideoProcessingService videoProcessingService) : ControllerBase
 {
     [HttpPost]
-    [RequireRole(EUserRole.User)]
+    //[RequireRole(EUserRole.User)]
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> UploadStream([FromQuery] string filename, [FromQuery] string bucketName = "avatars")
+    [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> UploadStream([FromQuery] string bucketName = "avatars")
     {
-        if (string.IsNullOrWhiteSpace(filename))
-            return BadRequest("Filename is required as query parameter.");
-
-        var objName = await fileService.UploadFileStreamAsync(Request.Body, filename, bucketName);
-
-        if (bucketName == "avatars")
+        var contentType= Request.ContentType ?? "application/octet-stream";
+        string tempFilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}");
+        try
         {
-            var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
-            await accountRepository.SetAvatar(userId, objName);
-        }
-
-        if (bucketName == "videos")
-        {
-            string tempFilePath = Path.Combine(Path.GetTempPath(), filename);
-
-            using (var fs = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write))
+            await using (var fs = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write))
             {
                 await Request.Body.CopyToAsync(fs);
             }
-            try
+            await using (var readStream = new FileStream(tempFilePath, FileMode.Open, FileAccess.Read))
             {
-                string outputPrefix = Path.GetFileNameWithoutExtension(filename);
-                await videoProcessingService.ProcessFullVideoPipelineAsync(tempFilePath,bucketName, outputPrefix);
-                //await videoProcessingService.ProcessAndUploadHlsAsync(tempFilePath, bucketName, outputPrefix);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Error during HLS processing: {ex.Message}");
-            }
-            finally
-            {
-                if (System.IO.File.Exists(tempFilePath))
+                var objName = await fileService.UploadFileStreamAsync(readStream, bucketName, contentType);
+
+                if (bucketName == "avatars")
                 {
-                    System.IO.File.Delete(tempFilePath);
+                    var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
+                    await accountRepository.SetAvatar(userId, objName);
+                }
+
+                if (bucketName == "videos")
+                {
+                    await videoProcessingService.ProcessFullVideoPipelineAsync(tempFilePath, bucketName, objName);
                 }
             }
-        }
 
-        return Ok("File uploaded via stream successfully.");
+            return Ok("File uploaded and processed successfully.");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Error during upload or processing: {ex.Message}");
+        }
+        finally
+        {
+            try
+            {
+                if (System.IO.File.Exists(tempFilePath))
+                    System.IO.File.Delete(tempFilePath);
+            }
+            catch (Exception cleanupEx)
+            {
+                Console.Error.WriteLine($"Failed to delete temp file {tempFilePath}: {cleanupEx.Message}");
+            }
+        }
     }
     
     [HttpGet]
-    [RequireRole(EUserRole.User)]
+    //[RequireRole(EUserRole.User)]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(string),StatusCodes.Status404NotFound)]
@@ -72,6 +75,7 @@ public class FilesController(IS3FileService fileService, IConfiguration config, 
         try
         {
             var (stream, contentType, fileName) = await fileService.DownloadFileStreamAsync(bucketName, objectName);
+            fileName += Path.GetExtension(contentType);
             return File(stream, contentType, fileName);
         }
         catch (Exception ex)
@@ -88,7 +92,9 @@ public class FilesController(IS3FileService fileService, IConfiguration config, 
         string testFile = @"D:\test.mp4";
         try
         {
-            await videoProcessingService.ProcessFullVideoPipelineAsync(testFile, "videos", "test_video_hls");
+            var stream = new FileStream(testFile, FileMode.Open, FileAccess.Read);
+            var objName= await fileService.UploadFileStreamAsync(stream,"videos");
+            await videoProcessingService.ProcessFullVideoPipelineAsync(testFile, "videos", objName);
             return Ok("HLS processing done");
         }
         catch (Exception ex)

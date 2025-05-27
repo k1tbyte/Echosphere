@@ -1,18 +1,20 @@
-﻿using Backend.Services;
+﻿using Backend.Repositories.Abstraction;
+using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers;
 
 [Route(Constants.DefaultRoutePattern)]
-public class VideoController(IS3FileService s3FileService):ControllerBase
+public class VideoController(IS3FileService s3FileService,IVideoRepository videoRepository):ControllerBase
 {
-    [HttpGet("{file}")]
+    [HttpGet]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetVideo(string file)
     {
-        string fileNameWithoutExt = Path.GetFileNameWithoutExtension(file);
-        string masterPlaylist = Path.Combine(fileNameWithoutExt, "master.m3u8");
+        var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
+        
+        string masterPlaylist = $"{file}/master.m3u8";
         try
         {
             var result = await s3FileService.DownloadFileStreamAsync("videos", masterPlaylist);
@@ -20,7 +22,7 @@ public class VideoController(IS3FileService s3FileService):ControllerBase
         }
         catch (Exception e)
         {
-            return BadRequest(e.Message);
+            return NotFound(e.Message);
         }
     }
 }
