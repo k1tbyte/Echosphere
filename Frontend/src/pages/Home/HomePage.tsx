@@ -12,10 +12,14 @@ import {useNavigationStore} from "@/store/navigationStore";
 
 export const HomePage = () => {
     const router = useRouter();
-    const setData = useNavigationStore((state) => state.setData);
+    const setData: (data: any) => void = useNavigationStore((state) => state.setData);
 
     const handleFileDrop = (file: File) => {
-        setData(file);
+        if (!file.type.startsWith('video/')) {
+            return 'Please upload a valid video file';
+        }
+
+        setData({ file: file });
         router.push('/home/studio');
     };
 

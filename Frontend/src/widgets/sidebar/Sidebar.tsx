@@ -179,7 +179,7 @@ const SidebarComponent: FC<ComponentProps<'div'>> = ({ className, ...props }) =>
                             <div className="p-3 flex gap-3 items-center hover:bg-accent/30 transition-colors rounded-xs cursor-pointer border-t-border border-t overflow-clip">
                                 <div className="flex shrink-0 gap-3 items-center">
                                     <Image
-                                        src={`https://ui-avatars.com/api/?name=${session?.user.name}.svg`}
+                                        src={`https://ui-avatars.com/api/?name=${session?.user.username}.svg`}
                                         alt="Avatar"
                                         width={45}
                                         height={45}
@@ -193,7 +193,7 @@ const SidebarComponent: FC<ComponentProps<'div'>> = ({ className, ...props }) =>
                                             className="p-0.5 px-1 w-fit max-w-full text-ellipsis overflow-hidden whitespace-nowrap cursor-pointer"
                                             size="sm"
                                         >
-                                            {session?.user.name}
+                                            {session?.user.username}
                                         </Label>
                                         <Label
                                             size={"sm"}

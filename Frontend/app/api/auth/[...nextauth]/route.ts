@@ -4,9 +4,24 @@ import {decodeJwt} from "jose";
 import fetcher from '@/shared/lib/fetcher';
 import {EUserRole} from "@/types/user-role";
 import {auth} from "@/shared/services/authService";
+import { JWT } from 'next-auth/jwt';
 
 type RefreshSession = { accessToken: string, refreshToken: string };
 const refreshingUsers = new Map<number, Promise<RefreshSession> | null>();
+
+const getSessionPayload = (newSession: RefreshSession) => {
+    const jwt = decodeJwt(newSession.accessToken);
+    return {
+        id: jwt.userid as string,
+        username: jwt.display_name as string,
+        apiAccessToken: newSession.accessToken,
+        apiRefreshToken: newSession.refreshToken,
+        role: jwt.access_role as EUserRole,
+        avatar: jwt.avatar as string,
+        email: jwt.email as string,
+        accessExp: jwt.exp as number,
+    } as JWT;
+}
 
 const handler = NextAuth({
     providers: [
@@ -41,17 +56,10 @@ const handler = NextAuth({
                     return null;
                 }
 
-                const jwt = decodeJwt(data.accessToken);
-
-                return {
-                    id: jwt.userid as string,
-                    name: jwt.display_name as string,
-                    avatar: jwt.avatar as string,
-                    email: jwt.email as string,
-                    accessExp: jwt.exp as number,
+                return getSessionPayload({
                     accessToken: data.accessToken,
                     refreshToken: data.refreshToken,
-                };
+                });
             }
         }),
         CredentialsProvider({
@@ -66,15 +74,10 @@ const handler = NextAuth({
                     return null;
                 }
 
-                const jwt = decodeJwt(credentials.accessToken);
-
-                return {
-                    id: jwt.userid as string,
-                    name: jwt.display_name as string,
-                    avatar: jwt.avatar as string,
+                return getSessionPayload({
                     accessToken: credentials.accessToken,
                     refreshToken: credentials.refreshToken,
-                };
+                });
             },
         }),
     ],
@@ -85,7 +88,7 @@ const handler = NextAuth({
     },
     events: {
         async signOut({ session, token}) {
-            await auth.logout(token.refreshToken, token.accessToken!);
+            await auth.logout(token.apiRefreshToken, token.apiAccessToken!);
         }
     },
     callbacks: {
@@ -99,17 +102,12 @@ const handler = NextAuth({
                         console.log("User is already being refreshed", idNumber);
                         refreshPromise = refreshingUsers.get(idNumber)!;
                     } else {
-                        console.log("Refreshing user with token", token.refreshToken);
-                        refreshPromise =  auth.refreshSession(token.refreshToken, token.accessToken)
+                        console.log("Refreshing user with token", token.refreshToken, token.accessExp, Date.now() / 1000);
+                        refreshPromise =  auth.refreshSession(token.apiRefreshToken, token.apiAccessToken)
                     }
 
                     let data = await refreshPromise;
-
-                    return {
-                        ...token,
-                        accessToken: data.accessToken,
-                        refreshToken: data.refreshToken,
-                    }
+                    return getSessionPayload(data)
                 } finally {
                     refreshingUsers.delete(idNumber)
                 }
@@ -124,10 +122,13 @@ const handler = NextAuth({
         },
         async session({ session, token }) {
             if (token) {
-                session.user.role = token.access_role as EUserRole;
+                session.user.role = token.role as EUserRole;
+                session.user.username = token.username as string;
+                session.user.email = token.email as string;
                 session.user.id = token.id as string;
                 session.user.avatar = token.avatar as string;
-                session.accessToken = token.accessToken!;
+                session.accessToken = token.apiAccessToken!;
+                session.refreshToken = token.apiRefreshToken!;
             }
 
             return session;

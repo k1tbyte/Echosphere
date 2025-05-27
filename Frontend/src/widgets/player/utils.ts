@@ -1,14 +1,4 @@
-import { PlyrSourceInfo, PlyrTrack, PlyrOptions } from './types';
-
-export const getAspectRatio = (aspectRatio: string): number => {
-    if (!aspectRatio) return 56.25; // 16:9 по умолчанию (56.25%)
-
-    const [w, h] = aspectRatio.split(':').map(Number);
-    if (!w || !h) return 56.25;
-
-    return (h / w) * 100;
-};
-
+import { PlyrSourceInfo, PlyrTrack, PlyrOptions } from './index';
 /**
  * Creates an HTML source element for video/audio
  */
@@ -33,7 +23,7 @@ export const createTrackElement = (track: PlyrTrack): HTMLTrackElement => {
     trackElement.kind = track.kind;
     trackElement.label = track.label;
     trackElement.src = track.src;
-    trackElement.srclang = track.srclang;
+    trackElement.srclang = track.srcLang!;
     if (track.default) trackElement.default = track.default;
     return trackElement;
 };
@@ -128,7 +118,6 @@ export const getDefaultOptions = (aspectRatio?: string): PlyrOptions => ({
         'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'
     ],
     loadSprite: true,
-    responsive: true,
     ratio: aspectRatio,
     iconUrl: 'https://cdn.plyr.io/3.7.8/plyr.svg',
     blankVideo: 'https://cdn.plyr.io/static/blank.mp4',

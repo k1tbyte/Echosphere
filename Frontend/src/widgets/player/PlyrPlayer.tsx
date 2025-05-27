@@ -1,70 +1,37 @@
 "use client";
 
-import React, { useRef, useEffect, useState, CSSProperties } from 'react';
-import dynamic from 'next/dynamic';
+import React, { forwardRef, useRef, useEffect, useState, CSSProperties, useImperativeHandle } from 'react';
 import "plyr/dist/plyr.css";
 import "./styles.css"
-import { PlyrPlayerProps } from './types';
+import { IPlyrPlayerProps } from './index';
 import { usePlyrInstance } from './hooks/usePlyrInstance';
 
-export const PlyrPlayer: React.FC<PlyrPlayerProps> = ({
-                                                          source,
-                                                          options = {},
-                                                          onReady,
-                                                          onPlay,
-                                                          onPause,
-                                                          onEnded,
-                                                          onTimeUpdate,
-                                                          onSeeking,
-                                                          onSeeked,
-                                                          onProgress,
-                                                          onRateChange,
-                                                          onQualityChange,
-                                                          onCaptionsEnabled,
-                                                          onCaptionsDisabled,
-                                                          onLanguageChange,
-                                                          onControlsHidden,
-                                                          onControlsShown,
-                                                          onEnterFullscreen,
-                                                          onExitFullscreen,
-                                                          onEnterpip,
-                                                          onLeavepip,
-                                                          className,
-                                                          width = '100%',
-                                                          height,
-                                                          aspectRatio = "16:9",
-                                                          containerStyle = {},
-                                                          fillContainer = false,
-                                                      }) => {
+export const PlyrPlayer = forwardRef<HTMLDivElement, IPlyrPlayerProps>(({
+                                                                            source,
+                                                                            options = {},
+                                                                            onReady,
+                                                                            className,
+                                                                            width = '100%',
+                                                                            height,
+                                                                            aspectRatio = "16:9",
+                                                                            containerStyle = {},
+                                                                            fillContainer = false,
+                                                                        }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null!);
     const [isClient, setIsClient] = useState(false);
+
+    const memoizedOptions = React.useMemo(() => options || {}, [options]);
 
     const { isLoaded } = usePlyrInstance({
         containerRef,
         source,
-        options,
+        options: memoizedOptions,
         aspectRatio,
         className,
-        onReady,
-        onPlay,
-        onPause,
-        onEnded,
-        onTimeUpdate,
-        onSeeking,
-        onSeeked,
-        onProgress,
-        onRateChange,
-        onQualityChange,
-        onCaptionsEnabled,
-        onCaptionsDisabled,
-        onLanguageChange,
-        onControlsHidden,
-        onControlsShown,
-        onEnterFullscreen,
-        onExitFullscreen,
-        onEnterpip,
-        onLeavepip,
+        onReady
     });
+
+    useImperativeHandle(ref, () => containerRef.current!, []);
 
     // Set the rendering flag on the client
     useEffect(() => {
@@ -126,7 +93,10 @@ export const PlyrPlayer: React.FC<PlyrPlayerProps> = ({
             )}
         </div>
     );
-};
+});
+
+PlyrPlayer.displayName = 'PlyrPlayer';
+/*
 
 // Export with SSR disabled
-export default dynamic(() => Promise.resolve(PlyrPlayer), { ssr: false });
+export default dynamic(() => Promise.resolve(PlyrPlayer), { ssr: false });*/

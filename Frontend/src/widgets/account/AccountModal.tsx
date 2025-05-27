@@ -12,7 +12,6 @@ import {Loader} from "@/shared/ui/Loader";
 import {toast, ToastVariant} from "@/shared/ui/Toast";
 import {Tab, TabPanel, TabTitle} from "@/shared/ui/Tabs";
 import {Input} from "@/shared/ui/Input";
-import {Badge} from "@/shared/ui/Badge";
 
 export const AccountModal: FC = () => {
     const { data: session, status } = useSession();
@@ -58,8 +57,8 @@ export const AccountModal: FC = () => {
 
     // Set initial username value from session
     useEffect(() => {
-        if (session?.user.name) {
-            setUsername(session.user.name);
+        if (session?.user.username) {
+            setUsername(session.user.username);
         }
     }, [session]);
 

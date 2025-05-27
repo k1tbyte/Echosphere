@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { PlyrInstance, PlyrPlayerProps } from '../types';
+import { PlyrInstance, IPlyrPlayerProps } from '../index';
 import {
     createAudioElement,
     createEmbedElement,
@@ -11,30 +11,12 @@ import {
 type UsePlyrInstanceProps = {
     containerRef: React.RefObject<HTMLDivElement>;
 } & Pick<
-    PlyrPlayerProps,
+    IPlyrPlayerProps,
     | 'source'
     | 'options'
     | 'aspectRatio'
     | 'className'
     | 'onReady'
-    | 'onPlay'
-    | 'onPause'
-    | 'onEnded'
-    | 'onTimeUpdate'
-    | 'onSeeking'
-    | 'onSeeked'
-    | 'onProgress'
-    | 'onRateChange'
-    | 'onQualityChange'
-    | 'onCaptionsEnabled'
-    | 'onCaptionsDisabled'
-    | 'onLanguageChange'
-    | 'onControlsHidden'
-    | 'onControlsShown'
-    | 'onEnterFullscreen'
-    | 'onExitFullscreen'
-    | 'onEnterpip'
-    | 'onLeavepip'
 >;
 
 export const usePlyrInstance = ({
@@ -43,88 +25,43 @@ export const usePlyrInstance = ({
                                     options = {},
                                     aspectRatio,
                                     className,
-                                    onReady,
-                                    onPlay,
-                                    onPause,
-                                    onEnded,
-                                    onTimeUpdate,
-                                    onSeeking,
-                                    onSeeked,
-                                    onProgress,
-                                    onRateChange,
-                                    onQualityChange,
-                                    onCaptionsEnabled,
-                                    onCaptionsDisabled,
-                                    onLanguageChange,
-                                    onControlsHidden,
-                                    onControlsShown,
-                                    onEnterFullscreen,
-                                    onExitFullscreen,
-                                    onEnterpip,
-                                    onLeavepip
+                                    onReady
                                 }: UsePlyrInstanceProps) => {
     const playerRef = useRef<PlyrInstance | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
-
-    const setupEventListeners = (player: PlyrInstance): void => {
-        if (onReady) {
-            player.on('ready', () => {
-                onReady(player);
-
-                if (player.elements?.container) {
-                    const playerContainer = player.elements.container;
-                    playerContainer.style.width = '100%';
-                    playerContainer.style.height = '100%';
-                    playerContainer.style.maxWidth = '100%';
-
-                    const controls = playerContainer.querySelector('.plyr__controls');
-                    if (controls) {
-                        (controls as HTMLElement).style.position = 'relative';
-                        (controls as HTMLElement).style.zIndex = '10';
-                    }
-                }
-            });
-        }
-
-        // Main playback events
-        if (onPlay) player.on('play', onPlay);
-        if (onPause) player.on('pause', onPause);
-        if (onEnded) player.on('ended', onEnded);
-
-        // Time-related events
-        if (onTimeUpdate) player.on('timeupdate', onTimeUpdate);
-        if (onSeeking) player.on('seeking', onSeeking);
-        if (onSeeked) player.on('seeked', onSeeked);
-        if (onProgress) player.on('progress', onProgress);
-
-        // Events related to settings
-        if (onRateChange) player.on('ratechange', onRateChange);
-        if (onQualityChange) player.on('qualitychange', onQualityChange);
-
-        // Subtitle events
-        if (onCaptionsEnabled) player.on('captionsenabled', onCaptionsEnabled);
-        if (onCaptionsDisabled) player.on('captionsdisabled', onCaptionsDisabled);
-        if (onLanguageChange) player.on('languagechange', onLanguageChange);
-
-        // Events related to controls
-        if (onControlsHidden) player.on('controlshidden', onControlsHidden);
-        if (onControlsShown) player.on('controlsshown', onControlsShown);
-
-        // Events related to full screen mode
-        if (onEnterFullscreen) player.on('enterfullscreen', onEnterFullscreen);
-        if (onExitFullscreen) player.on('exitfullscreen', onExitFullscreen);
-
-        // Events related to PiP mode
-        if (onEnterpip) player.on('enterpip', onEnterpip);
-        if (onLeavepip) player.on('leavepip', onLeavepip);
-    };
+    const wasInitializedRef = useRef(false);
 
     useEffect(() => {
         if (!containerRef.current) return;
 
+        if (wasInitializedRef.current && playerRef.current) {
+            try {
+                if (source && playerRef.current) {
+                    const hasProvider = source.sources.length > 0 && source.sources[0].provider;
+
+                    if (hasProvider) {
+                        playerRef.current.source = {
+                            type: source.type,
+                            sources: source.sources
+                        };
+                    } else {
+                        const videoElement = containerRef.current.querySelector('video');
+                        if (videoElement && source.sources && source.sources.length > 0) {
+                            videoElement.src = source.sources[0].src;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Error updating player source:", err);
+            }
+            return;
+        }
+
         let isMounted = true;
 
         const initPlyr = async () => {
+            if (wasInitializedRef.current) return;
+
             try {
                 // Dynamic library import
                 const PlyrModule = await import('plyr');
@@ -183,11 +120,13 @@ export const usePlyrInstance = ({
                     playerRef.current = new Plyr(element, mergedOptions) as PlyrInstance;
                 }
 
-                // Configuring event handlers
                 if (playerRef.current) {
-                    setupEventListeners(playerRef.current);
+                    wasInitializedRef.current = true;
+
+                    if (onReady) {
+                        onReady(playerRef.current);
+                    }
                     setIsLoaded(true);
-                    console.log('Plyr initialized successfully');
                 }
             } catch (error) {
                 console.error('Error initializing Plyr:', error);
@@ -196,15 +135,43 @@ export const usePlyrInstance = ({
 
         initPlyr();
 
-        // Cleanup on unmounting
         return () => {
             isMounted = false;
+            if (!wasInitializedRef.current) return;
+
             if (playerRef.current) {
                 playerRef.current.destroy();
                 playerRef.current = null;
+                wasInitializedRef.current = false;
             }
         };
-    }, [source, options, aspectRatio, className]);
+    }, []);
+
+    useEffect(() => {
+        if (!wasInitializedRef.current || !playerRef.current) return;
+
+        try {
+            if (source && playerRef.current) {
+                const hasProvider = source.sources.length > 0 && source.sources[0].provider;
+
+                if (hasProvider) {
+                    playerRef.current.source = {
+                        type: source.type,
+                        sources: source.sources
+                    };
+                } else {
+                    // Для обычных видео
+                    const videoElement = containerRef.current?.querySelector('video');
+                    if (videoElement && source.sources && source.sources.length > 0) {
+                        videoElement.src = source.sources[0].src;
+                        playerRef.current.restart();
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Error updating player source:", err);
+        }
+    }, [source]);
 
     return { player: playerRef.current, isLoaded };
 };
