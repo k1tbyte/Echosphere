@@ -1,4 +1,5 @@
-﻿using Minio;
+﻿using Microsoft.AspNetCore.Mvc;
+using Minio;
 using Minio.DataModel.Args;
 
 namespace Backend.Services;
@@ -63,6 +64,8 @@ public class MinioFileService(IMinioClient minioClient) : IS3FileService
         
         return (ms, stat.ContentType ?? "application/octet-stream", objectName);
     }
+    
+    
     private static string? GetExtensionFromContentType(string contentType)
     {
         var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)

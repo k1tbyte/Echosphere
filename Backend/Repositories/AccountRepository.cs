@@ -249,6 +249,20 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
             }
         }
     }
+
+    public async Task<bool> CheckPrivateVideoAccess(string? userId, int ownerId)
+    {
+        if (userId == null || !int.TryParse(userId, out int id))
+            return false;
+
+        var user = await Get(id);
+        if (user == null)
+            return false;
+
+        return ownerId == id || user.Role >= EUserRole.Admin;
+    }
+    
+    
     public async Task SaveAsync()
     {
         if (!Autosave)

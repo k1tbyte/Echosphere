@@ -23,21 +23,22 @@ public class XabeFfmpegService : IVideoProcessingService
         FFmpeg.SetExecutablesPath(ffmpegPath);
     }
 
-    public async Task ProcessFullVideoPipelineAsync(string inputFilePath, string bucketName, string outputPrefix,int previewTimecode=5)
+    public async Task ProcessVideoMultiQualityAsync(string inputFilePath, string bucketName, string outputPrefix)
     {
         string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
         // Generate sprite and VTT for preview thumbnails
         string spritePath = Path.Combine(tempDir, "sprite.jpg");
         string vttPath = Path.Combine(tempDir, "thumbnails.vtt");
         await GenerateSpriteAndVttAsync(inputFilePath, spritePath, vttPath);
-        Directory.CreateDirectory(tempDir);
         try
         {
             await GenerateAdaptiveHlsAsync(inputFilePath, tempDir);
         
-            string posterPath = Path.Combine(tempDir, "preview.jpg");
+            //disabled preview auto generation
+            /*string previewPath = Path.Combine(tempDir, "preview.jpg");
         
-            await GeneratePreviewAsync(inputFilePath, posterPath,TimeSpan.FromSeconds(previewTimecode));
+            await GeneratePreviewAsync(inputFilePath, previewPath,TimeSpan.FromSeconds(previewTimecode));*/
             
             foreach (var file in Directory.GetFiles(tempDir, "*", SearchOption.AllDirectories))
             {
@@ -198,15 +199,17 @@ public class XabeFfmpegService : IVideoProcessingService
         return $"{(int)time.TotalHours:00}:{time.Minutes:00}:{time.Seconds:00}.{time.Milliseconds:000}";
     }
     
-    public async Task ProcessAndUploadHlsAsync(string inputFilePath, string bucketName, string outputPrefix)
+    public async Task ProcessVideoSingleQualityAsync(string inputFilePath, string bucketName, string outputPrefix)
     {
-        string outputDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(outputDirectory);
-
-        await ConvertToHlsAsync(inputFilePath, outputDirectory);
+        string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        string spritePath = Path.Combine(tempDir, "sprite.jpg");
+        string vttPath = Path.Combine(tempDir, "thumbnails.vtt");
+        await GenerateSpriteAndVttAsync(inputFilePath, spritePath, vttPath);
+        await ConvertToHlsAsync(inputFilePath, tempDir);
         
         // Upload generated HLS files
-        foreach (var file in Directory.GetFiles(outputDirectory))
+        foreach (var file in Directory.GetFiles(tempDir))
         {
             var objectName = $"{outputPrefix}/{Path.GetFileName(file)}";
 
@@ -215,7 +218,7 @@ public class XabeFfmpegService : IVideoProcessingService
             await _s3FileService.PutObjectAsync(fileStream, "videos", objectName);
         }
 
-        Directory.Delete(outputDirectory, true);
+        Directory.Delete(tempDir, true);
     }
     
     private async Task ConvertToHlsAsync(string inputFile, string outputDirectory)

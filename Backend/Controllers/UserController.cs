@@ -1,12 +1,14 @@
 ﻿using Backend.Data.Entities;
 using Backend.DTO;
 using Backend.Repositories.Abstraction;
+using Backend.Services;
 using Backend.Services.Filters;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers.Abstraction;
 [Route(Constants.DefaultRoutePattern)]
-public class UserController(IAccountRepository accountRepository): ControllerBase
+public class UserController(IAccountRepository accountRepository, IS3FileService fileService): BaseFileController(fileService)
 {
     [HttpPost]
     [RequireRole(EUserRole.User)]
@@ -137,19 +139,47 @@ public class UserController(IAccountRepository accountRepository): ControllerBas
             friends
         });
     }
-
+    
     [HttpGet]
-    [RequireRole(EUserRole.User)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Avatar(){
-        var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
-        if (!int.TryParse(userId, out int id)) return NotFound();
-        var user = await accountRepository.Get(id);
-        if (user == null) return NotFound();
-        return Ok(new {
-            avatar = user.Avatar,
-        });
+    [ProducesResponseType(typeof(string) ,StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> DownloadAvatar([FromQuery] int userId)
+    {
+        try
+        {
+            var user = await accountRepository.Get(userId);
+            if (user == null) return NotFound();
+            return await DownloadFromBucket("avatars", user.Avatar);
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, $"Error during download: {e.Message}");
+        }
+
     }
+    
+    [HttpPost]
+    [RequireRole(EUserRole.User)]
+    [ProducesResponseType( StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> UploadAvatar(){
+        try
+        {
+            var objName =
+                await fileService.UploadFileStreamAsync(Request.Body, "avatars", Request.ContentType ?? "image/jpeg");
+            var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
+            await accountRepository.SetAvatar(userId, objName);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+        }
+    }
+    
+    
+
+    
 }
 
