@@ -92,7 +92,6 @@ const handler = NextAuth({
         async jwt({ token, user, account }) {
             if(token && token.accessExp && (token.accessExp - 10) < (Date.now() / 1000)) {
 
-                console.log(token.id);
                 const idNumber = Number(token.id);
                 try {
                     let refreshPromise: Promise<RefreshSession>;
@@ -100,6 +99,7 @@ const handler = NextAuth({
                         console.log("User is already being refreshed", idNumber);
                         refreshPromise = refreshingUsers.get(idNumber)!;
                     } else {
+                        console.log("Refreshing user with token", token.refreshToken);
                         refreshPromise =  auth.refreshSession(token.refreshToken, token.accessToken)
                     }
 

@@ -100,13 +100,13 @@ export const Sidebar: FC<ComponentProps<'div'>> = ({ className, ...props}) => {
                         <SidebarItem text="Home" href="/home" className="">
                             <House/>
                         </SidebarItem>
-                        <SidebarItem text="Profile" href="/home/test" className="">
+                        <SidebarItem text="Profile" href="/test" className="">
                             <Users/>
                         </SidebarItem>
-                        <SidebarItem text="Movies" href="/home/movies">
+                        <SidebarItem text="Movies" href="/movies">
                             <Clapperboard/>
                         </SidebarItem>
-                        <SidebarItem text="Libraries" href="/home/library">
+                        <SidebarItem text="Libraries" href="/library">
                             <Library/>
                         </SidebarItem>
                     </SidebarContext.Provider>

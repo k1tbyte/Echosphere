@@ -167,4 +167,10 @@
   .flex-x-center {
     @apply flex justify-center;
   }
+  .flex-y-center {
+    @apply flex items-center;
+  }
+  .flex-center {
+    @apply flex justify-center items-center;
+  }
 }

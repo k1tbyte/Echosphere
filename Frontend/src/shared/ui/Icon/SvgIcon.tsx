@@ -9,6 +9,7 @@ export const enum EIcon {
     InfoCircleOutline,
     CloseCircleOutline,
     CheckCircleOutline,
+    Cog = 9,
 }
 
 export interface ISvgIconProps extends SVGProps<SVGSVGElement> {
@@ -26,5 +27,15 @@ export const SvgIcon: FC<ISvgIconProps> = ({size, icon, fill, ...props}) => {
              height={size ?? props.height} {...props} >
             <use xlinkHref={`/images/sprites.svg#i${icon}`}/>
         </svg>
+    )
+}
+
+export const IconButton: FC<ISvgIconProps> = ({size, icon, fill, className, ...props}) => {
+    return (
+        <button className={`hover:text-accent-foreground text-foreground/80 cursor-pointer transition-colors flex-center ${className ?? ''}`}
+                style={{width: size, height: size}}
+                {...props}>
+            <SvgIcon icon={icon} size={size} fill={fill}/>
+        </button>
     )
 }

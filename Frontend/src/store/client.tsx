@@ -4,10 +4,16 @@ import {RxStore, useStoreState} from "@/shared/lib/rxStore";
 
 export const isClientSide = typeof window !== "undefined";
 
+export interface IBreadcrumbData {
+    href: string;
+    label: string;
+}
+
 export interface IUiMetadata {
     isSidebarOpen: boolean | null;
-    breadcrumbs: string[];
+    breadcrumbs: IBreadcrumbData[];
 }
+
 
 export let uiStore: RxStore<IUiMetadata> = new RxStore<IUiMetadata>({
     breadcrumbs: [],
