@@ -1,6 +1,6 @@
-import {Sidebar} from "@/widgets/Sidebar";
 import React, {FC} from "react";
 import {TopNavbar} from "@/widgets/TopNavbar";
+import Sidebar from "@/widgets/sidebar/Sidebar";
 
 interface IMainLayoutProps {
     isAuthenticated: boolean;

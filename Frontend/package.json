@@ -29,7 +29,8 @@
     "react-dom": "^19.0.0",
     "react-plyr": "^2.2.0",
     "resend": "^4.5.1",
-    "tailwind-merge": "^3.3.0"
+    "tailwind-merge": "^3.3.0",
+    "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

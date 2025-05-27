@@ -2,7 +2,6 @@
 
 import {FC, useEffect, useMemo, useRef, useState} from "react";
 import {AlignJustify, ChevronDown, ChevronRight} from "lucide-react";
-import {IBreadcrumbData, useUiStore} from "@/store/client";
 import Link from 'next/link';
 import {Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator} from "@/shared/ui/Breadcrumb";
 import {usePathname, useRouter} from 'next/navigation';
@@ -10,6 +9,7 @@ import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 import {EIcon, SvgIcon} from "@/shared/ui/Icon";
 import {IconButton} from "@/shared/ui/Icon/SvgIcon";
 import {openSettingsModal} from "@/widgets/settings/SettingsModal";
+import {useBreadcrumbs, useSidebar} from "@/store/uiMetaStore";
 
 const MIN_ITEM_WIDTH = 100;
 const MIN_VISIBLE_ITEMS = 2;
@@ -23,14 +23,19 @@ const formatSegment = (segment: string): string => {
 };
 
 export const TopNavbar: FC = () => {
-    const [isOpen, setIsOpen] = useUiStore<boolean | null>("isSidebarOpen");
-    const [breadcrumbsFromStore, setBreadcrumbs] = useUiStore<IBreadcrumbData[]>("breadcrumbs");
+    const { isSidebarOpen, setSidebarOpen } = useSidebar();
+    const { breadcrumbs: breadcrumbsFromStore, setBreadcrumbs } = useBreadcrumbs();
+
     const pathname = usePathname();
     const router = useRouter();
 
     const containerRef = useRef<HTMLDivElement>(null);
     const [availableWidth, setAvailableWidth] = useState(0);
     const [maxVisibleItems, setMaxVisibleItems] = useState(Infinity);
+
+    const handleToggleMobileMenu = () => {
+        setSidebarOpen(isSidebarOpen === null ? true : null);
+    };
 
     const breadcrumbs = useMemo(() => {
         if (!pathname) return [];
@@ -190,7 +195,7 @@ export const TopNavbar: FC = () => {
             >
                 <AlignJustify
                     className="sm:hidden block hover:text-foreground text-foreground/85 transition-colors cursor-pointer flex-shrink-0"
-                    onClick={() => setIsOpen(prev => prev === null)}
+                    onClick={handleToggleMobileMenu}
                 />
 
                 <Breadcrumb className="overflow-hidden">

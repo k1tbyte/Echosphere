@@ -1,5 +1,5 @@
 import {toast, ToastVariant} from "@/shared/ui/Toast";
-import {isClientSide} from "@/store/client";
+import {isClientSide} from "@/store/uiMetaStore";
 
 type TypeFetcher = {
     postJson: (url: string, data: object, props?: RequestInit) => Promise<Response>;
