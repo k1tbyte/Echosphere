@@ -18,7 +18,7 @@ export const MainLayout: FC<IMainLayoutProps> = ({ children, isAuthenticated }) 
             <Sidebar className="h-full" />
             <div className="flex w-full flex-col gap-3">
                 <TopNavbar />
-                <main className="bg-background/75 border-border border rounded-sm flex-1 overflow-auto p-4">
+                <main className="bg-background/75 border-border border rounded-sm flex-1 overflow-auto">
                     {children}
                 </main>
             </div>

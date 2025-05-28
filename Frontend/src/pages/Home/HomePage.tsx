@@ -8,36 +8,27 @@ import {Separator} from "@/shared/ui/Separator";
 import {DropZone} from "@/widgets/dropzone";
 import { useRouter } from 'next/navigation';
 import {useNavigationStore} from "@/store/navigationStore";
+import {VideoDropZone} from "@/pages/Home/ui/VideoDropZone";
 
 
 export const HomePage = () => {
     const router = useRouter();
     const setData: (data: any) => void = useNavigationStore((state) => state.setData);
 
-    const handleFileDrop = (file: File) => {
-        if (!file.type.startsWith('video/')) {
-            return 'Please upload a valid video file';
-        }
-
-        setData({ file: file });
-        router.push('/home/studio');
-    };
 
     return (
-        <div className="flex h-full flex-col gap-4 relative">
+        <div className="flex h-full flex-col gap-4 relative p-4">
             <Label className="text-2xl" >
                 Recently Watched
             </Label>
             <Separator/>
 
-            <DropZone
-                overlay
-                className={"h-full"}
-                accept="video/*"
-                promptText="Drop video here"
-                description="Supports MP4, WebM, MOV, AVI"
-                onFileDrop={handleFileDrop}
-            />
+            <VideoDropZone overlay successcallback={(f) => {
+                setData({ file: f });
+                router.push('/home/studio');
+            }}>
+
+            </VideoDropZone>
         </div>
     );
 };

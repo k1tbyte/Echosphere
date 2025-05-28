@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, {  type FC, useRef, useEffect, useState } from 'react';
 import {redirect, useRouter} from 'next/navigation';
 import { Button } from "@/shared/ui/Button";
 import { Spinner } from "@/shared/ui/Loader";
@@ -9,10 +9,30 @@ import {PlyrPlayer, PlyrSource} from "@/widgets/player";
 import {captureVideoFrame, type ParsedVideo, parseVideoUrl} from "@/pages/Home/utils/videoParser";
 import {Input} from "@/shared/ui/Input";
 import {Label} from "@/shared/ui/Label";
+import {Slider, SliderWithLabel, SliderWithMarks} from "@/shared/ui/Slider";
+import {Separator} from "@/shared/ui/Separator";
+import {Badge} from "@/shared/ui/Badge";
+import {formatDurationExtended, formatFileSize} from "@/shared/lib/formatters";
+import {MultiSelect} from "@/shared/ui/Select";
+import {Switch} from "@/shared/ui/Switch";
+import {VideoDropZone} from "@/pages/Home/ui/VideoDropZone";
+
+type TypeQuality = { value: string; label: string }[];
+const QUALITIES = [
+    { value: "2160", label: '2160p (4K)' },
+    { value: "1440", label: '1440p (2K)' },
+    { value: "1080", label: '1080p (Full HD)' },
+    { value: "720", label: '720p (HD)' },
+    { value: "480", label: '480p (SD)' },
+    { value: "360", label: '360p' },
+    { value: "240", label: '240p' },
+    { value: "144", label: '144p' }
+];
 
 interface IUrlInputProps {
     onSuccess: (video: ParsedVideo) => void;
 }
+
 
 const UrlInput: React.FC<IUrlInputProps> = ({ onSuccess }) => {
     const [url, setUrl] = useState('');
@@ -46,8 +66,9 @@ const UrlInput: React.FC<IUrlInputProps> = ({ onSuccess }) => {
         }
     };
 
+
     return (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <form onSubmit={handleSubmit} className="flex h-full flex-col gap-3 p-4">
             <Input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
@@ -60,6 +81,13 @@ const UrlInput: React.FC<IUrlInputProps> = ({ onSuccess }) => {
             <Button type="submit" disabled={isLoading || !url.trim()} loading={isLoading}>
                 Load the video
             </Button>
+            <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
+                    <span className="relative z-10 bg-background px-2 text-muted-foreground">
+                        Or
+                    </span>
+            </div>
+            {    /*@ts-ignore}  */ }
+            <VideoDropZone className="h-full" successcallback={(f) => onSuccess({ file: f})}/>
         </form>
     );
 };
@@ -70,10 +98,13 @@ export const StudioPage = () => {
     const [videoProps, setVideoProps ] = useState(data);
     const [video, setVideo] = useState<PlyrSource | null>(null);
     const playerContainerRef = useRef<HTMLDivElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLFormElement>(null);
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [withHLS, setWithHLS] = useState(false);
+    const [availableQualities, setAvailableQualities] = useState<TypeQuality>([]);
+    const isLocalVideo = !!videoProps?.file;
 
     useEffect(() => {
         if (!videoProps) {
@@ -135,6 +166,29 @@ export const StudioPage = () => {
         }
     };
 
+    const handleOnReady = () => {
+        if(!isLocalVideo) {
+            setIsInitialized(true);
+        }
+
+        const handleMetadata = (e: any) => {
+            const video = e.target as HTMLVideoElement;
+            video.removeEventListener('loadedmetadata', handleMetadata);
+            videoProps.width = video.videoWidth;
+            videoProps.height = video.videoHeight;
+            videoProps.duration = video.duration;
+            setAvailableQualities(QUALITIES.filter(q => {
+                const quality = parseInt(q.value, 10);
+                return videoProps.height >= quality;
+            }));
+            setVideoProps({...videoProps});
+            setIsInitialized(true)
+        }
+
+        const videoElement = playerContainerRef.current?.querySelector('video');
+        videoElement?.addEventListener('loadedmetadata', handleMetadata);
+    }
+
     useEffect(() => {
         return () => {
             if (thumbnailUrl && !videoProps?.thumbnailUrl) {
@@ -175,17 +229,15 @@ export const StudioPage = () => {
         );
     }
 
-    const isLocalVideo = !!videoProps?.file;
-
     return (
-        <div ref={containerRef} className="w-full h-full relative">
+        <form ref={containerRef} className="w-full justify-between h-full flex flex-col px-4 pt-4">
             <div className={`w-full ${screenSize === 'desktop' ? 'grid grid-cols-12 gap-6' : 'flex flex-col gap-4'}`}>
                 <div className={`${screenSize === 'desktop' ? 'col-span-7' : 'w-full'} order-1`}>
                     <PlyrPlayer
-                        onReady={() => setIsInitialized(true)}
+                        onReady={handleOnReady}
                         ref={playerContainerRef}
                         source={video}
-                        options={{ controls: ['play', 'progress', 'playlarge', ] }}
+                        options={{ controls: ['play', 'progress', 'playlarge' ] }}
                         height={"auto"}
                         containerStyle={{
                             border: '1px solid #333',
@@ -193,6 +245,35 @@ export const StudioPage = () => {
                         }}
                         aspectRatio="16:9"
                     />
+
+                    { isLocalVideo &&
+                        <div className="mt-4 bg-secondary/30 rounded-sm p-4 flex flex-wrap  gap-5">
+                            <div className="flex gap-3">
+                                <Label>
+                                    Quality:
+                                </Label>
+                                <Badge>
+                                    {videoProps.width}x{videoProps.height}
+                                </Badge>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <Label>Duration:</Label>
+                                <Badge>{videoProps.duration ?
+                                    formatDurationExtended(videoProps.duration, { format: 'full', showZero: false }) :
+                                    'Unknown'}
+                                </Badge>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <Label>Size:</Label>
+                                <Badge>{videoProps.duration ?
+                                    formatFileSize(videoProps.file?.size || 0) :
+                                    'Unknown'}
+                                </Badge>
+                            </div>
+                        </div>
+                    }
                 </div>
 
                 <div className={`${screenSize === 'desktop' ? 'col-span-5' : 'w-full'} order-2`}>
@@ -204,9 +285,48 @@ export const StudioPage = () => {
                         required
                     />
 
+                    <Separator className="my-6"/>
+                    {isLocalVideo &&
+                        <>
+                            <Label size={"lg"}>
+                                Thumbnails capture interval
+                                <small className="ml-2 text-xs font-normal text-muted-foreground">
+                                     (smaller is more accurate, but takes more resources)
+                                </small>
+                            </Label>
+                            <div className="w-full text-sm mt-5 font-medium">
+                                <SliderWithMarks
+                                    defaultValue={[0]}
+                                    step={1}
+                                    marks={["Off ","0.5s", "1s  ", "2s  ", "3s  ", "5s  ", "10s"]}
+                                    className={"w-full"}
+                                />
+                            </div>
+                            <Separator className="my-6"/>
+                            <div className="flex justify-between flex-y-center">
+                                <Label size={"lg"}>Video quality options
+                                    <small className="ml-2 text-xs font-normal text-muted-foreground">
+                                        (HLS)
+                                    </small>
+                                </Label>
+                                <Switch  checked={withHLS} onCheckedChange={setWithHLS} />
+                            </div>
+
+                            { withHLS &&
+                                <MultiSelect className="mt-3"
+                                             minSelected={1}
+                                             defaultValue={availableQualities[0] ? [availableQualities[0]] : []}
+                                             options={availableQualities}
+                                             placeholder="Select the quality to be supported"
+                                />
+                            }
+                            <Separator className="mt-5 mb-3"/>
+                        </>
+                    }
+
+                    <Label size={"lg"}>Preview thumbnail</Label>
                     {thumbnailUrl && (
                         <div className="w-full my-4">
-                            <h3 className="text-lg font-medium mb-2">Preview thumbnail:</h3>
                             {!isLocalVideo && (
                                 <p className="text-sm text-muted-foreground mb-2">
                                     A standard miniature from external provider
@@ -228,14 +348,18 @@ export const StudioPage = () => {
                             disabled={isCapturing}
                             className="w-full mt-4"
                         >
-                            {isCapturing ? 'Capturing...' : 'Take a snapshot of the current frame'}
+                            {isCapturing ? 'Capturing...' : 'Use current frame as a video preview'}
                         </Button>
                     )}
                 </div>
             </div>
-            <Button variant={"outline"} className="absolute bottom-0 w-full">
-                Upload video
-            </Button>
-        </div>
+            <div className="w-full my-5">
+                <Separator className="my-5"/>
+                <Button type="submit" variant={"outline"} className="w-full">
+                    Upload video
+                </Button>
+            </div>
+
+        </form>
     );
 };
