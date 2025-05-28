@@ -1,9 +1,12 @@
-﻿using Backend.Services;
+﻿using Backend.Repositories.Abstraction;
+using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers.Abstraction;
 
-public abstract class BaseFileController(IS3FileService fileService) : ControllerBase
+public abstract class BaseFileController(
+    IS3FileService fileService
+) : ControllerBase
 {
     protected async Task<IActionResult> DownloadFromBucket(string bucketName, string? objectName)
     {

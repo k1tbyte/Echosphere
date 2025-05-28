@@ -10,6 +10,59 @@ namespace Backend.Controllers.Abstraction;
 [Route(Constants.DefaultRoutePattern)]
 public class UserController(IAccountRepository accountRepository, IS3FileService fileService): BaseFileController(fileService)
 {
+    [HttpPatch]
+    [RequireRole(EUserRole.User)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> SelfUpdate([FromBody] User? entity)
+    {
+        var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
+        if (entity != null && int.TryParse(userId, out int id) && id == entity.Id)
+        {
+            await accountRepository.Update(entity);
+            return Ok();
+        }
+        return Forbid();
+    }
+    [HttpPatch]
+    [RequireRole(EUserRole.Moder)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Update([FromBody] User entity)
+    {
+        await accountRepository.Update(entity);
+        return Ok();
+    }
+
+    [HttpGet("{id}")]
+    [ProducesResponseType(typeof(User),StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<User>> Get(int id)
+    {
+        var result = await accountRepository.Get(id);
+        if (result == null)
+            return NotFound();
+        return Ok(result);
+    }
+    [HttpDelete]
+    [RequireRole(EUserRole.Admin)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var success = await accountRepository.DeleteById(id);
+        if (!success)
+            return NotFound();
+        return Ok();
+    }
+
+
+
+
+
+
+
+
+
     [HttpPost]
     [RequireRole(EUserRole.User)]
     [ProducesResponseType(StatusCodes.Status200OK)]

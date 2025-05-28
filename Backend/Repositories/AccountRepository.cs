@@ -9,43 +9,11 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace Backend.Repositories;
 
-public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemoryCache signupCache) : IAccountRepository
+public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemoryCache signupCache) : BaseAsyncCrudRepository<User>(context,context.Users), IAccountRepository
 {
     private static readonly TimeSpan CacheExpireTime = TimeSpan.FromHours(24);
     public bool Autosave { get; set; } = true;
-    public async Task<User> Add(User entity)
-    {
-        var entry = await context.Users.AddAsync(entity);
-        await SaveAsync();
-        return entry.Entity;
-    }
-
-    public async Task<User?> Get(int id)
-    {
-        return await context.Users.FirstOrDefaultAsync(u => u.Id == id);
-    }
-
-    public async Task Update(User entity)
-    {
-        context.Users.Update(entity);
-        await SaveAsync();
-    }
-
-    public async Task<bool> DeleteById(int id)
-    {
-        var entity = await context.Users.FindAsync(id);
-        return await Delete(entity);
-    }
-
-    public async Task<bool> Delete(User? entity)
-    {
-        if (entity == null)
-            return false;
-
-        context.Users.Remove(entity);
-        await SaveAsync();
-        return true;
-    }
+    
 
 
     public async Task LogOutAsync(string? refreshToken)

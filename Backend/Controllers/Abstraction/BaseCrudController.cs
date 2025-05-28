@@ -7,33 +7,32 @@ using Microsoft.AspNetCore.Mvc;
 namespace Backend.Controllers.Abstraction;
 
 [ApiController]
-[Route(Constants.DefaultRoutePattern)]
-public abstract class BaseCrudController<T>(IAsyncCrudRepository<T> repository): ControllerBase where T : class
-{
-#if !DEBUG
-    [RequireRole(EUserRole.Admin)]
-#endif
-    [HttpPost]
-    public virtual async Task<ActionResult<T>> Add([FromBody] T entity)
-    {
-        var result = await repository.Add(entity);
-        return Ok(result);
-    }
+     [Route(Constants.DefaultRoutePattern)]
+     public abstract class BaseCrudController<T>(IAsyncCrudRepository<T> repository): ControllerBase where T : class
+     {
+     #if !DEBUG
+         [RequireRole(EUserRole.Admin)]
+     #endif
+     [HttpPost]
+     public virtual async Task<ActionResult<T>> Add([FromBody] T entity)
+     {
+         var result = await repository.Add(entity);
+         return Ok(result);
+     }
+ 
+     [HttpGet("{id}")]
+     public virtual async Task<ActionResult<T?>> Get(int id)
+     {
+         var result = await repository.Get(id);
+         if (result == null)
+             return NotFound();
+ 
+         return Ok(result);
+     }
 
-    [HttpGet("{id}")]
-    public virtual async Task<ActionResult<T?>> Get(int id)
-    {
-        var result = await repository.Get(id);
-        if (result == null)
-            return NotFound();
-
-        return Ok(result);
-    }
-
-#if !DEBUG
-    [Authorize]
-    [RequireRole(EUserRole.Admin)]
-#endif
+    #if !DEBUG
+        [RequireRole(EUserRole.Admin)]
+    #endif
     [HttpPatch]
     public virtual async Task<IActionResult> Update([FromBody] T entity)
     {
@@ -41,10 +40,9 @@ public abstract class BaseCrudController<T>(IAsyncCrudRepository<T> repository):
         return NoContent();
     }
 
-#if !DEBUG
-    [Authorize]
-    [RequireRole(EUserRole.Admin)]
-#endif
+    #if !DEBUG
+        [RequireRole(EUserRole.Admin)]
+    #endif
     [HttpDelete("{id}")]
     public virtual async Task<IActionResult> Delete(int id)
     {
