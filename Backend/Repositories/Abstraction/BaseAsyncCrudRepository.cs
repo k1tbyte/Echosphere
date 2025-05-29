@@ -22,7 +22,7 @@ public class BaseAsyncCrudRepository<T>(DbContext context, DbSet<T> set) : IAsyn
         await SaveAsync();
     }
 
-    public async Task<bool> DeleteById(int id)
+    public async Task<bool> DeleteById(object id)
     {
         var entity = await set.FindAsync(id);
         return await Delete(entity);

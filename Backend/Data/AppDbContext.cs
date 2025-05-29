@@ -34,9 +34,6 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IConfig
             .HasOne(v => v.Owner)  
             .WithMany(u => u.Videos)           
             .HasForeignKey(v => v.OwnerId);
-        modelBuilder.Entity<Video>()
-            .HasIndex(v => v.Url)
-            .IsUnique();
         modelBuilder.Entity<UserSimplifiedDTO>().HasNoKey().ToView(null);
         
         base.OnModelCreating(modelBuilder);

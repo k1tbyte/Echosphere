@@ -22,6 +22,8 @@ public sealed class JwtService
     private const int MaxSessionsAmount = 5;
     private readonly IConfiguration _config;
     private readonly AppDbContext _dbContext;
+    public const string UserIdClaimType = "userid";
+        
     public JwtService(IConfiguration configuration, AppDbContext dbContext)
     {
         _config      = configuration;
@@ -103,6 +105,13 @@ public sealed class JwtService
         
         _dbContext.Sessions.Remove(session);
     }
+    
+    public static bool GetUserIdFromContext(HttpContext context, out int userId)
+    {
+        userId = 0;
+        var userIdClaim = context.User.Claims.FirstOrDefault(o => o.Type == UserIdClaimType);
+        return userIdClaim != null && int.TryParse(userIdClaim.Value, out userId);
+    }
 
     public AuthTokensDTO? RefreshSession(AuthTokensDTO dto)
     {
@@ -140,7 +149,7 @@ public sealed class JwtService
         
         var newAccessToken = GenerateAccessToken(new List<Claim>
         {
-            new("userid",userId.ToString()),
+            new(UserIdClaimType,userId.ToString()),
             new ("display_name", payload["display_name"].ToString()!),
             new("access_role", payload["access_role"].ToString()!),
             new("email", payload["email"].ToString()!),

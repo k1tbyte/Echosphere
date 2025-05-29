@@ -8,7 +8,7 @@ public interface IAsyncCrudRepository<T>
 
     public Task Update(T entity);
 
-    public Task<bool> DeleteById(int id);
+    public Task<bool> DeleteById(object id);
     public Task<bool> Delete(T entity);
     public Task SaveAsync();
 }

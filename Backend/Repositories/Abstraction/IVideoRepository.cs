@@ -4,5 +4,5 @@ namespace Backend.Repositories.Abstraction;
 
 public interface IVideoRepository : IAsyncCrudRepository<Video>
 {
-    public Task<Video?> GetVideoByUrlAsync(string url);
+    public Task<Video?> GetVideoByIdAsync(Guid id);
 }

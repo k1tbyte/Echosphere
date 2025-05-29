@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.IdentityModel.Tokens.Jwt;
 using Backend.Data.Entities;
 using Backend.DTO;
 using Backend.Infrastructure;
@@ -7,11 +6,9 @@ using Backend.Repositories.Abstraction;
 using Backend.Requests;
 using Backend.Services;
 using Backend.Services.Filters;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Backend.Controllers.Abstraction;
+namespace Backend.Controllers;
 
 [Route(Constants.DefaultRoutePattern)]
 public class AuthController(IAccountRepository accountRepository, EmailService emailService,JwtService jwtService, IHttpContextAccessor accessor): ControllerBase

@@ -1,23 +1,24 @@
-﻿using Backend.Data.Entities;
+﻿using Backend.Controllers.Abstraction;
+using Backend.Data.Entities;
 using Backend.DTO;
 using Backend.Repositories.Abstraction;
 using Backend.Services;
 using Backend.Services.Filters;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Backend.Controllers.Abstraction;
+namespace Backend.Controllers;
 [Route(Constants.DefaultRoutePattern)]
 public class UserController(IAccountRepository accountRepository, IS3FileService fileService): BaseFileController(fileService)
 {
+    private readonly IS3FileService _fileService = fileService;
+
     [HttpPatch]
     [RequireRole(EUserRole.User)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> SelfUpdate([FromBody] User? entity)
     {
-        var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
-        if (entity != null && int.TryParse(userId, out int id) && id == entity.Id)
+        if (entity != null && JwtService.GetUserIdFromContext(HttpContext, out var id) && id == entity.Id)
         {
             await accountRepository.Update(entity);
             return Ok();
@@ -54,15 +55,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
             return NotFound();
         return Ok();
     }
-
-
-
-
-
-
-
-
-
+    
     [HttpPost]
     [RequireRole(EUserRole.User)]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -220,8 +213,8 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         try
         {
             var objName =
-                await fileService.UploadFileStreamAsync(Request.Body, "avatars", Request.ContentType ?? "image/jpeg");
-            var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
+                await _fileService.UploadFileStreamAsync(Request.Body, "avatars");
+            var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == JwtService.UserIdClaimType)?.Value;
             await accountRepository.SetAvatar(userId, objName);
             return Ok();
         }

@@ -6,13 +6,22 @@ namespace Backend.Services;
 
 public class MinioFileService(IMinioClient minioClient) : IS3FileService
 {
-    public async Task<string> UploadFileStreamAsync(Stream stream, string bucketName = "avatars", string contentType = "application/octet-stream")
+    public async Task<string> UploadFileStreamAsync(Stream stream, string bucketName)
     {
         /*if (string.IsNullOrWhiteSpace(filename))
             throw new ArgumentException("Filename must be provided", nameof(filename));*/
 
         var objName = $"{Guid.NewGuid()}";
         
+
+        await PutObjectAsync(stream ,bucketName,objName+"_raw");
+
+        return objName;
+    }
+
+    public async Task PutObjectAsync(Stream stream,string bucketName, string objName)
+    {
+        stream.Seek(0, SeekOrigin.Begin);
         var bucketExists = await minioClient.BucketExistsAsync(
             new BucketExistsArgs().WithBucket(bucketName));
 
@@ -20,20 +29,13 @@ public class MinioFileService(IMinioClient minioClient) : IS3FileService
         {
             await minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucketName));
         }
-        await PutObjectAsync(stream ,bucketName,objName+"_raw",contentType);
 
-        return objName;
-    }
-
-    public async Task PutObjectAsync(Stream stream,string bucketName, string objName, string contentType = "application/octet-stream")
-    {
-        long objectSize = stream.CanSeek ? stream.Length : -1;
         await minioClient.PutObjectAsync(new PutObjectArgs()
             .WithBucket(bucketName)
             .WithObject(objName)
             .WithStreamData(stream)
-            .WithObjectSize(objectSize)
-            .WithContentType(contentType));
+            .WithObjectSize(stream.Length)
+            .WithContentType("application/octet-stream"));
     }
         
     public async Task<(Stream Stream, string ContentType, string FileName)> DownloadFileStreamAsync(string bucketName, string objectName)

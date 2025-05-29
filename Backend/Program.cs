@@ -6,12 +6,13 @@ using System.Text.Json;
 using Backend.Repositories;
 using Backend.Repositories.Abstraction;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.IdentityModel.Tokens;
 using Minio;
 
 namespace Backend;
 
-internal static class Program
+public class Program
 {
     private static WebApplication _app = null!;
     
@@ -38,6 +39,17 @@ internal static class Program
         builder.Services.AddScoped<IAccountRepository,AccountRepository>();
         builder.Services.AddScoped<IVideoRepository,VideoRepository>();
         builder.Services.AddSingleton<EmailService>();
+        builder.Services.Configure<KestrelServerOptions>(options => {
+            options.ConfigureHttpsDefaults(httpsOptions =>
+            {
+                httpsOptions.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 |
+                                            System.Security.Authentication.SslProtocols.Tls13;
+            });
+    
+            options.ConfigureEndpointDefaults(listenOptions => {
+                listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+            });
+        });
 
 
         builder.Services.AddSingleton<IMinioClient>(sp =>
