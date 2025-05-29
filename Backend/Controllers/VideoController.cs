@@ -7,6 +7,7 @@ using Backend.Repositories.Abstraction;
 using Backend.Requests;
 using Backend.Services;
 using Backend.Services.Filters;
+using Backend.Workers;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,7 +15,7 @@ namespace Backend.Controllers;
 
 [Route(Constants.DefaultRoutePattern)]
 public class VideoController(IS3FileService s3FileService,IVideoRepository videoRepository,
-    IS3FileService fileService, IVideoProcessingService videoProcessingService,
+    IS3FileService fileService,
     IAccountRepository accountRepository): BaseFileController(fileService)
 {
     [HttpPatch]
@@ -195,6 +196,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
             video.Status = status;
             video.UploadSize = videoBytesProcessed;
             await videoRepository.Update(video);
+            VideoProcessingWorker.Enqueue(video.Id);
         }
         
         return StatusCode(responseCode);

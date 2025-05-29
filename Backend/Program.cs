@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Backend.Repositories;
 using Backend.Repositories.Abstraction;
+using Backend.Workers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.IdentityModel.Tokens;
@@ -39,6 +40,9 @@ public class Program
         builder.Services.AddScoped<IAccountRepository,AccountRepository>();
         builder.Services.AddScoped<IVideoRepository,VideoRepository>();
         builder.Services.AddSingleton<EmailService>();
+        /*builder.Services.AddSingleton<VideoProcessingWorker>();
+        builder.Services.AddHostedService(provider => provider.GetRequiredService<VideoProcessingWorker>());*/
+        builder.Services.AddHostedService<VideoProcessingWorker>();
         builder.Services.Configure<KestrelServerOptions>(options => {
             options.ConfigureHttpsDefaults(httpsOptions =>
             {

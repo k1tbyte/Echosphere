@@ -12,4 +12,12 @@ public class VideoRepository(AppDbContext context): BaseAsyncCrudRepository<Vide
     {
         return await context.Videos.FirstOrDefaultAsync(v => v.Id == id);
     }
+    public async Task<List<Guid>> GetProcessingVideosIdsAsync()
+    {
+        return await context.Videos
+            .Where(v => v.Status == EVideoStatus.Processing)
+            .OrderBy(v => v.CreatedAt)
+            .Select(v => v.Id)
+            .ToListAsync();
+    }
 }
