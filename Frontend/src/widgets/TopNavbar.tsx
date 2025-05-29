@@ -6,10 +6,11 @@ import Link from 'next/link';
 import {Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator} from "@/shared/ui/Breadcrumb";
 import {usePathname, useRouter} from 'next/navigation';
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/shared/ui/DropdownMenu";
-import {EIcon, SvgIcon} from "@/shared/ui/Icon";
+import {EIcon } from "@/shared/ui/Icon";
 import {IconButton} from "@/shared/ui/Icon/SvgIcon";
 import {openSettingsModal} from "@/widgets/settings/SettingsModal";
 import {useBreadcrumbs, useSidebar} from "@/store/uiMetaStore";
+import {Notifications} from "@/widgets/Notifications";
 
 const MIN_ITEM_WIDTH = 100;
 const MIN_VISIBLE_ITEMS = 2;
@@ -204,7 +205,8 @@ export const TopNavbar: FC = () => {
                     </BreadcrumbList>
                 </Breadcrumb>
             </div>
-            <IconButton icon={EIcon.Cog} size={18} onClick={openSettingsModal}/>
+            <Notifications/>
+            <IconButton className="ml-4" icon={EIcon.Cog} size={18} onClick={openSettingsModal}/>
         </div>
     );
 };

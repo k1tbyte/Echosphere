@@ -174,3 +174,13 @@
     @apply flex justify-center items-center;
   }
 }
+
+@keyframes progress {
+  to {
+    left: calc(100% - 2rem);
+  }
+}
+.progress {
+  transform-origin: center;
+  animation: progress 1.25s ease-in-out infinite;
+}

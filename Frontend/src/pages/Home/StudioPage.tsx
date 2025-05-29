@@ -1,21 +1,25 @@
 "use client";
 
-import React, {  type FC, useRef, useEffect, useState } from 'react';
+import React, {  useRef, useEffect, useState } from 'react';
 import {redirect, useRouter} from 'next/navigation';
 import { Button } from "@/shared/ui/Button";
 import { Spinner } from "@/shared/ui/Loader";
 import {useNavigationStore} from "@/store/navigationStore";
 import {PlyrPlayer, PlyrSource} from "@/widgets/player";
-import {captureVideoFrame, type ParsedVideo, parseVideoUrl} from "@/pages/Home/utils/videoParser";
+import {captureVideoFrame, parseVideoUrl} from "@/pages/Home/utils/videoParser";
 import {Input} from "@/shared/ui/Input";
 import {Label} from "@/shared/ui/Label";
-import {Slider, SliderWithLabel, SliderWithMarks} from "@/shared/ui/Slider";
+import { SliderWithMarks } from "@/shared/ui/Slider";
 import {Separator} from "@/shared/ui/Separator";
 import {Badge} from "@/shared/ui/Badge";
 import {formatDurationExtended, formatFileSize} from "@/shared/lib/formatters";
 import {MultiSelect} from "@/shared/ui/Select";
 import {Switch} from "@/shared/ui/Switch";
 import {VideoDropZone} from "@/pages/Home/ui/VideoDropZone";
+import { createFileFingerprint } from "@/shared/lib/cryptography";
+import {VideoUploadService} from "@/shared/services/videoUploadService";
+import {resumeVideoUpload} from "@/pages/Home/ui/ResumeVideoUploadModal";
+import {useNotificationsStore} from "@/store/notificationsStore";
 
 type TypeQuality = { value: string; label: string }[];
 const QUALITIES = [
@@ -29,8 +33,12 @@ const QUALITIES = [
     { value: "144", label: '144p' }
 ];
 
+const THUMBNAIL_RANGES = ["Off ","0.5s", "1s  ", "2s  ", "3s  ", "5s  ", "10s"];
+
+const PROVIDERS = [ 'youtube', 'vimeo' ];
+
 interface IUrlInputProps {
-    onSuccess: (video: ParsedVideo) => void;
+    onSuccess: (video: any) => void;
 }
 
 
@@ -55,7 +63,7 @@ const UrlInput: React.FC<IUrlInputProps> = ({ onSuccess }) => {
             onSuccess({
                 id: parsedVideo.id,
                 provider: parsedVideo.provider,
-                thumbnailUrl: parsedVideo.thumbnailUrl,
+                previewUrl: parsedVideo.thumbnailUrl,
                 title: parsedVideo.title
             });
         } catch (error) {
@@ -87,23 +95,28 @@ const UrlInput: React.FC<IUrlInputProps> = ({ onSuccess }) => {
                     </span>
             </div>
             {    /*@ts-ignore}  */ }
-            <VideoDropZone className="h-full" successcallback={(f) => onSuccess({ file: f})}/>
+            <VideoDropZone className="h-full" successcallback={(f) => {
+                onSuccess({file: f});
+            }}/>
         </form>
     );
 };
 
 export const StudioPage = () => {
     const { data } = useNavigationStore();
+    const router = useRouter();
     const [screenSize, setScreenSize] = useState<'mobile' | 'desktop'>('desktop');
     const [videoProps, setVideoProps ] = useState(data);
     const [video, setVideo] = useState<PlyrSource | null>(null);
     const playerContainerRef = useRef<HTMLDivElement>(null);
+    const fingerprint = useRef<string | null>(null);
     const containerRef = useRef<HTMLFormElement>(null);
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
     const [withHLS, setWithHLS] = useState(false);
     const [availableQualities, setAvailableQualities] = useState<TypeQuality>([]);
+    const notificationsStore = useNotificationsStore();
     const isLocalVideo = !!videoProps?.file;
 
     useEffect(() => {
@@ -158,6 +171,7 @@ export const StudioPage = () => {
 
             // Creating a new URL
             const newThumbnailUrl = URL.createObjectURL(blob);
+            videoProps.previewBlob = blob;
             setThumbnailUrl(newThumbnailUrl);
         } catch (error) {
             console.error('Error capturing frame:', error);
@@ -230,7 +244,30 @@ export const StudioPage = () => {
     }
 
     return (
-        <form ref={containerRef} className="w-full justify-between h-full flex flex-col px-4 pt-4">
+        <form ref={containerRef} className="w-full justify-between h-full flex flex-col px-4 pt-4" onSubmit={ async (e) => {
+            e.preventDefault();
+
+            if(!isLocalVideo) {
+                await VideoUploadService.startNewUpload({
+                    title: videoProps.title,
+                    id: videoProps.id,
+                    provider: PROVIDERS.indexOf(videoProps.provider) + 1,
+                    previewUrl: videoProps.previewUrl,
+                });
+                return;
+            }
+
+            const id = await VideoUploadService.startNewUploadFile(videoProps.file,{
+                    title: videoProps.title,
+                    duration: videoProps.duration,
+                    thumbnailsCaptureInterval: videoProps.thumbnailsCaptureInterval
+                }, videoProps.file.fingerprint, videoProps.previewBlob
+            );
+            resumeVideoUpload({ title: videoProps.title, id, uploadedSize: 0 },
+                videoProps.file,
+                notificationsStore);
+            router.push('/home');
+        }}>
             <div className={`w-full ${screenSize === 'desktop' ? 'grid grid-cols-12 gap-6' : 'flex flex-col gap-4'}`}>
                 <div className={`${screenSize === 'desktop' ? 'col-span-7' : 'w-full'} order-1`}>
                     <PlyrPlayer
@@ -278,7 +315,7 @@ export const StudioPage = () => {
 
                 <div className={`${screenSize === 'desktop' ? 'col-span-5' : 'w-full'} order-2`}>
                     <Label size={"lg"} htmlFor="title">Video title</Label>
-                    <Input
+                    <Input onInput={(e) => videoProps.title = e.currentTarget.value}
                         className="mt-2"
                         name="title"
                         placeholder="Some video title for this video"
@@ -298,7 +335,12 @@ export const StudioPage = () => {
                                 <SliderWithMarks
                                     defaultValue={[0]}
                                     step={1}
-                                    marks={["Off ","0.5s", "1s  ", "2s  ", "3s  ", "5s  ", "10s"]}
+                                    onValueCommit={(o) => {
+                                        videoProps.thumbnailsCaptureInterval = Number.parseFloat(
+                                            THUMBNAIL_RANGES[o[0]]
+                                        );
+                                    }}
+                                    marks={THUMBNAIL_RANGES}
                                     className={"w-full"}
                                 />
                             </div>
@@ -353,9 +395,9 @@ export const StudioPage = () => {
                     )}
                 </div>
             </div>
-            <div className="w-full my-5">
+            <div className="w-full">
                 <Separator className="my-5"/>
-                <Button type="submit" variant={"outline"} className="w-full">
+                <Button type="submit" variant={"outline"} className="w-full mb-5">
                     Upload video
                 </Button>
             </div>

@@ -10,6 +10,7 @@ export const enum EIcon {
     CloseCircleOutline,
     CheckCircleOutline,
     Cog = 9,
+    Bell = 10
 }
 
 export interface ISvgIconProps extends SVGProps<SVGSVGElement> {
@@ -32,6 +33,7 @@ export const SvgIcon: FC<ISvgIconProps> = ({size, icon, fill, ...props}) => {
 
 export const IconButton: FC<ISvgIconProps> = ({size, icon, fill, className, ...props}) => {
     return (
+        // @ts-ignore
         <button className={`hover:text-accent-foreground text-foreground/80 cursor-pointer transition-colors flex-center ${className ?? ''}`}
                 style={{width: size, height: size}}
                 {...props}>

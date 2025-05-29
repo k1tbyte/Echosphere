@@ -146,7 +146,7 @@ export const useModalActions = <T extends HTMLElement>(ref?: React.RefObject<T>)
     const contentRef = ref ?? useRef<T>(null)
 
     function closeModal() {
-        const id = contentRef.current?.parentElement?.getAttribute("modal-id") as unknown as number | undefined
+        const id = contentRef.current?.parentElement?.parentElement?.getAttribute("modal-id") as unknown as number | undefined
         if (id) {
             modal.close(id)
         }
@@ -166,7 +166,7 @@ export const modal = {
             prevCount = prev.length
             props.id = prev.length
             return [...prev,
-                {id: props.id, onClosing: props.onClosing, body: <ModalBody {...props} />}
+                { id: props.id, onClosing: props.onClosing, body: <ModalBody {...props} /> }
             ];
         });
         return props.id!;

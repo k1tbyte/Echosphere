@@ -2,6 +2,10 @@
 
 import React, {FC} from "react";
 import {DropZone, DropZoneProps} from "@/widgets/dropzone";
+import {createFileFingerprint} from "@/shared/lib/cryptography";
+import {modal} from "@/shared/ui/Modal";
+import {VideoUploadService} from "@/shared/services/videoUploadService";
+import {ResumeVideoUploadModal} from "@/pages/Home/ui/ResumeVideoUploadModal";
 
 // @ts-ignore
 export const VideoDropZone: FC<DropZoneProps & { successcallback: (file: File) => void }> =
@@ -10,7 +14,24 @@ export const VideoDropZone: FC<DropZoneProps & { successcallback: (file: File) =
         if (!file.type.startsWith('video/')) {
             return 'Please upload a valid video file';
         }
-        successcallback(file);
+
+        createFileFingerprint(file).then(async (fingerprint) => {
+            fingerprint = file.size + fingerprint
+            // @ts-ignore
+            file.fingerprint = fingerprint;
+            const pending = VideoUploadService.getSavedUploadState(fingerprint);
+            if(pending) {
+                const video = await VideoUploadService.getVideo(pending.videoId);
+                modal.open( {
+                    title: "Continue uploading video",
+                    // @ts-ignore
+                    body: <ResumeVideoUploadModal video={video} file={file}/>
+                });
+                return;
+            }
+
+            successcallback(file);
+        });
     }
 
     return <DropZone {...props}
