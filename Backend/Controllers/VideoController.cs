@@ -3,12 +3,14 @@ using System.Text;
 using System.Text.Json;
 using Backend.Controllers.Abstraction;
 using Backend.Data.Entities;
+using Backend.Repositories;
 using Backend.Repositories.Abstraction;
 using Backend.Requests;
 using Backend.Services;
 using Backend.Services.Filters;
 using Backend.Workers;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Controllers;
 
@@ -50,14 +52,13 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     public async Task<ActionResult<Video>> GetById(Guid id)
     {
         var result = await videoRepository.GetVideoByIdAsync(id);
-        var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == JwtService.UserIdClaimType)?.Value;
         if (result == null)
             return NotFound();
         if (result.IsPublic)
         {
             return Ok(result);
         }
-        if (await accountRepository.CheckPrivateVideoAccess(userId,result.OwnerId))
+        if (VideoRepository.CheckPrivateVideoAccess(HttpContext, result.OwnerId))
         {
             return Ok(result);
         }
@@ -71,9 +72,8 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
         var video = await videoRepository.GetVideoByIdAsync(id);
-        if (!await accountRepository.CheckPrivateVideoAccess(userId, video.OwnerId))
+        if (!VideoRepository.CheckPrivateVideoAccess(HttpContext, video.OwnerId))
         {
             return Forbid();
         }
@@ -83,27 +83,71 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         return Ok();
     }
     
+    [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<Video>),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<Video>> GetVideos(string filterString,bool desc=false,int page=1,int pageSize=20,string sortBy="CreatedAt")
+    {
+        try
+        {
+            var resultId = JwtService.GetUserIdFromContext(HttpContext, out var userId);
+            JwtService.GetUserRoleFromContext(HttpContext, out var userRole);
+
+            var videos = await videoRepository.GetAllAsync(
+                filter: q =>
+                {
+                    var filtered = (userRole >= EUserRole.Admin )
+                        ? q
+                        : q.Where(v => v.IsPublic || (resultId && v.OwnerId == userId));
+                    if (!string.IsNullOrWhiteSpace(filterString))
+                    {
+                        filtered = filtered.Where(v => EF.Functions.ILike(v.Title, $"%{filterString}%"));
+                    }
+                    filtered = filtered.Where(v => v.Status == EVideoStatus.Ready);
+                    return filtered;
+                },
+                sortBy: sortBy,          
+                sortDescending: desc,
+                page: page,
+                pageSize: pageSize
+            );
+            return Ok(videos);
+        }
+        catch (ArgumentException e)
+        {
+            return BadRequest(e.Message);
+        }
+        catch (Exception e)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, e.Message);
+        }
+    }
+
+    
+    
+    
     private const string BucketName = "videos";
     [HttpGet]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> PlayVideo(string file)
+    public async Task<IActionResult> PlayVideo(Guid id)
     {
         //Video availability check
-        /*var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
-        var video = await videoRepository.GetVideoByUrlAsync(file);
+        var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
+        var video = await videoRepository.GetVideoByIdAsync(id);
         if (video == null)
         {
             return NotFound();
         }
-        if (!video.IsPublic&&await accountRepository.CheckPrivateVideoAccess(userId, video.OwnerId))
+        if (!video.IsPublic&&VideoRepository.CheckPrivateVideoAccess(HttpContext, video.OwnerId))
         {
             return Forbid();
-        }*/
+        }
         
         
-        string masterPlaylist = $"{file}/master.m3u8";
+        string masterPlaylist = $"{id.ToString()}/master.m3u8";
         try
         {
             var result = await s3FileService.DownloadFileStreamAsync("videos", masterPlaylist);
@@ -342,6 +386,30 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         }
     }
     
+
+    
+    [HttpGet]
+    [RequireRole(EUserRole.User)]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> DownloadRawVideo(string objectName)
+    {
+        try
+        {
+            return await DownloadFromBucket("videos", objectName + "_raw");
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, $"Error during download: {e.Message}");
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
     /*
     [HttpPost]
     //[RequireRole(EUserRole.User)]
@@ -362,7 +430,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
 
                 var objName = await fileService.UploadFileStreamAsync(readStream, BucketName, contentType);
                 if (multiQuality)
-                { 
+                {
                     await videoProcessingService.ProcessVideoMultiQualityAsync(tempFilePath, BucketName, objName);
                 }
                 else
@@ -391,21 +459,4 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         }
     }
     */
-    
-    [HttpGet]
-    [RequireRole(EUserRole.User)]
-    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> DownloadRawVideo(string objectName)
-    {
-        try
-        {
-            return await DownloadFromBucket("videos", objectName + "_raw");
-        }
-        catch (Exception e)
-        {
-            return StatusCode(500, $"Error during download: {e.Message}");
-        }
-    }
-    
 }

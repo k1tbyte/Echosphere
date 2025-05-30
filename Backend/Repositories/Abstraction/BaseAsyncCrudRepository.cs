@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Backend.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Repositories.Abstraction;
 
@@ -7,7 +8,7 @@ public class BaseAsyncCrudRepository<T, TDerived>(DbContext context, DbSet<T> se
     where TDerived : IAsyncCrudRepository<T, TDerived>
 {
     int AutoSaveRequests { get; set; }
-    public DbSet<T> Set => context.Set<T>();
+    public DbSet<T> Set => set;
     public TDerived WithAutoSave(int nextRequestsCount = 1)
     {
         AutoSaveRequests = nextRequestsCount;
@@ -16,26 +17,26 @@ public class BaseAsyncCrudRepository<T, TDerived>(DbContext context, DbSet<T> se
 
     public async Task<T> Add(T entity)
     {
-        var entry = await set.AddAsync(entity);
+        var entry = await Set.AddAsync(entity);
         await _saveInternalAsync();
         return entry.Entity;
     }
 
     public async Task<T?> Get(int id)
     {
-        return await set.FindAsync(id);
+        return await Set.FindAsync(id);
     }
 
     public async Task<T> Update(T entity)
     {
-        var entry = set.Update(entity);
+        var entry = Set.Update(entity);
         await _saveInternalAsync();
         return entry.Entity;
     }
 
     public async Task<bool> DeleteById(object id)
     {
-        var entity = await set.FindAsync(id);
+        var entity = await Set.FindAsync(id);
         return await Delete(entity);
     }
 
@@ -44,7 +45,7 @@ public class BaseAsyncCrudRepository<T, TDerived>(DbContext context, DbSet<T> se
         if (entity == null)
             return false;
 
-        set.Remove(entity);
+        Set.Remove(entity);
         await _saveInternalAsync();
         return true;
     }
@@ -53,6 +54,34 @@ public class BaseAsyncCrudRepository<T, TDerived>(DbContext context, DbSet<T> se
         await context.SaveChangesAsync().ConfigureAwait(false);
         return (TDerived)(object)this;
     }
+    
+    public async Task<IEnumerable<T>> GetAllAsync(
+        Func<IQueryable<T>, IQueryable<T>>? filter = null,
+        string? sortBy = null,
+        bool sortDescending = false,
+        int page = 1,
+        int pageSize = 100)
+    {
+        IQueryable<T> query = Set;
+
+        if (filter != null)
+        {
+            query = filter(query);
+        }
+
+        if (!string.IsNullOrEmpty(sortBy))
+        {
+            query = sortDescending
+                ? query.OrderByDescendingDynamic(sortBy)
+                : query.OrderByDynamic(sortBy);
+        }
+
+        query = query.Skip((page - 1) * pageSize).Take(pageSize);
+
+        return await query.ToListAsync();
+    }
+    
+    
 
     private async Task _saveInternalAsync()
     {
