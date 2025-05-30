@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Backend.Controllers;
 
 [Route(Constants.DefaultRoutePattern)]
-public class AuthController(IAccountRepository accountRepository, EmailService emailService,JwtService jwtService, IHttpContextAccessor accessor): ControllerBase
+public class AuthController(IAccountRepository accountRepository,JwtService jwtService, IHttpContextAccessor accessor): ControllerBase
 {
     [HttpPost]
     //[TypeFilter(typeof(CaptchaRequired))]

@@ -4,9 +4,8 @@ using Backend.Services;
 
 namespace Backend.Repositories.Abstraction;
 
-public interface IAccountRepository :IAsyncCrudRepository<User>
+public interface IAccountRepository :IAsyncCrudRepository<User, IAccountRepository>
 {
-    public bool Autosave { get; set; }
     public Task LogOutAsync(string? refreshToken);
     public Task<AuthTokensDTO?> AuthenticateAsync(string email,string password,bool isRemember);
     public Task<string?> GetSignupToken(User user);

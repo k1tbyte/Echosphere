@@ -10,6 +10,7 @@ public enum EVideoStatus
 {
     Failed = 0,
     Pending,
+    Queued,
     Processing,
     Ready,
     Blocked

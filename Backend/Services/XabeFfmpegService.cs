@@ -25,40 +25,27 @@ public class XabeFfmpegService : IVideoProcessingService
 
     public async Task ProcessVideoMultiQualityAsync(string inputFilePath, string bucketName, string outputPrefix)
     {
-        string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(tempDir);
+        var workingDir =  Path.GetDirectoryName(inputFilePath) ?? throw new ArgumentException("Input file path is invalid.");
         // Generate sprite and VTT for preview thumbnails
-        string spritePath = Path.Combine(tempDir, "sprite.jpg");
-        string vttPath = Path.Combine(tempDir, "thumbnails.vtt");
+        string spritePath = Path.Combine(workingDir, "sprite.jpg");
+        string vttPath = Path.Combine(workingDir, "thumbnails.vtt");
         await GenerateSpriteAndVttAsync(inputFilePath, spritePath, vttPath);
-        try
-        {
-            await GenerateAdaptiveHlsAsync(inputFilePath, tempDir);
+
+        await GenerateAdaptiveHlsAsync(inputFilePath, workingDir);
         
-            //disabled preview auto generation
-            /*string previewPath = Path.Combine(tempDir, "preview.jpg");
-        
-            await GeneratePreviewAsync(inputFilePath, previewPath,TimeSpan.FromSeconds(previewTimecode));*/
+        //disabled preview auto generation
+        /*string previewPath = Path.Combine(tempDir, "preview.jpg");
+
+        await GeneratePreviewAsync(inputFilePath, previewPath,TimeSpan.FromSeconds(previewTimecode));*/
             
-            foreach (var file in Directory.GetFiles(tempDir, "*", SearchOption.AllDirectories))
-            {
-                string relativePath = Path.GetRelativePath(tempDir, file).Replace("\\", "/");
-                string objectName = $"{outputPrefix}/{relativePath}";
-
-                using var stream = File.OpenRead(file);
-                await _s3FileService.PutObjectAsync(stream,bucketName, objectName);
-            }
-        }
-        catch (Exception e)
+        foreach (var file in Directory.GetFiles(workingDir, "*", SearchOption.AllDirectories))
         {
-            Console.WriteLine(e);
-            throw;
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
+            string relativePath = Path.GetRelativePath(workingDir, file).Replace("\\", "/");
+            string objectName = $"{outputPrefix}/{relativePath}";
 
+            using var stream = File.OpenRead(file);
+            await _s3FileService.PutObjectAsync(stream,bucketName, objectName);
+        }
     }
 
     private async Task GenerateAdaptiveHlsAsync(string inputFile, string outputDir)
@@ -69,7 +56,7 @@ public class XabeFfmpegService : IVideoProcessingService
         var conversion = FFmpeg.Conversions.New()
             .AddParameter($"-i \"{inputFile}\"")
             // Video codec settings
-            .AddParameter("-c:v h264")
+            .AddParameter("-c:v h264_nvenc")
             // Use a faster preset for better performance
             /*.AddParameter("-preset fast")*/ // TODO optional
             // Create multiple quality renditions
@@ -102,7 +89,10 @@ public class XabeFfmpegService : IVideoProcessingService
             .AddParameter("-hls_segment_filename \"" + Path.Combine(outputDir, "v%v/segment_%03d.ts") + "\"")
             .SetOutput(Path.Combine(outputDir, "v%v/playlist.m3u8"));
 
+        var watch = System.Diagnostics.Stopwatch.StartNew();
         await conversion.Start();
+        watch.Stop();
+        Console.WriteLine($"HLS conversion completed in {watch.ElapsedMilliseconds} ms");
     }
     
     private async Task GeneratePreviewAsync(string inputFile, string outputImage, TimeSpan previewTime)
@@ -127,28 +117,28 @@ public class XabeFfmpegService : IVideoProcessingService
         const int interval = 1; // One thumbnail per second
         
         // Calculate how many thumbnails we'll generate based on video duration
-        int totalThumbs = (int)Math.Ceiling(duration.TotalSeconds);
+        int totalThumbs = (int)Math.Ceiling(duration.TotalSeconds / interval);
         int rows = (int)Math.Ceiling((double)totalThumbs / columns);
         
         // Create temporary directory for individual thumbnails
-        string tempThumbsDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(tempThumbsDir);
+        string tempThumbsDir = Path.Combine(Path.GetDirectoryName(inputFile)!, "temp_thumbnails");
         
         try
         {
+            Directory.CreateDirectory(tempThumbsDir);
             // Step 1: Extract thumbnails at regular intervals
             await FFmpeg.Conversions.New()
                 .AddParameter($"-i \"{inputFile}\"")
                 .AddParameter($"-vf \"fps=1/{interval},scale={thumbWidth}:{thumbHeight}\"")
                 .AddParameter("-q:v 5") // Quality level, lower is better (1-31)
-                .SetOutput(Path.Combine(tempThumbsDir, "thumb_%04d.jpg"))
+                .SetOutput(Path.Combine(tempThumbsDir, "_%04d.jpg"))
                 .Start();
             
             // Step 2: Create the sprite by montaging the thumbnails
             var tileFilter = $"tile={columns}x{rows}";
             
             await FFmpeg.Conversions.New()
-                .AddParameter($"-i \"{Path.Combine(tempThumbsDir, "thumb_%04d.jpg")}\"")
+                .AddParameter($"-i \"{Path.Combine(tempThumbsDir, "_%04d.jpg")}\"")
                 .AddParameter($"-vf \"{tileFilter}\"")
                 .AddParameter("-q:v 5")
                 .SetOutput(spriteOutputPath)
@@ -171,27 +161,26 @@ public class XabeFfmpegService : IVideoProcessingService
     private async Task GenerateVttFileAsync(string vttPath, int totalThumbs, int columns, int rows, 
         int thumbWidth, int thumbHeight, int interval)
     {
-        StringBuilder vttBuilder = new StringBuilder();
-        vttBuilder.AppendLine("WEBVTT");
-        vttBuilder.AppendLine();
+        await using var writer = new StreamWriter(vttPath, false); // false означает перезапись файла, если он существует
         
+        await writer.WriteLineAsync("WEBVTT");
+        await writer.WriteLineAsync();
+    
         string spriteName = Path.GetFileName(vttPath).Replace(".vtt", ".jpg");
         
         for (int i = 0; i < totalThumbs; i++)
         {
             int x = (i % columns) * thumbWidth;
             int y = (i / columns) * thumbHeight;
-            
+        
             TimeSpan startTime = TimeSpan.FromSeconds(i * interval);
             TimeSpan endTime = TimeSpan.FromSeconds((i + 1) * interval);
-            
-            vttBuilder.AppendLine($"{i + 1}");
-            vttBuilder.AppendLine($"{FormatTimeSpan(startTime)} --> {FormatTimeSpan(endTime)}");
-            vttBuilder.AppendLine($"{spriteName}#xywh={x},{y},{thumbWidth},{thumbHeight}");
-            vttBuilder.AppendLine();
-        }
         
-        await File.WriteAllTextAsync(vttPath, vttBuilder.ToString());
+            await writer.WriteLineAsync($"{i + 1}");
+            await writer.WriteLineAsync($"{FormatTimeSpan(startTime)} --> {FormatTimeSpan(endTime)}");
+            await writer.WriteLineAsync($"{spriteName}#xywh={x},{y},{thumbWidth},{thumbHeight}");
+            await writer.WriteLineAsync();
+        }
     }
     
     private string FormatTimeSpan(TimeSpan time)

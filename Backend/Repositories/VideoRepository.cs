@@ -5,17 +5,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Repositories;
 
-public class VideoRepository(AppDbContext context): BaseAsyncCrudRepository<Video>(context,context.Videos),IVideoRepository
+public class VideoRepository(AppDbContext context): BaseAsyncCrudRepository<Video, IVideoRepository>(context, context.Videos), IVideoRepository
 {
-    public bool Autosave { get; set; } = true;
     public async Task<Video?> GetVideoByIdAsync(Guid id)
     {
         return await context.Videos.FirstOrDefaultAsync(v => v.Id == id);
     }
-    public async Task<List<Guid>> GetProcessingVideosIdsAsync()
+    public async Task<List<Guid>> GetQueuedVideoIdsAsync()
     {
         return await context.Videos
-            .Where(v => v.Status == EVideoStatus.Processing)
+            .Where(v => v.Status == EVideoStatus.Queued)
             .OrderBy(v => v.CreatedAt)
             .Select(v => v.Id)
             .ToListAsync();

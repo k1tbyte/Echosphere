@@ -8,7 +8,9 @@ namespace Backend.Controllers.Abstraction;
 
 [ApiController]
      [Route(Constants.DefaultRoutePattern)]
-     public abstract class BaseCrudController<T>(IAsyncCrudRepository<T> repository): ControllerBase where T : class
+     public abstract class BaseCrudController<T, TDerived>(IAsyncCrudRepository<T, TDerived> repository) : 
+         ControllerBase where T : class
+         where TDerived : IAsyncCrudRepository<T, TDerived>
      {
      #if !DEBUG
          [RequireRole(EUserRole.Admin)]

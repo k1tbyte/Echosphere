@@ -8,7 +8,6 @@ using Backend.Requests;
 using Backend.Services;
 using Backend.Services.Filters;
 using Backend.Workers;
-using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers;
@@ -25,9 +24,9 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     public async Task<IActionResult> SelfUpdate([FromBody] Video? entity)
     {
         var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == JwtService.UserIdClaimType)?.Value;
-        if (entity != null && int.TryParse(userId, out int id) && id == entity.OwnerId)
+        if (entity != null && int.TryParse(userId, out var id) && id == entity.OwnerId)
         {
-            await videoRepository.Update(entity);
+            await videoRepository.WithAutoSave().Update(entity);
             return Ok();
         }
         return Forbid();
@@ -39,7 +38,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     {
         if (entity != null)
         {
-            await videoRepository.Update(entity);
+            await videoRepository.WithAutoSave().Update(entity);
             return Ok();
         }
         return Forbid();
@@ -78,7 +77,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         {
             return Forbid();
         }
-        var success = await accountRepository.DeleteById(id);
+        var success = await accountRepository.WithAutoSave().DeleteById(id);
         if (!success)
             return NotFound();
         return Ok();
@@ -176,7 +175,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
 
                 i++;
             }
-            status = EVideoStatus.Processing;
+            status = EVideoStatus.Queued;
         }
         catch (Exception e)
         {
@@ -195,8 +194,13 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         {
             video.Status = status;
             video.UploadSize = videoBytesProcessed;
-            await videoRepository.Update(video);
-            VideoProcessingWorker.Enqueue(video.Id);
+            await videoRepository.WithAutoSave().Update(video);
+
+            if (status == EVideoStatus.Queued)
+            {
+                VideoProcessingWorker.Enqueue(video.Id);
+            }
+            
         }
         
         return StatusCode(responseCode);
@@ -243,7 +247,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                 return BadRequest("Video ID is required for third-party providers");
             }
             
-            await videoRepository.Add(new Video
+            await videoRepository.WithAutoSave().Add(new Video
             {
                 Id = id,
                 Title = request.Title,
@@ -309,7 +313,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
             var videoPath = Path.Combine(directory, "original");
             await using var videoStream = System.IO.File.OpenWrite(videoPath);
             
-            await videoRepository.Add(new Video
+            await videoRepository.WithAutoSave().Add(new Video
             {
                 Title = request.Title,
                 Description = request.Description,

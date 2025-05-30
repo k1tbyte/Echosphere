@@ -2,12 +2,22 @@
 
 namespace Backend.Repositories.Abstraction;
 
-public class BaseAsyncCrudRepository<T>(DbContext context, DbSet<T> set) : IAsyncCrudRepository<T> where T : class
+public class BaseAsyncCrudRepository<T, TDerived>(DbContext context, DbSet<T> set) : IAsyncCrudRepository<T, TDerived> 
+    where T : class
+    where TDerived : IAsyncCrudRepository<T, TDerived>
 {
+    int AutoSaveRequests { get; set; }
+    public DbSet<T> Set => context.Set<T>();
+    public TDerived WithAutoSave(int nextRequestsCount = 1)
+    {
+        AutoSaveRequests = nextRequestsCount;
+        return (TDerived)(object)this;
+    }
+
     public async Task<T> Add(T entity)
     {
         var entry = await set.AddAsync(entity);
-        await SaveAsync();
+        await _saveInternalAsync();
         return entry.Entity;
     }
 
@@ -16,10 +26,11 @@ public class BaseAsyncCrudRepository<T>(DbContext context, DbSet<T> set) : IAsyn
         return await set.FindAsync(id);
     }
 
-    public async Task Update(T entity)
+    public async Task<T> Update(T entity)
     {
-        set.Update(entity);
-        await SaveAsync();
+        var entry = set.Update(entity);
+        await _saveInternalAsync();
+        return entry.Entity;
     }
 
     public async Task<bool> DeleteById(object id)
@@ -34,11 +45,26 @@ public class BaseAsyncCrudRepository<T>(DbContext context, DbSet<T> set) : IAsyn
             return false;
 
         set.Remove(entity);
-        await SaveAsync();
+        await _saveInternalAsync();
         return true;
     }
-    public async Task SaveAsync()
+    public async Task<TDerived> SaveAsync()
     {
         await context.SaveChangesAsync().ConfigureAwait(false);
+        return (TDerived)(object)this;
+    }
+
+    private async Task _saveInternalAsync()
+    {
+        if (AutoSaveRequests == -1)
+        {
+            await SaveAsync();
+            return;
+        }
+        if (AutoSaveRequests > 0)
+        {
+            AutoSaveRequests--;
+            await SaveAsync();
+        }
     }
 }

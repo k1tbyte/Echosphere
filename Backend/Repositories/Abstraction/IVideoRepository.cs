@@ -2,8 +2,8 @@
 
 namespace Backend.Repositories.Abstraction;
 
-public interface IVideoRepository : IAsyncCrudRepository<Video>
+public interface IVideoRepository : IAsyncCrudRepository<Video,  IVideoRepository>
 {
     public Task<Video?> GetVideoByIdAsync(Guid id);
-    public Task<List<Guid>> GetProcessingVideosIdsAsync();
+    public Task<List<Guid>> GetQueuedVideoIdsAsync();
 }

@@ -9,12 +9,10 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace Backend.Repositories;
 
-public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemoryCache signupCache) : BaseAsyncCrudRepository<User>(context,context.Users), IAccountRepository
+public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemoryCache signupCache) : 
+    BaseAsyncCrudRepository<User, IAccountRepository>(context,context.Users), IAccountRepository
 {
     private static readonly TimeSpan CacheExpireTime = TimeSpan.FromHours(24);
-    public bool Autosave { get; set; } = true;
-    
-
 
     public async Task LogOutAsync(string? refreshToken)
     {
@@ -136,7 +134,7 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
             throw new InvalidOperationException("Friendship is not accepted yet.");
 
         context.Friendships.Remove(friendship);
-        await context.SaveChangesAsync();
+        await SaveAsync();
     }
 
     public async Task<List<UserSimplifiedDTO>> GetFriends(int userId, int page, int pageSize)
@@ -213,7 +211,7 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
             if (user != null)
             {
                 user.Avatar = objName;
-                await Update(user);
+                await WithAutoSave().Update(user);
             }
         }
     }
@@ -228,14 +226,5 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
             return false;
 
         return ownerId == id || user.Role >= EUserRole.Admin;
-    }
-    
-    
-    public async Task SaveAsync()
-    {
-        if (!Autosave)
-            return;
-        
-        await context.SaveChangesAsync().ConfigureAwait(false);
     }
 }

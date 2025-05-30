@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace Backend.Data.Entities;
 
@@ -36,7 +37,11 @@ public sealed class User
     
     [Column("role")] 
     public EUserRole Role { get; set; } = EUserRole.None;
+    
+    [JsonIgnore]
     public ICollection<Friendship> SentFriendRequests { get; set; }
+    [JsonIgnore]
     public ICollection<Friendship> ReceivedFriendRequests { get; set; }
+    [JsonIgnore]
     public ICollection<Video> Videos { get; set; } = new List<Video>();
 }
