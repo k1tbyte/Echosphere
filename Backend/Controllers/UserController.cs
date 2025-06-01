@@ -5,6 +5,7 @@ using Backend.Repositories.Abstraction;
 using Backend.Services;
 using Backend.Services.Filters;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Controllers;
 [Route(Constants.DefaultRoutePattern)]
@@ -14,24 +15,24 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
 
     [HttpPatch]
     [RequireRole(EUserRole.User)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> SelfUpdate([FromBody] User? entity)
     {
         if (entity != null && JwtService.GetUserIdFromContext(HttpContext, out var id) && id == entity.Id)
         {
             await accountRepository.Update(entity);
-            return Ok();
+            return NoContent();
         }
         return Forbid();
     }
     [HttpPatch]
     [RequireRole(EUserRole.Moder)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Update([FromBody] User entity)
     {
         await accountRepository.Update(entity);
-        return Ok();
+        return NoContent();
     }
 
     [HttpGet("{id}")]
@@ -46,25 +47,25 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     [HttpDelete]
     [RequireRole(EUserRole.Admin)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id)
     {
         var success = await accountRepository.DeleteById(id);
         if (!success)
             return NotFound();
-        return Ok();
+        return NoContent();
     }
     
     [HttpPost]
     [RequireRole(EUserRole.User)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> SendFriendship([FromBody] FriendshipRequestDTO dto)
     {
         try
         {
             await accountRepository.SendFriendshipRequestAsync(dto.UserId, dto.FriendId);
-            return Ok();
+            return NoContent();
         }
         catch (ArgumentException ex)
         {
@@ -86,13 +87,13 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     [HttpPost]
     [RequireRole(EUserRole.User)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> AcceptFriendship([FromBody] FriendshipRequestDTO dto)
     {
         try
         {
             await accountRepository.AcceptFriendshipAsync(dto.UserId, dto.FriendId);
-            return Ok();
+            return NoContent();
         }
         catch (InvalidOperationException ex)
         {
@@ -106,13 +107,13 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     [HttpPost]
     [RequireRole(EUserRole.User)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RejectFriendship([FromBody] FriendshipRequestDTO dto)
     {
         try
         {
             await accountRepository.DeleteFriendshipAsync(dto.UserId, dto.FriendId);
-            return Ok();
+            return NoContent();
         }
         catch (InvalidOperationException ex)
         {
@@ -126,13 +127,13 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     [HttpPost]
     [RequireRole(EUserRole.User)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteFriend([FromBody] FriendshipRequestDTO dto)
     {
         try
         {
             await accountRepository.DeleteFriendshipAsync(dto.UserId, dto.FriendId);
-            return Ok();
+            return NoContent();
         }
         catch (InvalidOperationException ex)
         {
@@ -144,6 +145,77 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         }
         
     }
+    
+    [HttpGet]
+#if !DEBUG
+    [RequireRole(EUserRole.User)]
+#endif
+    [ProducesResponseType(typeof(IEnumerable<Video>),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<Video>> GetUsers(string filterString,bool desc=false,int page=1,int pageSize=20,string sortBy="Username")
+    {
+        try
+        {
+            JwtService.GetUserRoleFromContext(HttpContext, out var userRole);
+
+            var users = await accountRepository.GetAllAsync(
+                filter: q =>
+                {
+                    var filtered = (userRole >= EUserRole.Admin )
+                        ? q
+                        : q.Where(u => u.Role!=EUserRole.Banned);
+                    if (!string.IsNullOrWhiteSpace(filterString))
+                    {
+                        filtered= filtered.Where(u => EF.Functions.ILike(u.Username, $"%{filterString}%"));
+                    }
+                    return filtered;
+                },
+                sortBy: sortBy,          
+                sortDescending: desc,
+                page: page,
+                pageSize: pageSize
+            );
+            return Ok(users);
+        }
+        catch (ArgumentException e)
+        {
+            return BadRequest(e.Message);
+        }
+        catch (Exception e)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, e.Message);
+        }
+    }
+    
+    [HttpPatch]
+    [RequireRole(EUserRole.Admin)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateUserRole([FromBody] RoleUpdateRequestDTO dto)
+    {
+        var user = await accountRepository.Get(dto.UserId);
+        if (user == null)
+        {
+            return NotFound();
+        }
+        if (!Enum.IsDefined(typeof(EUserRole), dto.NewRole))
+        {
+            return BadRequest("Invalid role specified.");
+        }
+        if (user.Role == dto.NewRole)
+        {
+            return NoContent();
+        }
+        user.Role = dto.NewRole;
+        await accountRepository.Update(user);
+        return NoContent();
+    }
+    
+    
+    
+    
     [HttpGet]
     [RequireRole(EUserRole.User)]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
@@ -216,7 +288,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
                 await _fileService.UploadFileStreamAsync(Request.Body, "avatars");
             var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == JwtService.UserIdClaimType)?.Value;
             await accountRepository.SetAvatar(userId, objName);
-            return Ok();
+            return NoContent();
         }
         catch (Exception ex)
         {

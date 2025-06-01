@@ -12,11 +12,31 @@ public class VideoRepository(AppDbContext context): BaseAsyncCrudRepository<Vide
     {
         return await context.Videos.FirstOrDefaultAsync(v => v.Id == id);
     }
-    public static bool CheckPrivateVideoAccess(HttpContext httpContext, int ownerId)
+    public static bool CheckVideoManagementAccess(HttpContext httpContext,Video video,bool deleteGranted)
     {
         JwtService.GetUserIdFromContext(httpContext,out var userId);
         JwtService.GetUserRoleFromContext(httpContext,out var role);
-        return ownerId == userId ||role >= EUserRole.Admin;
+        if (deleteGranted)
+            return video.OwnerId == userId ||role >= EUserRole.Admin;
+        return video.IsPublic && role >= EUserRole.Moder;
+    }
+    public static bool CheckVideoAccess(HttpContext httpContext, Video video)
+    {
+        JwtService.GetUserIdFromContext(httpContext,out var userId);
+        JwtService.GetUserRoleFromContext(httpContext,out var role);
+        if (video.OwnerId == userId || role >= EUserRole.Admin)
+        {
+            return true;
+        }
+        if (video.IsPublic)
+        {
+            if (video.Status != EVideoStatus.Blocked)
+            {
+                return true;
+            }
+            return role >= EUserRole.Moder;
+        }
+        return false;
     }
     public async Task<List<Guid>> GetQueuedVideoIdsAsync()
     {

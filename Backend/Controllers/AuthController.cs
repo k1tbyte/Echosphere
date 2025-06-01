@@ -97,7 +97,7 @@ public class AuthController(IAccountRepository accountRepository,JwtService jwtS
     }
     [HttpPost]
     [RequireRole(EUserRole.User)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> LogOut([FromBody] LogOutDTO dto)
     {
         if (User.Identity?.IsAuthenticated != false)
@@ -105,6 +105,6 @@ public class AuthController(IAccountRepository accountRepository,JwtService jwtS
             await accountRepository.LogOutAsync(dto.RefreshToken).ConfigureAwait(false);
         }
         
-        return Ok();
+        return NoContent();
     }
 }

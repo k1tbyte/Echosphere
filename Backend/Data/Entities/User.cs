@@ -7,6 +7,7 @@ namespace Backend.Data.Entities;
 public enum EUserRole
 {
     None,
+    Banned,
     User,
     Moder,
     Admin

@@ -118,57 +118,145 @@ public class XabeFfmpegService(IS3FileService s3FileService) : IVideoProcessingS
             .AddParameter($"-ss {timeArg} -i \"{inputFile}\" -frames:v 1 -q:v 2 \"{outputImage}\"")
             .Start();
     }
-    
-    private async Task GenerateSpriteAndVttAsync(string inputFile, string workingDir, VideoSettingsConfig config)
+        private async Task GenerateSpriteAndVttAsync(
+        string inputFile,
+        string workingDir,
+        VideoSettingsConfig config,
+        int maxThumbsPerSprite = 50,
+        int thumbHeight = 360)
     {
-        // Generate sprite and VTT for preview thumbnails
-        string spritePath = Path.Combine(workingDir, "thumbnails.jpg");
-        string vttPath = Path.Combine(workingDir, "thumbnails.vtt");
-        // First, get video duration to calculate number of thumbnails
         var mediaInfo = await FFmpeg.GetMediaInfo(inputFile);
         var duration = mediaInfo.Duration;
-        
-        
-        // Settings for sprite generation
-        const int thumbWidth = 178;
-        const int thumbHeight = 100;
-        const int columns = 6;
-        int interval = config.ThumbnailsCaptureInterval; // One thumbnail per second
-        
-        // Calculate how many thumbnails we'll generate based on video duration
+
+        int interval = config.ThumbnailsCaptureInterval;
+        int thumbWidth = (int)Math.Round(thumbHeight * (16.0 / 9.0));
         int totalThumbs = (int)Math.Ceiling(duration.TotalSeconds / interval);
-        int rows = (int)Math.Ceiling((double)totalThumbs / columns);
-        
-        // Create temporary directory for individual thumbnails
+        int spriteCount = (int)Math.Ceiling((double)totalThumbs / maxThumbsPerSprite);
+
         string tempThumbsDir = Path.Combine(Path.GetDirectoryName(inputFile)!, "temp_thumbnails");
-        
+        string vttPath = Path.Combine(workingDir, "thumbnails.vtt");
+
         try
         {
             Directory.CreateDirectory(tempThumbsDir);
-            // Step 1: Extract thumbnails at regular intervals
+
+            // Step 1: Extract all thumbnails
             await FFmpeg.Conversions.New()
                 .AddParameter($"-i \"{inputFile}\"")
                 .AddParameter($"-vf \"fps=1/{interval},scale={thumbWidth}:{thumbHeight}\"")
-                .AddParameter("-q:v 5") // Quality level, lower is better (1-31)
+                .AddParameter("-q:v 5")
                 .SetOutput(Path.Combine(tempThumbsDir, "_%04d.jpg"))
                 .Start();
-            
-            // Step 2: Create the sprite by montaging the thumbnails
-            var tileFilter = $"tile={columns}x{rows}";
-            
-            await FFmpeg.Conversions.New()
-                .AddParameter($"-i \"{Path.Combine(tempThumbsDir, "_%04d.jpg")}\"")
-                .AddParameter($"-vf \"{tileFilter}\"")
-                .AddParameter("-q:v 5")
-                .SetOutput(spritePath)
-                .Start();
-            
-            // Step 3: Generate the WebVTT file
-            await GenerateVttFileAsync(vttPath, totalThumbs, columns, rows, thumbWidth, thumbHeight, interval);
+
+            int thumbIndex = 0;
+
+            // Step 2: Prepare VTT writer
+            await using var vttWriter = new StreamWriter(vttPath, false);
+            await vttWriter.WriteLineAsync("WEBVTT");
+            await vttWriter.WriteLineAsync();
+
+            // Step 3: Process sprites in batches
+            for (int spriteIdx = 0; spriteIdx < spriteCount; spriteIdx++)
+            {
+                int thumbsInThisSprite = Math.Min(maxThumbsPerSprite, totalThumbs - thumbIndex);
+                int columns = (int)Math.Ceiling(Math.Sqrt(thumbsInThisSprite));
+                int rows = (int)Math.Ceiling((double)thumbsInThisSprite / columns);
+
+                string spriteName = $"thumbnails_{spriteIdx + 1}.jpg";
+                string spritePath = Path.Combine(workingDir, spriteName);
+
+                // Create sprite image
+                await FFmpeg.Conversions.New()
+                    .AddParameter($"-pattern_type glob -i \"{tempThumbsDir}/_{(thumbIndex + 1):D4}*.jpg\"")
+                    .AddParameter($"-vf tile={columns}x{rows}")
+                    .AddParameter($"-frames:v 1")
+                    .AddParameter("-q:v 5")
+                    .SetOutput(spritePath)
+                    .Start();
+
+                // Write VTT entries for this sprite
+                for (int i = 0; i < thumbsInThisSprite; i++)
+                {
+                    int globalIndex = thumbIndex + i;
+                    int x = (i % columns) * thumbWidth;
+                    int y = (i / columns) * thumbHeight;
+
+                    TimeSpan startTime = TimeSpan.FromSeconds(globalIndex * interval);
+                    TimeSpan endTime = TimeSpan.FromSeconds((globalIndex + 1) * interval);
+
+                    await vttWriter.WriteLineAsync($"{globalIndex + 1}");
+                    await vttWriter.WriteLineAsync($"{FormatTimeSpan(startTime)} --> {FormatTimeSpan(endTime)}");
+                    await vttWriter.WriteLineAsync($"{spriteName}#xywh={x},{y},{thumbWidth},{thumbHeight}");
+                    await vttWriter.WriteLineAsync();
+                }
+
+                thumbIndex += thumbsInThisSprite;
+            }
         }
         finally
         {
-            // Clean up temp files
+            if (Directory.Exists(tempThumbsDir))
+            {
+                Directory.Delete(tempThumbsDir, true);
+            }
+        }
+    }
+    /*private async Task GenerateSpriteAndVttAsync(
+        string inputFile, 
+        string workingDir, 
+        VideoSettingsConfig config, 
+        int maxThumbsPerSprite = 50, 
+        int thumbHeight = 360)
+    {
+        string spritePath = Path.Combine(workingDir, "thumbnails.jpg");
+        string vttPath = Path.Combine(workingDir, "thumbnails.vtt");
+
+        var mediaInfo = await FFmpeg.GetMediaInfo(inputFile);
+        var duration = mediaInfo.Duration;
+
+        int interval = config.ThumbnailsCaptureInterval; // e.g., 1 thumb per X sec
+
+        // Calculate width proportional to height, assuming 16:9 aspect ratio
+        int thumbWidth = (int)Math.Round(thumbHeight * (16.0 / 9.0));
+
+        // Calculate total number of thumbs
+        int totalThumbs = (int)Math.Ceiling(duration.TotalSeconds / interval);
+
+        // Limit thumbs per sprite
+        int thumbsInThisSprite = Math.Min(totalThumbs, maxThumbsPerSprite);
+
+        int columns = (int)Math.Ceiling(Math.Sqrt(thumbsInThisSprite));
+        int rows = (int)Math.Ceiling((double)thumbsInThisSprite / columns);
+
+        string tempThumbsDir = Path.Combine(Path.GetDirectoryName(inputFile)!, "temp_thumbnails");
+
+        try
+        {
+            Directory.CreateDirectory(tempThumbsDir);
+
+            // Step 1: Extract thumbnails
+            await FFmpeg.Conversions.New()
+                .AddParameter($"-i \"{inputFile}\"")
+                .AddParameter($"-vf \"fps=1/{interval},scale={thumbWidth}:{thumbHeight}\"")
+                .AddParameter("-q:v 5")
+                .SetOutput(Path.Combine(tempThumbsDir, "_%04d.jpg"))
+                .Start();
+
+            // Step 2: Create sprite (only up to maxThumbsPerSprite images)
+            var tileFilter = $"tile={columns}x{rows}";
+            await FFmpeg.Conversions.New()
+                .AddParameter($"-i \"{Path.Combine(tempThumbsDir, "_%04d.jpg")}\"")
+                .AddParameter($"-vf \"{tileFilter}\"")
+                .AddParameter("-frames:v 1") // take only one sprite image
+                .AddParameter("-q:v 5")
+                .SetOutput(spritePath)
+                .Start();
+
+            // Step 3: Generate VTT
+            await GenerateVttFileAsync(vttPath, thumbsInThisSprite, columns, rows, thumbWidth, thumbHeight, interval);
+        }
+        finally
+        {
             if (Directory.Exists(tempThumbsDir))
             {
                 Directory.Delete(tempThumbsDir, true);
@@ -200,7 +288,7 @@ public class XabeFfmpegService(IS3FileService s3FileService) : IVideoProcessingS
             await writer.WriteLineAsync($"{spriteName}#xywh={x},{y},{thumbWidth},{thumbHeight}");
             await writer.WriteLineAsync();
         }
-    }
+    }*/
     
     private string FormatTimeSpan(TimeSpan time)
     {

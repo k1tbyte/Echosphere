@@ -12,19 +12,20 @@ using Backend.Utils;
 using Backend.Workers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Backend.Controllers;
 
 [Route(Constants.DefaultRoutePattern)]
 public class VideoController(IS3FileService s3FileService,IVideoRepository videoRepository,
     IS3FileService fileService,
-    IAccountRepository accountRepository): BaseFileController(fileService)
+    IAccountRepository accountRepository,IMemoryCache memoryCache): BaseFileController(fileService)
 {
     private const string BucketName = "videos";
     
     [HttpPatch]
     [RequireRole(EUserRole.User)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> SelfUpdate([FromBody] Video? entity)
     {
@@ -32,19 +33,21 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         if (entity != null && int.TryParse(userId, out var id) && id == entity.OwnerId)
         {
             await videoRepository.WithAutoSave().Update(entity);
-            return Ok();
+            return NoContent();
         }
         return Forbid();
     }
     [HttpPatch]
     [RequireRole(EUserRole.Moder)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Update([FromBody] Video? entity)
     {
         if (entity != null)
         {
+            if(!VideoRepository.CheckVideoManagementAccess(HttpContext, entity,false))
+                return Forbid();
             await videoRepository.WithAutoSave().Update(entity);
-            return Ok();
+            return NoContent();
         }
         return Forbid();
     }
@@ -57,11 +60,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         var result = await videoRepository.GetVideoByIdAsync(id);
         if (result == null)
             return NotFound();
-        if (result.IsPublic)
-        {
-            return Ok(result);
-        }
-        if (VideoRepository.CheckPrivateVideoAccess(HttpContext, result.OwnerId))
+        if (VideoRepository.CheckVideoAccess(HttpContext, result))
         {
             return Ok(result);
         }
@@ -70,20 +69,24 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
 
     [HttpDelete]
     [RequireRole(EUserRole.User)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Delete(Guid id)
     {
         var video = await videoRepository.GetVideoByIdAsync(id);
-        if (!VideoRepository.CheckPrivateVideoAccess(HttpContext, video.OwnerId))
+        if (video == null)
+        {
+            return NotFound();
+        }
+        if (!VideoRepository.CheckVideoManagementAccess(HttpContext, video,true))
         {
             return Forbid();
         }
         var success = await accountRepository.WithAutoSave().DeleteById(id);
         if (!success)
             return NotFound();
-        return Ok();
+        return NoContent();
     }
     
     [HttpGet]
@@ -139,21 +142,19 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> PlayHLS(Guid id, string path)
     {
-        //Video availability check
-        var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
-        var video = await videoRepository.GetVideoByIdAsync(id);
-        if (video == null)
-        {
-            return NotFound();
-        }
-        if (!video.IsPublic && VideoRepository.CheckPrivateVideoAccess(HttpContext, video.OwnerId))
-        {
-            return Forbid();
-        }
-        
-        
         try
         {
+            if (!memoryCache.TryGetValue($"video_meta_{id}", out Video? video))
+            {
+                video = await videoRepository.GetVideoByIdAsync(id);
+                if (video == null)
+                    return NotFound("Video not found");
+                memoryCache.Set($"video_meta_{id}", video, TimeSpan.FromMinutes(5));
+            }
+            if (VideoRepository.CheckVideoAccess(HttpContext, video!))
+            {
+                return Forbid();
+            }
             var result = await s3FileService.DownloadFileStreamAsync(BucketName, $"{id}/{path}");
             return File(result.Stream, "application/vnd.apple.mpegurl", "playlist.m3u8"); 
         }
@@ -307,7 +308,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                 PreviewUrl = request.PreviewUrl,
                 Provider = request.Provider.Value
             });
-            return Ok();
+            return NoContent();
         }
 
         if(request.SizeBytes is null or <= 0)
