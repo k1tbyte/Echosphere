@@ -94,7 +94,7 @@ public class XabeFfmpegService(IS3FileService s3FileService) : IVideoProcessingS
                     $"-b:v:{i} {q.VideoBitrate} -maxrate:v:{i} {q.MaxBitrate} -bufsize:v:{i} {q.BufferSize}")))
 
             // Audio settings
-            .AddParameter("-c:a mp3 -ar 48000")
+            .AddParameter("-c:a aac -ar 48000")
             .AddParameter(string.Join(" ", qualities.Select((q, i) => $"-b:a:{i} {q.AudioBitrate}")))
 
             // General HLS settings
@@ -122,7 +122,7 @@ public class XabeFfmpegService(IS3FileService s3FileService) : IVideoProcessingS
     private async Task GenerateSpriteAndVttAsync(string inputFile, string workingDir, VideoSettingsConfig config)
     {
         // Generate sprite and VTT for preview thumbnails
-        string spritePath = Path.Combine(workingDir, "sprite.jpg");
+        string spritePath = Path.Combine(workingDir, "thumbnails.jpg");
         string vttPath = Path.Combine(workingDir, "thumbnails.vtt");
         // First, get video duration to calculate number of thumbnails
         var mediaInfo = await FFmpeg.GetMediaInfo(inputFile);

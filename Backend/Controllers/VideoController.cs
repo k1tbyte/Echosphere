@@ -87,6 +87,9 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     }
     
     [HttpGet]
+    #if !DEBUG
+    [RequireRole(EUserRole.User)]
+    #endif
     [ProducesResponseType(typeof(IEnumerable<Video>),StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
@@ -130,11 +133,11 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     
     
     
-    [HttpGet]
+    [HttpGet("{id:guid}/{*path}")]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> PlayVideo(Guid id)
+    public async Task<IActionResult> PlayHLS(Guid id, string path)
     {
         //Video availability check
         var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == "id")?.Value;
@@ -143,17 +146,16 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         {
             return NotFound();
         }
-        if (!video.IsPublic&&VideoRepository.CheckPrivateVideoAccess(HttpContext, video.OwnerId))
+        if (!video.IsPublic && VideoRepository.CheckPrivateVideoAccess(HttpContext, video.OwnerId))
         {
             return Forbid();
         }
         
         
-        string masterPlaylist = $"{id.ToString()}/master.m3u8";
         try
         {
-            var result = await s3FileService.DownloadFileStreamAsync("videos", masterPlaylist);
-            return File(result.Stream, "application/vnd.apple.mpegurl"); 
+            var result = await s3FileService.DownloadFileStreamAsync(BucketName, $"{id}/{path}");
+            return File(result.Stream, "application/vnd.apple.mpegurl", "playlist.m3u8"); 
         }
         catch (Exception e)
         {
@@ -401,18 +403,26 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     {
         try
         {
-            return await DownloadFromBucket("videos", objectName + "_raw");
+            return await DownloadFromBucket(BucketName, objectName + "_raw");
         }
         catch (Exception e)
         {
             return StatusCode(500, $"Error during download: {e.Message}");
         }
     }
-    
-    
-    
-    
-    
+
+    [HttpGet]
+  //  [RequireRole(EUserRole.User)]
+    public async Task<VideoSettingsSchema> SettingsSchema()
+    {
+        Response.ContentType = "application/json";
+        if (FFmpegTools.SchemaJson != null)
+        {
+            return FFmpegTools.Schema;
+        }
+        var schema = await FFmpegTools.GetSettingsSchemaAsync();
+        return FFmpegTools.Schema;
+    }
     
     
     /*

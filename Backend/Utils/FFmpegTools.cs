@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Backend.Data.Entities;
 using Xabe.FFmpeg;
@@ -96,6 +97,9 @@ public sealed class VideoSettingsSchema
 
 public static partial class FFmpegTools
 {
+    public static VideoSettingsSchema? Schema { get; private set; }
+    public static string? SchemaJson { get; private set; }
+    
     [GeneratedRegex(@"\(encoders:([^)]+)\)")]
     private static partial Regex EncodersRegex();
     [GeneratedRegex(@"\(decoders:([^)]+)\)")]
@@ -462,8 +466,33 @@ public static partial class FFmpegTools
         return result;
     }
 
-    public static async Task<VideoSettingsSchema> GetVideoSettingsSchemaAsync()
+    public static async Task<VideoSettingsSchema> GetSettingsSchemaAsync(bool forceUpdate = false)
     {
+        var cachePath = Path.Combine(Constants.CacheFolderPath, "video_settings_schema.json");
+        
+        if (forceUpdate)
+        {
+            Schema = null;
+            SchemaJson = null;
+            if( File.Exists(cachePath))
+            {
+                File.Delete(cachePath);
+            }
+        }
+        
+        if (Schema != null)
+        {
+            return Schema;
+        }
+
+        if (File.Exists(cachePath))
+        {
+            SchemaJson = await File.ReadAllTextAsync(cachePath);
+            Schema = JsonSerializer.Deserialize<VideoSettingsSchema>(SchemaJson, JsonSerializerOptions.Web) ?? 
+                     throw new InvalidOperationException("Failed to deserialize video settings schema from cache");
+            return Schema;
+        }
+        
         var codecs = await GetSupportedVideoCodecsAsync();
         var result = new VideoSettingsSchema
         {
@@ -471,6 +500,9 @@ public static partial class FFmpegTools
             VideoBitrates = Resolutions,
             Codecs = codecs,
         };
+        Schema = result;
+        SchemaJson = JsonSerializer.Serialize(result,  JsonSerializerOptions.Web);
+        await File.WriteAllTextAsync(cachePath, SchemaJson);
         return result;
     }
     
