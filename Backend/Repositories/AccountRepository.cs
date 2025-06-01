@@ -216,15 +216,14 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
         }
     }
 
-    public async Task<bool> CheckPrivateVideoAccess(string? userId, int ownerId)
+
+
+    public async Task<EUserRole> GetUserRoleAsync(int userId)
     {
-        if (userId == null || !int.TryParse(userId, out int id))
-            return false;
-
-        var user = await Get(id);
-        if (user == null)
-            return false;
-
-        return ownerId == id || user.Role >= EUserRole.Admin;
+        var role = await context.Users
+            .Where(u => u.Id == userId)
+            .Select(u => u.Role)
+            .FirstOrDefaultAsync();
+        return role;
     }
 }

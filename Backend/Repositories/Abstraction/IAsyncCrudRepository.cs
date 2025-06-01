@@ -15,5 +15,12 @@ public interface IAsyncCrudRepository<T, TDerived> where T : class
 
     public Task<bool> DeleteById(object id);
     public Task<bool> Delete(T entity);
+    Task<IEnumerable<T>> GetAllAsync(
+        Func<IQueryable<T>, IQueryable<T>>? filter = null,
+        string? sortBy = null,
+        bool sortDescending = false,
+        int page = 1,
+        int pageSize = 10
+    );
     public Task<TDerived> SaveAsync();
 }

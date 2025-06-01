@@ -6,4 +6,5 @@ public interface IVideoRepository : IAsyncCrudRepository<Video,  IVideoRepositor
 {
     public Task<Video?> GetVideoByIdAsync(Guid id);
     public Task<List<Guid>> GetQueuedVideoIdsAsync();
+    
 }

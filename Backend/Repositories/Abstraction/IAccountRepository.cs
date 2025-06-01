@@ -16,5 +16,5 @@ public interface IAccountRepository :IAsyncCrudRepository<User, IAccountReposito
     public Task<List<UserSimplifiedDTO>> GetFriends(int userId, int page, int pageSize);
     public Task<List<UserSimplifiedDTO>> GetPendingFriends(int userId, bool pendingFromYou);
     public Task SetAvatar(string? userId, string objName);
-    public Task<bool> CheckPrivateVideoAccess(string? userId, int ownerId);
+    public Task<EUserRole> GetUserRoleAsync(int userId);
 }

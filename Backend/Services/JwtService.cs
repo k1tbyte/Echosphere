@@ -23,6 +23,7 @@ public sealed class JwtService
     private readonly IConfiguration _config;
     private readonly AppDbContext _dbContext;
     public const string UserIdClaimType = "userid";
+    public const string UserRoleClaimType = "access_role";
         
     public JwtService(IConfiguration configuration, AppDbContext dbContext)
     {
@@ -111,6 +112,17 @@ public sealed class JwtService
         userId = 0;
         var userIdClaim = context.User.Claims.FirstOrDefault(o => o.Type == UserIdClaimType);
         return userIdClaim != null && int.TryParse(userIdClaim.Value, out userId);
+    }
+    public static bool GetUserRoleFromContext(HttpContext context, out EUserRole userRole)
+    {
+        userRole = EUserRole.None;
+        var roleClaim = context.User.Claims.FirstOrDefault(o => o.Type == UserRoleClaimType);
+        if (roleClaim != null && Enum.TryParse<EUserRole>(roleClaim.Value, out var parsedRole))
+        {
+            userRole = parsedRole;
+            return true;
+        }
+        return false;
     }
 
     public AuthTokensDTO? RefreshSession(AuthTokensDTO dto)
