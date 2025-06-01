@@ -1,4 +1,5 @@
 ﻿using Backend.Data.Entities;
+using Backend.Services;
 
 namespace Backend.Requests;
 
@@ -11,8 +12,8 @@ public class UploadVideoRequest
     public float? Duration { get; init; }
     public string? Id { get; init; } // Id of the video if it is uploaded to a third-party service
     public string? Description { get; init; } 
-    public float? ThumbnailsCaptureInterval { get; init; }
     public int[]? VideoQualities { get; init; }
     public string? PreviewUrl { get; init; } 
     public long? PreviewSizeBytes { get; init; } 
+    public VideoSettingsConfig? Settings { get; init; }
 }

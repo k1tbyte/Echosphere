@@ -64,9 +64,9 @@ public class VideoProcessingWorker(IServiceScopeFactory scopeFactory) : Backgrou
                     if( video != null)
                     {
                         video.Status = EVideoStatus.Processing;
-                        await videoRepository.WithAutoSave().Update(video);
+                     //   await videoRepository.WithAutoSave().Update(video);
                         // TODO: Process the video
-                        await videoProcessingService.ProcessVideoMultiQualityAsync(videoPath, "videos", videoId.ToString());
+                        await videoProcessingService.ProcessVideoMultiQualityAsync(videoPath, videoId.ToString(), video.GetSettings());
                         video.Status = EVideoStatus.Ready;
                         await videoRepository.WithAutoSave().Update(video);
                     }

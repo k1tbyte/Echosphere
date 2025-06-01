@@ -1,37 +1,35 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text;
+using Backend.Utils;
 using Minio;
 using Minio.DataModel.Args;
 using Xabe.FFmpeg;
 
 namespace Backend.Services;
 
-public class XabeFfmpegService : IVideoProcessingService
+public class XabeFfmpegService(IS3FileService s3FileService) : IVideoProcessingService
 {
-    private readonly IS3FileService _s3FileService;
-
-    public XabeFfmpegService(IS3FileService s3FileService, IConfiguration configuration)
+    private class ProcessingQuality
     {
-        _s3FileService = s3FileService;
-        string? ffmpegPath = configuration["ffmpeg:Path"];
-        if (string.IsNullOrEmpty(ffmpegPath))
-        {
-            ffmpegPath = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? "C:\\ffmpeg\\bin"
-                : "/usr/bin";
-        }
-        FFmpeg.SetExecutablesPath(ffmpegPath);
+        public int Index { get; set; }
+        public required string Name { get; set; }
+        public required int Width { get; set; }
+        public required int Height { get; set; }
+        public required string VideoBitrate { get; set; } // Kbps
+        public required string MaxBitrate { get; set; } // Kbps
+        public required string BufferSize { get; set; } // Kbps
+        public required string AudioBitrate { get; set; } // Kbps
+        
     }
 
-    public async Task ProcessVideoMultiQualityAsync(string inputFilePath, string bucketName, string outputPrefix)
+    private const string BucketName = "videos";
+
+    public async Task ProcessVideoMultiQualityAsync(string inputFilePath, string outputPrefix, VideoSettingsConfig? config)
     {
         var workingDir =  Path.GetDirectoryName(inputFilePath) ?? throw new ArgumentException("Input file path is invalid.");
-        // Generate sprite and VTT for preview thumbnails
-        string spritePath = Path.Combine(workingDir, "sprite.jpg");
-        string vttPath = Path.Combine(workingDir, "thumbnails.vtt");
-        await GenerateSpriteAndVttAsync(inputFilePath, spritePath, vttPath);
+        await GenerateSpriteAndVttAsync(inputFilePath, workingDir, config);
 
-        await GenerateAdaptiveHlsAsync(inputFilePath, workingDir);
+        await GenerateAdaptiveHlsAsync(inputFilePath, workingDir, config);
         
         //disabled preview auto generation
         /*string previewPath = Path.Combine(tempDir, "preview.jpg");
@@ -40,59 +38,76 @@ public class XabeFfmpegService : IVideoProcessingService
             
         foreach (var file in Directory.GetFiles(workingDir, "*", SearchOption.AllDirectories))
         {
-            string relativePath = Path.GetRelativePath(workingDir, file).Replace("\\", "/");
-            string objectName = $"{outputPrefix}/{relativePath}";
+            var relativePath = Path.GetRelativePath(workingDir, file).Replace("\\", "/");
+            var objectName = $"{outputPrefix}/{relativePath}";
 
-            using var stream = File.OpenRead(file);
-            await _s3FileService.PutObjectAsync(stream,bucketName, objectName);
+            await using var stream = File.OpenRead(file);
+            await s3FileService.PutObjectAsync(stream, BucketName, objectName);
         }
     }
 
-    private async Task GenerateAdaptiveHlsAsync(string inputFile, string outputDir)
+    private async Task GenerateAdaptiveHlsAsync(string inputFile, string outputDir, VideoSettingsConfig config = null)
     {
-        // Create master playlist path
-        string masterPlaylist = Path.Combine(outputDir, "master.m3u8");
-    
+        var configQualities = config.Adaptive!.Qualities;
+        List<ProcessingQuality> unordered = new List<ProcessingQuality>();
+        
+        foreach (var quality in configQualities)
+        {
+            var resolution = FFmpegTools.Resolutions[quality.Key];
+            unordered.Add(new ProcessingQuality
+            {
+                Name = quality.Key.ToString(),
+                Width = resolution.Width,
+                Height = quality.Key,
+                VideoBitrate = $"{quality.Value.VideoBitrate}k",
+                MaxBitrate = $"{Math.Round(quality.Value.VideoBitrate * 1.05)}k",
+                BufferSize = $"{Math.Round(quality.Value.VideoBitrate * 1.5)}k",
+                AudioBitrate = $"{(quality.Value.AudioBitrate == null ? config.Adaptive!.Audio.DefaultBitrate : quality.Value.AudioBitrate)}k"
+            });
+        }
+
+        var qualities = unordered.OrderByDescending(x => x.Height).ToList();
+        for (var i = 0; i < qualities.Count; i++)
+        {
+            qualities[i].Index = i;
+        }
+        
+        foreach (var quality in qualities)
+        {
+            Directory.CreateDirectory(Path.Combine(outputDir, quality.Name));
+        }
+        
+        var varStreamMap = string.Join(" ", qualities.Select(q => $"v:{q.Index},a:{q.Index},name:{q.Name}"));
+        
         var conversion = FFmpeg.Conversions.New()
             .AddParameter($"-i \"{inputFile}\"")
             // Video codec settings
-            .AddParameter("-c:v h264_nvenc")
+            .AddParameter($"-c:v {config.Adaptive!.Video.Codec}")
             // Use a faster preset for better performance
-            /*.AddParameter("-preset fast")*/ // TODO optional
-            // Create multiple quality renditions
-            // 1080p - high quality
-            .AddParameter("-map 0:v:0 -map 0:a:0")
-            .AddParameter("-filter:v:0 scale=1920:1080")
-            .AddParameter("-b:v:0 5000k -maxrate:v:0 5350k -bufsize:v:0 7500k")
-            // 720p - medium quality
-            .AddParameter("-map 0:v:0 -map 0:a:0")
-            .AddParameter("-filter:v:1 scale=1280:720")
-            .AddParameter("-b:v:1 2800k -maxrate:v:1 3000k -bufsize:v:1 4200k")
-            // 480p - low quality
-            .AddParameter("-map 0:v:0 -map 0:a:0")
-            .AddParameter("-filter:v:2 scale=854:480")
-            .AddParameter("-b:v:2 1400k -maxrate:v:2 1498k -bufsize:v:2 2100k")
-            // 360p - very low quality
-            .AddParameter("-map 0:v:0 -map 0:a:0")
-            .AddParameter("-filter:v:3 scale=640:360")
-            .AddParameter("-b:v:3 800k -maxrate:v:3 856k -bufsize:v:3 1200k")
+            .AddParameter($"-preset {config.Adaptive!.Video.Preset}")
+
+            // Добавляем параметры для каждого качества
+            .AddParameter(string.Join(" ", qualities.Select(q => $"-map 0:v:0 -map 0:a:0")))
+            .AddParameter(string.Join(" ", qualities.Select((q, i) => $"-filter:v:{i} scale={q.Width}:{q.Height}")))
+            .AddParameter(string.Join(" ",
+                qualities.Select((q, i) =>
+                    $"-b:v:{i} {q.VideoBitrate} -maxrate:v:{i} {q.MaxBitrate} -bufsize:v:{i} {q.BufferSize}")))
+
             // Audio settings
-            .AddParameter("-c:a aac -ar 48000")
-            .AddParameter("-b:a:0 192k -b:a:1 128k -b:a:2 96k -b:a:3 64k")
+            .AddParameter("-c:a mp3 -ar 48000")
+            .AddParameter(string.Join(" ", qualities.Select((q, i) => $"-b:a:{i} {q.AudioBitrate}")))
+
             // General HLS settings
-            .AddParameter("-var_stream_map \"v:0,a:0 v:1,a:1 v:2,a:2 v:3,a:3\"")
+            .AddParameter($"-var_stream_map \"{varStreamMap}\"")
             .AddParameter("-master_pl_name master.m3u8")
             .AddParameter("-f hls")
             .AddParameter("-hls_time 6")
             .AddParameter("-hls_playlist_type vod")
             .AddParameter("-hls_list_size 0")
-            .AddParameter("-hls_segment_filename \"" + Path.Combine(outputDir, "v%v/segment_%03d.ts") + "\"")
-            .SetOutput(Path.Combine(outputDir, "v%v/playlist.m3u8"));
-
-        var watch = System.Diagnostics.Stopwatch.StartNew();
+            .AddParameter("-hls_segment_filename \"" + Path.Combine(outputDir, "%v/segment_%03d.ts") + "\"")
+            .SetOutput(Path.Combine(outputDir, "%v/playlist.m3u8"));
+        
         await conversion.Start();
-        watch.Stop();
-        Console.WriteLine($"HLS conversion completed in {watch.ElapsedMilliseconds} ms");
     }
     
     private async Task GeneratePreviewAsync(string inputFile, string outputImage, TimeSpan previewTime)
@@ -104,17 +119,21 @@ public class XabeFfmpegService : IVideoProcessingService
             .Start();
     }
     
-    private async Task GenerateSpriteAndVttAsync(string inputFile, string spriteOutputPath, string vttOutputPath)
+    private async Task GenerateSpriteAndVttAsync(string inputFile, string workingDir, VideoSettingsConfig config)
     {
+        // Generate sprite and VTT for preview thumbnails
+        string spritePath = Path.Combine(workingDir, "sprite.jpg");
+        string vttPath = Path.Combine(workingDir, "thumbnails.vtt");
         // First, get video duration to calculate number of thumbnails
         var mediaInfo = await FFmpeg.GetMediaInfo(inputFile);
         var duration = mediaInfo.Duration;
+        
         
         // Settings for sprite generation
         const int thumbWidth = 178;
         const int thumbHeight = 100;
         const int columns = 6;
-        const int interval = 1; // One thumbnail per second
+        int interval = config.ThumbnailsCaptureInterval; // One thumbnail per second
         
         // Calculate how many thumbnails we'll generate based on video duration
         int totalThumbs = (int)Math.Ceiling(duration.TotalSeconds / interval);
@@ -141,11 +160,11 @@ public class XabeFfmpegService : IVideoProcessingService
                 .AddParameter($"-i \"{Path.Combine(tempThumbsDir, "_%04d.jpg")}\"")
                 .AddParameter($"-vf \"{tileFilter}\"")
                 .AddParameter("-q:v 5")
-                .SetOutput(spriteOutputPath)
+                .SetOutput(spritePath)
                 .Start();
             
             // Step 3: Generate the WebVTT file
-            await GenerateVttFileAsync(vttOutputPath, totalThumbs, columns, rows, thumbWidth, thumbHeight, interval);
+            await GenerateVttFileAsync(vttPath, totalThumbs, columns, rows, thumbWidth, thumbHeight, interval);
         }
         finally
         {
@@ -161,7 +180,7 @@ public class XabeFfmpegService : IVideoProcessingService
     private async Task GenerateVttFileAsync(string vttPath, int totalThumbs, int columns, int rows, 
         int thumbWidth, int thumbHeight, int interval)
     {
-        await using var writer = new StreamWriter(vttPath, false); // false означает перезапись файла, если он существует
+        await using var writer = new StreamWriter(vttPath, false); 
         
         await writer.WriteLineAsync("WEBVTT");
         await writer.WriteLineAsync();
@@ -188,13 +207,13 @@ public class XabeFfmpegService : IVideoProcessingService
         return $"{(int)time.TotalHours:00}:{time.Minutes:00}:{time.Seconds:00}.{time.Milliseconds:000}";
     }
     
-    public async Task ProcessVideoSingleQualityAsync(string inputFilePath, string bucketName, string outputPrefix)
+    public async Task ProcessVideoSingleQualityAsync(string inputFilePath, string outputPrefix, VideoSettingsConfig? config)
     {
         string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(tempDir);
         string spritePath = Path.Combine(tempDir, "sprite.jpg");
         string vttPath = Path.Combine(tempDir, "thumbnails.vtt");
-        await GenerateSpriteAndVttAsync(inputFilePath, spritePath, vttPath);
+        await GenerateSpriteAndVttAsync(inputFilePath, spritePath, config);
         await ConvertToHlsAsync(inputFilePath, tempDir);
         
         // Upload generated HLS files
@@ -204,7 +223,7 @@ public class XabeFfmpegService : IVideoProcessingService
 
             using var fileStream = File.OpenRead(file);
             
-            await _s3FileService.PutObjectAsync(fileStream, "videos", objectName);
+            await s3FileService.PutObjectAsync(fileStream, "videos", objectName);
         }
 
         Directory.Delete(tempDir, true);

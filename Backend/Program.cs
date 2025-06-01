@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Backend.Data;
 using Backend.Services;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -10,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.IdentityModel.Tokens;
 using Minio;
+using Xabe.FFmpeg;
 
 namespace Backend;
 
@@ -92,6 +94,7 @@ public class Program
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
         ConfigureAuthentication(builder);
+        ConfigureFFmpeg(builder.Configuration);
         _app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -213,8 +216,16 @@ public class Program
             };
         });
     }
-    private static void ConfigureAuthStrategy()
+
+    private static void ConfigureFFmpeg(ConfigurationManager configuration)
     {
-        // TODO: Implement authentication strategy
+        string? ffmpegPath = configuration["ffmpeg:Path"];
+        if (string.IsNullOrEmpty(ffmpegPath))
+        {
+            ffmpegPath = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? "C:\\ffmpeg\\bin"
+                : "/usr/bin";
+        }
+        FFmpeg.SetExecutablesPath(ffmpegPath);
     }
 }

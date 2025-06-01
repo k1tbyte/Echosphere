@@ -1,6 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using Backend.Services;
 
 // ReSharper disable EntityFramework.ModelValidation.UnlimitedStringLength
 
@@ -69,6 +71,20 @@ public class Video
     [Column("is_public")]
     public bool IsPublic { get; set; }
     
+    [Column("settings")]
+    public string? Settings { get; set; } // JSON serialized settings for the video
+    
     [JsonIgnore]
     public User Owner { get; set; }
+
+    [NotMapped]
+    private VideoSettingsConfig? _settings;
+    public VideoSettingsConfig? GetSettings()
+    {
+        if (_settings != null)
+            return _settings;
+        return Settings != null 
+            ? _settings = JsonSerializer.Deserialize<VideoSettingsConfig>(Settings, JsonSerializerOptions.Web) 
+            : null;
+    }
 }

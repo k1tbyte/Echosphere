@@ -7,7 +7,7 @@ public class BaseAsyncCrudRepository<T, TDerived>(DbContext context, DbSet<T> se
     where TDerived : IAsyncCrudRepository<T, TDerived>
 {
     int AutoSaveRequests { get; set; }
-    public DbSet<T> Set => context.Set<T>();
+    public DbSet<T> Set => set;
     public TDerived WithAutoSave(int nextRequestsCount = 1)
     {
         AutoSaveRequests = nextRequestsCount;

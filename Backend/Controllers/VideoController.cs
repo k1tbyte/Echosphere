@@ -7,6 +7,7 @@ using Backend.Repositories.Abstraction;
 using Backend.Requests;
 using Backend.Services;
 using Backend.Services.Filters;
+using Backend.Utils;
 using Backend.Workers;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,6 +18,8 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     IS3FileService fileService,
     IAccountRepository accountRepository): BaseFileController(fileService)
 {
+    private static VideoSettingsSchema? Schema = null; 
+    
     [HttpPatch]
     [RequireRole(EUserRole.User)]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -326,6 +329,9 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                 PreviewUrl = request.PreviewUrl,
                 Provider = EVideoProvider.Local,
                 Duration = request.Duration,
+                Settings = request.Settings != null 
+                    ? JsonSerializer.Serialize(request.Settings, JsonSerializerOptions.Web) 
+                    : null,
             });
             
             // partial success response
@@ -406,6 +412,34 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         {
             return StatusCode(500, $"Error during download: {e.Message}");
         }
+    }
+
+    [HttpGet]
+    #if !DEBUG
+    [RequireRole(EUserRole.User)]
+    #endif
+    [ProducesResponseType(typeof(VideoSettingsSchema), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
+    public async Task<VideoSettingsSchema> SettingsSchema()
+    {
+        if (Schema != null) return Schema;
+        
+        var tempFilePath = Path.Combine(Constants.CacheFolderPath, Constants.VideoSettingsSchemaFileName);
+        if(System.IO.File.Exists(tempFilePath))
+        {
+            var json = await System.IO.File.ReadAllTextAsync(tempFilePath);
+            Schema = JsonSerializer.Deserialize<VideoSettingsSchema>(json, JsonSerializerOptions.Web);
+        }
+
+        if (Schema == null)
+        {
+            Schema = await FFmpegTools.GetVideoSettingsSchemaAsync();
+            await System.IO.File.WriteAllTextAsync(tempFilePath, 
+                JsonSerializer.Serialize(Schema, JsonSerializerOptions.Web)
+            );
+        }
+
+        return Schema;
     }
     
 }
