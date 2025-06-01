@@ -26,31 +26,37 @@ const Slider = React.forwardRef<
 
 const SliderWithLabel = React.forwardRef<
     React.ElementRef<typeof SliderPrimitive.Root>,
-    React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
->(({ className, onValueChange, ...props }, ref) => {
+    React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> & { labelAfter?: string, whileHover?: boolean }
+>(({ className, onValueChange, labelAfter,value, whileHover = true, ...props }, ref) => {
 
     const [progress, setProgress] = React.useState(props.defaultValue);
+    React.useEffect(() => {
+        if (value !== undefined) {
+            setProgress(value);
+        }
+    }, [value]);
+
     const handleValueChange = (value: number[]) => {
-        console.log(value)
         onValueChange?.(value);
         setProgress(value);
     };
     return (
         <SliderPrimitive.Root
             ref={ref}
+            value={value}
             onValueChange={handleValueChange}
             className={cn("relative flex w-full touch-none select-none items-center", className)}
-
+            {...props}
         >
             <SliderPrimitive.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-primary/20">
                 <SliderPrimitive.Range className="absolute h-full bg-primary"/>
             </SliderPrimitive.Track>
 
             <SliderPrimitive.Thumb
-                className="block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
+                className="group block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
                 {/* Sticky label */}
-                <Badge className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 -top-5">
-                    <span>{progress?.[0]}</span>
+                <Badge className={cn("absolute left-1/2 -translate-x-1/2 -translate-y-1/2 -top-5 transition-transform", whileHover ? "scale-0 group-hover:scale-100" : "")}>
+                    <span className="whitespace-nowrap">{progress?.[0]}{labelAfter}</span>
                     {/* Arrow */}
                     <div
                         className="absolute border-[6px] left-1/2 -translate-x-1/2 border-transparent border-t-primary top-full"/>

@@ -17,6 +17,7 @@ export interface MultiSelectProps<T extends MultiSelectOption> {
     options: T[];
     value?: T[];
     defaultValue?: T[];
+    onBadgeClick?: (item: T) => void;
     onChange?: (value: T[]) => void;
     minSelected?: number;
     maxSelected?: number;
@@ -33,6 +34,7 @@ export function MultiSelect<T extends MultiSelectOption>({
                                                              onChange,
                                                              minSelected = 0,
                                                              maxSelected = 0,
+                                                             onBadgeClick,
                                                              placeholder = "Select items...",
                                                              disabled = false,
                                                              ref,
@@ -110,7 +112,7 @@ export function MultiSelect<T extends MultiSelectOption>({
     }, [open]);
 
     useEffect(() => {
-        if (value === undefined && defaultValue !== undefined) {
+        if (value === undefined && defaultValue !== undefined && selectedInternal.length === 0) {
             setSelectedInternal(defaultValue);
         }
     }, [defaultValue, value]);
@@ -134,6 +136,7 @@ export function MultiSelect<T extends MultiSelectOption>({
                                     key={item.value}
                                     variant="secondary"
                                     className="select-none"
+                                    onClick={() => onBadgeClick?.(item)}
                                 >
                                     {item.label}
                                     {canRemoveItems && !disabled && (

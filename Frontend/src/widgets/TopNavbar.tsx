@@ -1,7 +1,7 @@
 "use client"
 
 import {FC, useEffect, useMemo, useRef, useState} from "react";
-import {AlignJustify, ChevronDown, ChevronRight} from "lucide-react";
+import {AlignJustify, ChevronRight, ChevronsRight, ChevronDown} from "lucide-react";
 import Link from 'next/link';
 import {Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator} from "@/shared/ui/Breadcrumb";
 import {usePathname, useRouter} from 'next/navigation';
@@ -25,7 +25,7 @@ const formatSegment = (segment: string): string => {
 
 export const TopNavbar: FC = () => {
     const { isSidebarOpen, setSidebarOpen } = useSidebar();
-    const { breadcrumbs: breadcrumbsFromStore, setBreadcrumbs } = useBreadcrumbs();
+    const { breadcrumbs: breadcrumbsFromStore } = useBreadcrumbs();
 
     const pathname = usePathname();
     const router = useRouter();
@@ -179,7 +179,7 @@ export const TopNavbar: FC = () => {
             if (index < visibleItems.length - 1) {
                 elements.push(
                     <BreadcrumbSeparator key={`separator-${index}`}>
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronsRight className="h-4 w-4" />
                     </BreadcrumbSeparator>
                 );
             }

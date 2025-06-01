@@ -1,5 +1,8 @@
 import {toast, ToastVariant} from '../ui/Toast';
 import fetcher, {send} from "@/shared/lib/fetcher";
+import {IVideoPropsSchema} from "@/store/videoStore";
+import {IVideoSettingsDTO} from "@/pages/Home/ui/VideoSettingsSection";
+import {toBase64} from "@/shared/lib/utils";
 
 export enum EUploadProgressState {
     Started = 0,
@@ -18,6 +21,7 @@ interface VideoMetadata {
     sizeBytes?: number;
     previewSizeBytes?: number;
     thumbnailsCaptureInterval?: number;
+    settings?: IVideoSettingsDTO;
 }
 
 interface UploadProgress {
@@ -80,7 +84,7 @@ export class VideoUploadService {
         metadata: VideoMetadata,
         previewBlob?: Blob
     ): Promise<string | null> {
-        const infoParam = btoa(JSON.stringify(metadata));
+        const infoParam = toBase64(JSON.stringify(metadata));
         const url = `${this.API_URL}/video/initiateupload?info=${infoParam}`;
 
         try {
@@ -306,6 +310,13 @@ export class VideoUploadService {
         } catch (e) {
             console.warn("Failed to cleanup old uploads:", e);
         }
+    }
+
+    public static async getVideoSettingsSchema(): Promise<IVideoPropsSchema> {
+        const response = fetcher.getJson(
+            `${this.API_URL}/video/settingsschema`, null, true
+        );
+        return await fetcher.exceptJson<IVideoPropsSchema>(response);
     }
 }
 

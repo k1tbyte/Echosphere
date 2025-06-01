@@ -20,9 +20,12 @@ import { createFileFingerprint } from "@/shared/lib/cryptography";
 import {VideoUploadService} from "@/shared/services/videoUploadService";
 import {resumeVideoUpload} from "@/pages/Home/ui/ResumeVideoUploadModal";
 import {useNotificationsStore} from "@/store/notificationsStore";
+import {useVideosStore} from "@/store/videoStore";
+import {VideoSettingsSection} from "@/pages/Home/ui/VideoSettingsSection";
 
-type TypeQuality = { value: string; label: string }[];
+export type TypeQuality = { value: string; label: string }[];
 const QUALITIES = [
+    { value: "4320", label: '4320p (8K)' },
     { value: "2160", label: '2160p (4K)' },
     { value: "1440", label: '1440p (2K)' },
     { value: "1080", label: '1080p (Full HD)' },
@@ -114,10 +117,11 @@ export const StudioPage = () => {
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
-    const [withHLS, setWithHLS] = useState(false);
     const [availableQualities, setAvailableQualities] = useState<TypeQuality>([]);
+    const store = useVideosStore();
     const notificationsStore = useNotificationsStore();
     const isLocalVideo = !!videoProps?.file;
+    const schema = store.schema;
 
     useEffect(() => {
         if (!videoProps) {
@@ -126,6 +130,7 @@ export const StudioPage = () => {
 
         // If there is a file - work with local video
         if (videoProps.file) {
+            videoProps.settings = {};
             const url = URL.createObjectURL(videoProps.file);
             setVideo({
                 type: 'video',
@@ -229,13 +234,25 @@ export const StudioPage = () => {
         }
     }, [isInitialized]);
 
+    useEffect(() => {
+        if(store.schema !== undefined) {
+            return;
+        }
+
+        store.schema = null;
+        VideoUploadService.getVideoSettingsSchema().then((o) => {
+            console.log(o);
+            store.setSchema(o);
+        }).catch(() => store.schema = undefined)
+    }, [])
+
     if(!videoProps) {
         return <UrlInput onSuccess={(o) => {
             setVideoProps(o);
         }} />
     }
 
-    if (!video) {
+    if (!video || !schema) {
         return (
             <div className="w-full h-full flex-center">
                 <Spinner size={66}/>
@@ -252,7 +269,7 @@ export const StudioPage = () => {
                     title: videoProps.title,
                     id: videoProps.id,
                     provider: PROVIDERS.indexOf(videoProps.provider) + 1,
-                    previewUrl: videoProps.previewUrl,
+                    previewUrl: videoProps.previewUrl
                 });
                 return;
             }
@@ -260,7 +277,8 @@ export const StudioPage = () => {
             const id = await VideoUploadService.startNewUploadFile(videoProps.file,{
                     title: videoProps.title,
                     duration: videoProps.duration,
-                    thumbnailsCaptureInterval: videoProps.thumbnailsCaptureInterval
+                    thumbnailsCaptureInterval: videoProps.thumbnailsCaptureInterval,
+                    settings: videoProps.settings,
                 }, videoProps.file.fingerprint, videoProps.previewBlob
             );
             resumeVideoUpload({ title: videoProps.title, id, uploadedSize: 0 },
@@ -322,53 +340,17 @@ export const StudioPage = () => {
                         required
                     />
 
-                    <Separator className="my-6"/>
+                    <Separator className="my-5"/>
                     {isLocalVideo &&
                         <>
-                            <Label size={"lg"}>
-                                Thumbnails capture interval
-                                <small className="ml-2 text-xs font-normal text-muted-foreground">
-                                     (smaller is more accurate, but takes more resources)
-                                </small>
-                            </Label>
-                            <div className="w-full text-sm mt-5 font-medium">
-                                <SliderWithMarks
-                                    defaultValue={[0]}
-                                    step={1}
-                                    onValueCommit={(o) => {
-                                        videoProps.thumbnailsCaptureInterval = Number.parseFloat(
-                                            THUMBNAIL_RANGES[o[0]]
-                                        );
-                                    }}
-                                    marks={THUMBNAIL_RANGES}
-                                    className={"w-full"}
-                                />
-                            </div>
-                            <Separator className="my-6"/>
-                            <div className="flex justify-between flex-y-center">
-                                <Label size={"lg"}>Video quality options
-                                    <small className="ml-2 text-xs font-normal text-muted-foreground">
-                                        (HLS)
-                                    </small>
-                                </Label>
-                                <Switch  checked={withHLS} onCheckedChange={setWithHLS} />
-                            </div>
-
-                            { withHLS &&
-                                <MultiSelect className="mt-3"
-                                             minSelected={1}
-                                             defaultValue={availableQualities[0] ? [availableQualities[0]] : []}
-                                             options={availableQualities}
-                                             placeholder="Select the quality to be supported"
-                                />
-                            }
-                            <Separator className="mt-5 mb-3"/>
+                            <VideoSettingsSection settings={videoProps.settings} schema={schema} videoQualities={availableQualities}/>
+                            <Separator className="my-5"/>
                         </>
                     }
 
                     <Label size={"lg"}>Preview thumbnail</Label>
                     {thumbnailUrl && (
-                        <div className="w-full my-4">
+                        <div className="w-full mb-4">
                             {!isLocalVideo && (
                                 <p className="text-sm text-muted-foreground mb-2">
                                     A standard miniature from external provider
