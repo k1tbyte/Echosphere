@@ -5,6 +5,7 @@ import "plyr/dist/plyr.css";
 import "./styles.css"
 import { IPlyrPlayerProps } from './index';
 import { usePlyrInstance } from './hooks/usePlyrInstance';
+import {Spinner} from "@/shared/ui/Loader";
 
 export const PlyrPlayer = forwardRef<HTMLDivElement, IPlyrPlayerProps>(({
                                                                             source,
@@ -74,24 +75,7 @@ export const PlyrPlayer = forwardRef<HTMLDivElement, IPlyrPlayerProps>(({
             ref={containerRef}
             className={containerClasses}
             style={containerStyles}
-        >
-            {!isClient && (
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '100%',
-                    height: '100%',
-                    backgroundColor: '#1a1a1a',
-                    color: '#e5e5e5',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0
-                }}>
-                    <div>Loading player...</div>
-                </div>
-            )}
-        </div>
+        />
     );
 });
 

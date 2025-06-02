@@ -5,23 +5,19 @@ import {redirect, useRouter} from 'next/navigation';
 import { Button } from "@/shared/ui/Button";
 import { Spinner } from "@/shared/ui/Loader";
 import {useNavigationStore} from "@/store/navigationStore";
-import {PlyrPlayer, PlyrSource} from "@/widgets/player";
 import {captureVideoFrame, parseVideoUrl} from "@/pages/Home/utils/videoParser";
 import {Input} from "@/shared/ui/Input";
 import {Label} from "@/shared/ui/Label";
-import { SliderWithMarks } from "@/shared/ui/Slider";
 import {Separator} from "@/shared/ui/Separator";
 import {Badge} from "@/shared/ui/Badge";
 import {formatDurationExtended, formatFileSize} from "@/shared/lib/formatters";
-import {MultiSelect} from "@/shared/ui/Select";
-import {Switch} from "@/shared/ui/Switch";
 import {VideoDropZone} from "@/pages/Home/ui/VideoDropZone";
-import { createFileFingerprint } from "@/shared/lib/cryptography";
 import {VideoUploadService} from "@/shared/services/videoUploadService";
 import {resumeVideoUpload} from "@/pages/Home/ui/ResumeVideoUploadModal";
 import {useNotificationsStore} from "@/store/notificationsStore";
 import {useVideosStore} from "@/store/videoStore";
 import {VideoSettingsSection} from "@/pages/Home/ui/VideoSettingsSection";
+import {PlyrSource, PlyrPlayer} from "@/widgets/player";
 
 export type TypeQuality = { value: string; label: string }[];
 const QUALITIES = [
@@ -190,6 +186,9 @@ export const StudioPage = () => {
             setIsInitialized(true);
         }
 
+        
+        console.log("cocktainer",playerContainerRef.current)
+
         const handleMetadata = (e: any) => {
             const video = e.target as HTMLVideoElement;
             video.removeEventListener('loadedmetadata', handleMetadata);
@@ -293,12 +292,6 @@ export const StudioPage = () => {
                         ref={playerContainerRef}
                         source={video}
                         options={{ controls: ['play', 'progress', 'playlarge' ] }}
-                        height={"auto"}
-                        containerStyle={{
-                            border: '1px solid #333',
-                            borderRadius: '8px'
-                        }}
-                        aspectRatio="16:9"
                     />
 
                     { isLocalVideo &&
