@@ -1,7 +1,6 @@
 import {toast, ToastVariant} from '../ui/Toast';
 import fetcher, {send} from "@/shared/lib/fetcher";
 import {IVideoPropsSchema} from "@/store/videoStore";
-import {IVideoSettingsDTO} from "@/pages/Home/ui/VideoSettingsSection";
 import {toBase64} from "@/shared/lib/utils";
 
 export enum EUploadProgressState {
@@ -84,7 +83,8 @@ export class VideoUploadService {
         metadata: VideoMetadata,
         previewBlob?: Blob
     ): Promise<string | null> {
-        const infoParam = toBase64(JSON.stringify(metadata));
+        const infoParam = encodeURIComponent(toBase64(JSON.stringify(metadata)));
+
         const url = `${this.API_URL}/video/initiateupload?info=${infoParam}`;
 
         try {
@@ -103,7 +103,7 @@ export class VideoUploadService {
                 body
             }, true);
 
-            if(response.status === 200) {
+            if(response.status === 200 || response.status === 204) {
                 return null;
             }
 

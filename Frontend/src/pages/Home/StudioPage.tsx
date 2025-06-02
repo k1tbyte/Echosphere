@@ -17,7 +17,7 @@ import {resumeVideoUpload} from "@/pages/Home/ui/ResumeVideoUploadModal";
 import {useNotificationsStore} from "@/store/notificationsStore";
 import {useVideosStore} from "@/store/videoStore";
 import {VideoSettingsSection} from "@/pages/Home/ui/VideoSettingsSection";
-import {PlyrSource, PlyrPlayer} from "@/widgets/player";
+import {PlyrSource, PlyrPlayer, PlyrInstance} from "@/widgets/player";
 
 export type TypeQuality = { value: string; label: string }[];
 const QUALITIES = [
@@ -31,8 +31,6 @@ const QUALITIES = [
     { value: "240", label: '240p' },
     { value: "144", label: '144p' }
 ];
-
-const THUMBNAIL_RANGES = ["Off ","0.5s", "1s  ", "2s  ", "3s  ", "5s  ", "10s"];
 
 const PROVIDERS = [ 'youtube', 'vimeo' ];
 
@@ -106,9 +104,10 @@ export const StudioPage = () => {
     const router = useRouter();
     const [screenSize, setScreenSize] = useState<'mobile' | 'desktop'>('desktop');
     const [videoProps, setVideoProps ] = useState(data);
+    const plyrRef = useRef<PlyrInstance | null>(null);
+    const titleInputRef = useRef<HTMLInputElement>(null);
     const [video, setVideo] = useState<PlyrSource | null>(null);
     const playerContainerRef = useRef<HTMLDivElement>(null);
-    const fingerprint = useRef<string | null>(null);
     const containerRef = useRef<HTMLFormElement>(null);
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
@@ -147,8 +146,8 @@ export const StudioPage = () => {
                 }]
             });
 
-            if (videoProps.thumbnailUrl) {
-                setThumbnailUrl(videoProps.thumbnailUrl);
+            if (videoProps.previewUrl) {
+                setThumbnailUrl(videoProps.previewUrl);
             }
         } else {
             redirect('/home');
@@ -181,13 +180,19 @@ export const StudioPage = () => {
         }
     };
 
-    const handleOnReady = () => {
+    const handleOnReady = (o: PlyrInstance) => {
         if(!isLocalVideo) {
+            window.setTimeout(() => {
+                if(!o.embed) {
+                    return;
+                }
+
+                // @ts-ignore
+                videoProps.title = o.config.title
+                titleInputRef.current!.value = videoProps.title;
+            }, 1000)
             setIsInitialized(true);
         }
-
-        
-        console.log("cocktainer",playerContainerRef.current)
 
         const handleMetadata = (e: any) => {
             const video = e.target as HTMLVideoElement;
@@ -240,7 +245,6 @@ export const StudioPage = () => {
 
         store.schema = null;
         VideoUploadService.getVideoSettingsSchema().then((o) => {
-            console.log(o);
             store.setSchema(o);
         }).catch(() => store.schema = undefined)
     }, [])
@@ -270,19 +274,18 @@ export const StudioPage = () => {
                     provider: PROVIDERS.indexOf(videoProps.provider) + 1,
                     previewUrl: videoProps.previewUrl
                 });
-                return;
+            } else {
+                const id = await VideoUploadService.startNewUploadFile(videoProps.file,{
+                        title: videoProps.title,
+                        duration: videoProps.duration,
+                        thumbnailsCaptureInterval: videoProps.thumbnailsCaptureInterval,
+                        settings: videoProps.settings,
+                    }, videoProps.file.fingerprint, videoProps.previewBlob
+                );
+                resumeVideoUpload({ title: videoProps.title, id, uploadedSize: 0 },
+                    videoProps.file,
+                    notificationsStore);
             }
-
-            const id = await VideoUploadService.startNewUploadFile(videoProps.file,{
-                    title: videoProps.title,
-                    duration: videoProps.duration,
-                    thumbnailsCaptureInterval: videoProps.thumbnailsCaptureInterval,
-                    settings: videoProps.settings,
-                }, videoProps.file.fingerprint, videoProps.previewBlob
-            );
-            resumeVideoUpload({ title: videoProps.title, id, uploadedSize: 0 },
-                videoProps.file,
-                notificationsStore);
             router.push('/home');
         }}>
             <div className={`w-full ${screenSize === 'desktop' ? 'grid grid-cols-12 gap-6' : 'flex flex-col gap-4'}`}>
@@ -325,8 +328,8 @@ export const StudioPage = () => {
                 </div>
 
                 <div className={`${screenSize === 'desktop' ? 'col-span-5' : 'w-full'} order-2`}>
-                    <Label size={"lg"} htmlFor="title">Video title</Label>
-                    <Input onInput={(e) => videoProps.title = e.currentTarget.value}
+                    <Label size={"lg"}>Video title</Label>
+                    <Input ref={titleInputRef} onInput={(e) => videoProps.title = e.currentTarget.value}
                         className="mt-2"
                         name="title"
                         placeholder="Some video title for this video"

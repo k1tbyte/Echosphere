@@ -57,7 +57,7 @@ export const usePlyrInstance = ({
                     let target = mutation.target as HTMLElement;
 
                     // Проверяем появление меню
-                    if (target.classList.contains('plyr__controls')) {
+                    if (target && target.classList.contains('plyr__controls')) {
                         const plyrContainer = container.querySelector('.plyr');
                         const controlsElement = container.querySelector('.plyr__controls');
                         target = container.querySelector('.plyr__menu__container') as HTMLElement;
@@ -70,6 +70,9 @@ export const usePlyrInstance = ({
                             const maxMenuHeight = Math.max(100, availableHeight - 10);
 
                             setTimeout(() => {
+                                if(!target?.scrollHeight) {
+                                    return;
+                                }
                                 const menuHeight = target.scrollHeight;
                                 if (menuHeight <= maxMenuHeight) {
                                     // Места хватает - скрываем скролл

@@ -17,9 +17,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function toBase64(str: string): string {
-    return btoa(
-        new Uint8Array(
-            new TextEncoder().encode(str)
-        ).reduce((data, byte) => data + String.fromCharCode(byte), '')
-    );
+    return btoa(new TextEncoder().encode(str).reduce(
+        (data, byte) => data + String.fromCharCode(byte), ''
+    ));
 }

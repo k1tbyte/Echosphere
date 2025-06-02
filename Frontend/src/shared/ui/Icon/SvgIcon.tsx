@@ -10,7 +10,9 @@ export const enum EIcon {
     CloseCircleOutline,
     CheckCircleOutline,
     Cog = 9,
-    Bell = 10
+    Bell = 10,
+    Vimeo = 11,
+    YouTube = 12,
 }
 
 export interface ISvgIconProps extends SVGProps<SVGSVGElement> {
