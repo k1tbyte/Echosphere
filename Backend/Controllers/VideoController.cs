@@ -90,13 +90,10 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     }
     
     [HttpGet]
-    #if !DEBUG
-    [RequireRole(EUserRole.User)]
-    #endif
     [ProducesResponseType(typeof(IEnumerable<Video>),StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<Video>> GetVideos(string filterString,bool desc=false,int page=1,int pageSize=20,string sortBy="CreatedAt")
+    public async Task<ActionResult<Video>> GetVideos(string filterString,bool desc=false,bool onlyBlocked=false,int page=1,int pageSize=20,string sortBy="CreatedAt")
     {
         try
         {
@@ -113,7 +110,49 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                     {
                         filtered = filtered.Where(v => EF.Functions.ILike(v.Title, $"%{filterString}%"));
                     }
-                    filtered = filtered.Where(v => v.Status == EVideoStatus.Ready);
+                    return onlyBlocked ? filtered.Where(v => v.Status == EVideoStatus.Blocked) 
+                        : filtered.Where(v => v.Status == EVideoStatus.Ready);
+                },
+                sortBy: sortBy,          
+                sortDescending: desc,
+                page: page,
+                pageSize: pageSize
+            );
+            return Ok(videos);
+        }
+        catch (ArgumentException e)
+        {
+            return BadRequest(e.Message);
+        }
+        catch (Exception e)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, e.Message);
+        }
+    }
+    
+    
+    
+    [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<Video>),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<Video>> GetUserVideos(int userId,string filterString,bool desc=false,int page=1,int pageSize=20,string sortBy="CreatedAt")
+    {
+        try
+        {
+            var resultId = JwtService.GetUserIdFromContext(HttpContext, out var loggedUserId);
+            var videos = await videoRepository.GetAllAsync(
+                filter: q =>
+                {
+                    var filtered =q.Where(v=>v.OwnerId == userId);
+                    if (userId != loggedUserId)
+                    {
+                        filtered  = filtered.Where(v => v.IsPublic && v.Status == EVideoStatus.Ready);
+                    }
+                    if (!string.IsNullOrWhiteSpace(filterString))
+                    {
+                        filtered = filtered.Where(v => EF.Functions.ILike(v.Title, $"%{filterString}%"));
+                    }
                     return filtered;
                 },
                 sortBy: sortBy,          
@@ -132,7 +171,6 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
             return StatusCode(StatusCodes.Status500InternalServerError, e.Message);
         }
     }
-
     
     
     
