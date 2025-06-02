@@ -97,7 +97,8 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<Video>> GetVideos(string? filter = null, 
-        bool desc=false, 
+        bool desc = false, 
+        bool onlyBlocked = false,
         int offset = 0, 
         int limit = 20,
         string sortBy="CreatedAt")
@@ -117,7 +118,53 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                     {
                         filtered = filtered.Where(v => EF.Functions.ILike(v.Title, $"%{filter}%"));
                     }
-                    filtered = filtered.Where(v => v.Status == EVideoStatus.Ready);
+                    return onlyBlocked ? filtered.Where(v => v.Status == EVideoStatus.Blocked)
+                        : filtered.Where(v => v.Status == EVideoStatus.Ready);
+                },
+                sortBy: sortBy,          
+                sortDescending: desc,
+                offset: offset,
+                limit: limit
+            );
+            return Ok(videos);
+        }
+        catch (ArgumentException e)
+        {
+            return BadRequest(e.Message);
+        }
+        catch (Exception e)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, e.Message);
+        }
+    }
+    
+    [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<Video>),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<Video>> GetUserVideos( 
+        string filter, 
+        int userId = -1,
+        bool desc=false, 
+        int offset = 0,
+        int limit = 20,
+        string sortBy="CreatedAt")
+    {
+        try
+        {
+            var resultId = JwtService.GetUserIdFromContext(HttpContext, out var loggedUserId);
+            var videos = await videoRepository.GetAllAsync(
+                filter: q =>
+                {
+                    var filtered =q.Where(v=>v.OwnerId == userId);
+                    if (userId != loggedUserId)
+                    {
+                        filtered  = filtered.Where(v => v.IsPublic && v.Status == EVideoStatus.Ready);
+                    }
+                    if (!string.IsNullOrWhiteSpace(filter))
+                    {
+                        filtered = filtered.Where(v => EF.Functions.ILike(v.Title, $"%{filter}%"));
+                    }
                     return filtered;
                 },
                 sortBy: sortBy,          
