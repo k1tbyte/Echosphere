@@ -37,7 +37,7 @@ public sealed class User
     public required string PasswordSalt { get; set; }
     
     [Column("role")] 
-    public EUserRole Role { get; set; } = EUserRole.None;
+    public EUserRole Role { get; set; } = EUserRole.User;
     
     [JsonIgnore]
     public ICollection<Friendship> SentFriendRequests { get; set; }

@@ -31,7 +31,7 @@ public static class QueryableExtensions
         var resultExp = Expression.Call(
             typeof(Queryable),
             methodName,
-            new Type[] { entityType, property.PropertyType },
+            [entityType, property.PropertyType],
             source.Expression,
             Expression.Quote(orderByExp));
 

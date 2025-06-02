@@ -96,7 +96,11 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     [ProducesResponseType(typeof(IEnumerable<Video>),StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<Video>> GetVideos(string filterString,bool desc=false,int page=1,int pageSize=20,string sortBy="CreatedAt")
+    public async Task<ActionResult<Video>> GetVideos(string? filter = null, 
+        bool desc=false, 
+        int offset = 0, 
+        int limit = 20,
+        string sortBy="CreatedAt")
     {
         try
         {
@@ -109,17 +113,17 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                     var filtered = (userRole >= EUserRole.Admin )
                         ? q
                         : q.Where(v => v.IsPublic || (resultId && v.OwnerId == userId));
-                    if (!string.IsNullOrWhiteSpace(filterString))
+                    if (!string.IsNullOrWhiteSpace(filter))
                     {
-                        filtered = filtered.Where(v => EF.Functions.ILike(v.Title, $"%{filterString}%"));
+                        filtered = filtered.Where(v => EF.Functions.ILike(v.Title, $"%{filter}%"));
                     }
                     filtered = filtered.Where(v => v.Status == EVideoStatus.Ready);
                     return filtered;
                 },
                 sortBy: sortBy,          
                 sortDescending: desc,
-                page: page,
-                pageSize: pageSize
+                offset: offset,
+                limit: limit
             );
             return Ok(videos);
         }
@@ -140,7 +144,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> PlayHLS(Guid id, string path)
+    public async Task<IActionResult> Resource(Guid id, string path)
     {
         try
         {
@@ -156,7 +160,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                 return Forbid();
             }
             var result = await s3FileService.DownloadFileStreamAsync(BucketName, $"{id}/{path}");
-            return File(result.Stream, "application/vnd.apple.mpegurl", "playlist.m3u8"); 
+            return File(result.Stream, "application/octet-stream", result.FileName);
         }
         catch (Exception e)
         {
@@ -270,6 +274,15 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
             var json = Encoding.UTF8.GetString(decoded);
             request = JsonSerializer.Deserialize<UploadVideoRequest>(json, JsonSerializerOptions.Web)
                       ?? throw new ArgumentException("Invalid request format");
+            if (request.Settings?.Adaptive != null)
+            {
+                // remove duplicates and order
+                request.Settings.Adaptive.Qualities =
+                    request.Settings.Adaptive.Qualities.ToDictionary(o => o.Height)
+                        .OrderByDescending(o => o.Key)
+                        .Select(o => o.Value)
+                        .ToArray();
+            }
         }
         catch (Exception e)
         {
@@ -376,7 +389,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                 Provider = EVideoProvider.Local,
                 Duration = request.Duration,
                 Settings = request.Settings != null 
-                    ? JsonSerializer.Serialize(request.Settings, JsonSerializerOptions.Web) 
+                    ? JsonSerializer.Serialize(request.Settings, Constants.DefaultJsonOptions) 
                     : null,
             });
             

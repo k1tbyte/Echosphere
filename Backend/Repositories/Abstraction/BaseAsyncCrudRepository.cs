@@ -59,8 +59,8 @@ public class BaseAsyncCrudRepository<T, TDerived>(DbContext context, DbSet<T> se
         Func<IQueryable<T>, IQueryable<T>>? filter = null,
         string? sortBy = null,
         bool sortDescending = false,
-        int page = 1,
-        int pageSize = 100)
+        int offset = 0,
+        int limit = 100)
     {
         IQueryable<T> query = Set;
 
@@ -76,7 +76,7 @@ public class BaseAsyncCrudRepository<T, TDerived>(DbContext context, DbSet<T> se
                 : query.OrderByDynamic(sortBy);
         }
 
-        query = query.Skip((page - 1) * pageSize).Take(pageSize);
+        query = query.Skip(offset).Take(limit);
 
         return await query.ToListAsync();
     }

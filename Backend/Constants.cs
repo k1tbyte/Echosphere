@@ -1,4 +1,7 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Backend;
 
@@ -12,6 +15,12 @@ public static partial class Constants
     public const string UploadsFolderName = "UploadsTemp";
     public static readonly string UploadsFolderPath;
     public static readonly string CacheFolderPath;
+
+    public static readonly JsonSerializerOptions DefaultJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
     
     static Constants()
     {

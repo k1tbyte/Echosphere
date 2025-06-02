@@ -153,7 +153,11 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     [ProducesResponseType(typeof(IEnumerable<Video>),StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<Video>> GetUsers(string filterString,bool desc=false,int page=1,int pageSize=20,string sortBy="Username")
+    public async Task<ActionResult<Video>> GetUsers(string? filter = null, 
+        bool desc=false,
+        int offset = 0 ,
+        int limit = 20,
+        string sortBy="Username")
     {
         try
         {
@@ -165,16 +169,16 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
                     var filtered = (userRole >= EUserRole.Admin )
                         ? q
                         : q.Where(u => u.Role!=EUserRole.Banned);
-                    if (!string.IsNullOrWhiteSpace(filterString))
+                    if (!string.IsNullOrWhiteSpace(filter))
                     {
-                        filtered= filtered.Where(u => EF.Functions.ILike(u.Username, $"%{filterString}%"));
+                        filtered= filtered.Where(u => EF.Functions.ILike(u.Username, $"%{filter}%"));
                     }
                     return filtered;
                 },
                 sortBy: sortBy,          
                 sortDescending: desc,
-                page: page,
-                pageSize: pageSize
+                offset: offset,
+                limit: limit
             );
             return Ok(users);
         }

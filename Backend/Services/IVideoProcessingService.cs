@@ -7,6 +7,7 @@ public sealed class VideoSettingsConfig
 {
     public sealed class Quality
     {
+        public required short Height { get; set; }
         public required int VideoBitrate { get; set; } // Kbps
         public EAudioBitrate? AudioBitrate { get; set; }
     }
@@ -24,7 +25,7 @@ public sealed class VideoSettingsConfig
     
     public sealed class AdaptiveSettings
     {
-        public required Dictionary<short, Quality> Qualities { get; set; }
+        public required Quality[] Qualities { get; set; }
         public required VideoSettings Video { get; set; }
         public AudioSettings Audio { get; set; } = new();
     }

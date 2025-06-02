@@ -19,8 +19,8 @@ public interface IAsyncCrudRepository<T, TDerived> where T : class
         Func<IQueryable<T>, IQueryable<T>>? filter = null,
         string? sortBy = null,
         bool sortDescending = false,
-        int page = 1,
-        int pageSize = 10
+        int offset = 1,
+        int limit = 30
     );
     public Task<TDerived> SaveAsync();
 }
