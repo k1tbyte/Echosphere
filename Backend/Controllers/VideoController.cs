@@ -141,13 +141,18 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         try
         {
             var resultId = JwtService.GetUserIdFromContext(HttpContext, out var loggedUserId);
+            JwtService.GetUserRoleFromContext(HttpContext, out var userRole);
             var videos = await videoRepository.GetAllAsync(
                 filter: q =>
                 {
                     var filtered =q.Where(v=>v.OwnerId == userId);
-                    if (userId != loggedUserId)
+                    if (userId != loggedUserId && userRole != EUserRole.Admin)
                     {
-                        filtered  = filtered.Where(v => v.IsPublic && v.Status == EVideoStatus.Ready);
+                        filtered  = filtered.Where(v => v.IsPublic && v.Status >= EVideoStatus.Ready);
+                        if (userRole < EUserRole.Moder)
+                        {
+                            filtered = filtered.Where(v=>v.Status == EVideoStatus.Ready);
+                        }
                     }
                     if (!string.IsNullOrWhiteSpace(filterString))
                     {
