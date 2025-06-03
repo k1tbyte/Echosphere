@@ -1,4 +1,5 @@
 ﻿using System.Buffers;
+using System.Collections;
 using System.Text;
 using System.Text.Json;
 using Backend.Controllers.Abstraction;
@@ -27,7 +28,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     [RequireRole(EUserRole.User)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> SelfUpdate([FromBody] Video? entity)
+    public async Task<IActionResult> UpdateOwnVideo([FromBody] Video? entity)
     {
         var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == JwtService.UserIdClaimType)?.Value;
         if (entity != null && int.TryParse(userId, out var id) && id == entity.OwnerId)
@@ -37,10 +38,11 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         }
         return Forbid();
     }
+    
     [HttpPatch]
     [RequireRole(EUserRole.Moder)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Update([FromBody] Video? entity)
+    public async Task<IActionResult> UpdateVideo([FromBody] Video? entity)
     {
         if (entity != null)
         {
@@ -55,7 +57,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     [HttpGet]
     [ProducesResponseType(typeof(Video),StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<Video>> GetById(Guid id)
+    public async Task<ActionResult<Video>> GetVideo(Guid id)
     {
         var result = await videoRepository.GetVideoByIdAsync(id);
         if (result == null)
@@ -72,7 +74,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> DeleteVideo(Guid id)
     {
         var video = await videoRepository.GetVideoByIdAsync(id);
         if (video == null)
@@ -96,36 +98,55 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     [ProducesResponseType(typeof(IEnumerable<Video>),StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<Video>> GetVideos(string? filter = null, 
+    public async Task<ActionResult<Video>> GetVideos(
+        string? filter = null, 
         bool desc = true, 
         bool onlyBlocked = false,
         int offset = 0, 
         int limit = 20,
-        string sortBy="CreatedAt")
+        string sortBy="CreatedAt",
+        int playlistId =-1)
     {
         try
         {
             var resultId = JwtService.GetUserIdFromContext(HttpContext, out var userId);
             JwtService.GetUserRoleFromContext(HttpContext, out var userRole);
+            IEnumerable<Video> videos;
+            Func<IQueryable<Video>, IQueryable<Video>> videoFilter = q =>
+            {
+                var filtered = (userRole >= EUserRole.Admin)
+                    ? q
+                    : q.Where(v => v.IsPublic || (resultId && v.OwnerId == userId));
 
-            var videos = await videoRepository.GetAllAsync(
-                filter: q =>
+                if (!string.IsNullOrWhiteSpace(filter))
                 {
-                    var filtered = (userRole >= EUserRole.Admin )
-                        ? q
-                        : q.Where(v => v.IsPublic || (resultId && v.OwnerId == userId));
-                    if (!string.IsNullOrWhiteSpace(filter))
-                    {
-                        filtered = filtered.Where(v => EF.Functions.ILike(v.Title, $"%{filter}%"));
-                    }
-                    return onlyBlocked ? filtered.Where(v => v.Status == EVideoStatus.Blocked)
-                        : filtered.Where(v => v.Status == EVideoStatus.Ready);
-                },
+                    filtered = filtered.Where(v => EF.Functions.ILike(v.Title, $"%{filter}%"));
+                }
+
+                return onlyBlocked
+                    ? filtered.Where(v => v.Status == EVideoStatus.Blocked)
+                    : filtered.Where(v => v.Status == EVideoStatus.Ready);
+            };
+
+            if (playlistId != -1)
+            {
+                videos = await videoRepository.GetVideosFromPlaylistAsync(
+                    playlistId: playlistId,
+                    filter:videoFilter,
+                    sortBy: sortBy,          
+                    sortDescending: desc,
+                    offset: offset,
+                    limit: limit
+                );
+                return Ok(videos);
+            }
+            videos = await videoRepository.GetAllAsync(
+                filter: videoFilter,
                 sortBy: sortBy,          
                 sortDescending: desc,
                 offset: offset,
                 limit: limit
-            );
+            ); 
             return Ok(videos);
         }
         catch (ArgumentException e)
