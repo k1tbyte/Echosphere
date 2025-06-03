@@ -18,6 +18,7 @@ import {useNotificationsStore} from "@/store/notificationsStore";
 import {useVideosStore} from "@/store/videoStore";
 import {VideoSettingsSection} from "@/pages/Home/ui/VideoSettingsSection";
 import {PlyrSource, PlyrPlayer, PlyrInstance} from "@/widgets/player";
+import {Switch} from "@/shared/ui/Switch";
 
 export type TypeQuality = { value: string; label: string }[];
 const QUALITIES = [
@@ -280,6 +281,7 @@ export const StudioPage = () => {
                         duration: videoProps.duration,
                         thumbnailsCaptureInterval: videoProps.thumbnailsCaptureInterval,
                         settings: videoProps.settings,
+                        isPublic: videoProps.isPublic
                     }, videoProps.file.fingerprint, videoProps.previewBlob
                 );
                 resumeVideoUpload({ title: videoProps.title, id, uploadedSize: 0 },
@@ -339,6 +341,16 @@ export const StudioPage = () => {
                     <Separator className="my-5"/>
                     {isLocalVideo &&
                         <>
+                            <div className="flex justify-between flex-y-center">
+                                <Label size={"lg"}>
+                                    Public video
+                                    <small className="ml-2 text-xs font-normal text-muted-foreground">
+                                        (everyone can see it)
+                                    </small>
+                                </Label>
+                                <Switch onCheckedChange={(e) => videoProps.isPublic = e}/>
+                            </div>
+                            <Separator className="my-5"/>
                             <VideoSettingsSection settings={videoProps.settings} schema={schema} videoQualities={availableQualities}/>
                             <Separator className="my-5"/>
                         </>

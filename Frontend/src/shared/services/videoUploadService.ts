@@ -21,6 +21,7 @@ interface VideoMetadata {
     sizeBytes?: number;
     previewSizeBytes?: number;
     thumbnailsCaptureInterval?: number;
+    isPublic?: boolean;
     settings?: IVideoSettingsDTO;
 }
 

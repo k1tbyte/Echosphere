@@ -16,7 +16,7 @@ const getSessionPayload = (newSession: RefreshSession) => {
         username: jwt.display_name as string,
         apiAccessToken: newSession.accessToken,
         apiRefreshToken: newSession.refreshToken,
-        role: jwt.access_role as EUserRole,
+        role: Number(jwt.access_role) as EUserRole,
         avatar: jwt.avatar as string,
         email: jwt.email as string,
         accessExp: jwt.exp as number,

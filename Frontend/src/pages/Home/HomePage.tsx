@@ -23,6 +23,9 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/shared/ui/Select";
+import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/shared/ui/ContextMenu";
+import {openConfirmationModal} from "@/widgets/modals/ConfirmationModal";
+import {toast, ToastVariant} from "@/shared/ui/Toast";
 
 
 export const VideoExample = () => {
@@ -226,7 +229,35 @@ export const HomePage = () => {
                 <div className="flex flex-col gap-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
                         {allVideos?.map((video) => (
-                            <VideoCard key={video.id} video={video} />
+                            <ContextMenu key={video.id}>
+                                <ContextMenuTrigger>
+                                    <VideoCard video={video} />
+                                </ContextMenuTrigger>
+                                <ContextMenuContent className="w-52">
+                                    <ContextMenuItem className="text-red-400 font-medium"
+                                    onClick={() => {
+                                        openConfirmationModal({
+                                            body: `Are you sure you want to delete the video "${video.title}"?`,
+                                            destructiveYes: true,
+                                            onYes: () => {
+                                                VideosService.deleteVideo(video.id)
+                                                    .then(() => {
+                                                        setAllVideos(prev => prev.filter(v => v.id !== video.id));
+                                                    })
+                                                    .catch(() => {
+                                                        toast.open({
+                                                            variant: ToastVariant.Error,
+                                                            body: `Failed to delete video`
+                                                        });
+                                                    });
+                                            }
+                                        })
+                                    }}>
+                                        Delete
+                                    </ContextMenuItem>
+                                </ContextMenuContent>
+                            </ContextMenu>
+
                         ))}
                     </div>
 

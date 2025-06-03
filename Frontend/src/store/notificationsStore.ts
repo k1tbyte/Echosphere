@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import {IObservable} from "@/shared/lib/observer/IObservable";
+import {ReactNode} from "react";
 
 export interface AppNotification {
     id: string;
     title: string;
-    message?: string;
+    message?: string | ReactNode;
     type: 'info' | 'success' | 'error';
     progressCallback?: IObservable<{ percent: number, msg?: string }>
     priority?: number; // Higher number means higher priority

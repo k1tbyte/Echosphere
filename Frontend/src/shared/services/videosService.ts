@@ -1,4 +1,5 @@
-import fetcher from "@/shared/lib/fetcher";
+import fetcher, { send } from "@/shared/lib/fetcher";
+import {queryToSearchParams} from "@/shared/services/queryHelper";
 
 export const enum EVideoProvider {
     Local = 0,
@@ -37,13 +38,7 @@ export interface IVideoSettingsDTO {
 }
 
 
-export interface IQueryParams {
-    offset: number;
-    limit: number;
-    filter?: string;
-    descending?: boolean;
-    orderBy?: string;
-}
+
 
 export interface IVideoObject {
     title: string;
@@ -67,21 +62,7 @@ export class VideosService {
 
     public static async getVideos(query: IQueryParams): Promise<IVideoObject[]> {
         const url = process.env.NEXT_PUBLIC_API_URL + '/video/getUserVideos';
-        console.log("Order by:", query.orderBy, "Descending:", query.descending, "Filter:", query.filter);
-        const params = new URLSearchParams({
-            offset: query.offset.toString(),
-            limit: query.limit.toString()
-        });
-
-        if (query.filter) {
-            params.append('filter', query.filter);
-        }
-        if (query.descending !== undefined) {
-            params.append('desc', query.descending.toString());
-        }
-        if (query.orderBy) {
-            params.append('sortBy', query.orderBy);
-        }
+        const params = queryToSearchParams(query)
 
         const result =  await fetcher.exceptJson<IVideoObject[]>(
             fetcher.getJson(url + '?' + params.toString(), null, true)
@@ -93,6 +74,16 @@ export class VideosService {
         }
 
         return result;
+    }
+
+    public static async deleteVideo(videoId: string): Promise<Response> {
+        return await send(
+            process.env.NEXT_PUBLIC_API_URL + '/video/delete?id=' + videoId,
+            {
+                method: 'DELETE',
+            },
+            true
+        );
     }
 
     public static getVideoPreviewUrl(video: IVideoObject) {

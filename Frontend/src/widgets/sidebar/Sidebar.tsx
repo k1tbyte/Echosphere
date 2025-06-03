@@ -1,11 +1,11 @@
 "use client"
 
-import React, { ComponentProps, FC, useContext, useEffect, useState } from "react";
-import { ChevronLeft, Clapperboard, House, Library, Users } from "lucide-react";
+import React, {ComponentProps, FC, useContext, useEffect, useState} from "react";
+import {ChevronLeft, Clapperboard, House, Library, ShieldCheck, Users} from "lucide-react";
 import Image from "next/image";
-import { clsx } from "clsx";
-import { cn } from "@/shared/lib/utils";
-import { signOut, useSession } from "next-auth/react";
+import {clsx} from "clsx";
+import {cn} from "@/shared/lib/utils";
+import {signOut, useSession} from "next-auth/react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -15,15 +15,16 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from "@/shared/ui/DropdownMenu";
-import { Loader, Spinner } from "@/shared/ui/Loader";
-import { openAccountModal } from "@/widgets/account/AccountModal";
+import {Loader, Spinner} from "@/shared/ui/Loader";
+import {openAccountModal} from "@/widgets/account/AccountModal";
 import dynamic from "next/dynamic";
 import {Label} from "@/shared/ui/Label";
-import { usePathname } from "next/navigation";
+import {usePathname} from "next/navigation";
 import Link from "next/link";
-import { motion } from "motion/react";
+import {motion} from "motion/react";
 import {useSidebar} from "@/store/uiMetaStore";
 import {UsersService} from "@/shared/services/usersService";
+import {EUserRole} from "@/types/user-role";
 
 const SidebarContext = React.createContext<boolean | null>(false);
 
@@ -57,7 +58,6 @@ const SidebarItem: FC<ISidebarItemProps> = ({
     );
 };
 
-// Основной компонент сайдбара
 const SidebarComponent: FC<ComponentProps<'div'>> = ({ className, ...props }) => {
     const { data: session, status } = useSession({ required: true });
     const [isLoading, setIsLoading] = useState(false);
@@ -158,15 +158,21 @@ const SidebarComponent: FC<ComponentProps<'div'>> = ({ className, ...props }) =>
                         <SidebarItem text="Home" href="/home">
                             <House />
                         </SidebarItem>
-                        <SidebarItem text="Profile" href="/test">
+                        <SidebarItem text="Friends" href="/friends">
                             <Users />
                         </SidebarItem>
-                        <SidebarItem text="Movies" href="/movies">
+                        <SidebarItem text="Videos" href="/videos">
                             <Clapperboard />
                         </SidebarItem>
-                        <SidebarItem text="Libraries" href="/library">
+                        <SidebarItem text="Playlists" href="/playlists">
                             <Library />
                         </SidebarItem>
+                        { session?.user.role && session.user.role >= EUserRole.Moder && (
+                            <SidebarItem text="Admin" href="/admin">
+                                <ShieldCheck/>
+                            </SidebarItem>
+                        )
+                        }
                     </SidebarContext.Provider>
                 </div>
 
@@ -215,9 +221,6 @@ const SidebarComponent: FC<ComponentProps<'div'>> = ({ className, ...props }) =>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem>
                                     Lobby
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                    Settings
                                 </DropdownMenuItem>
                             </DropdownMenuGroup>
                             <DropdownMenuSeparator />
