@@ -50,15 +50,20 @@ public sealed class JwtService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
+    public IOrderedQueryable<RefreshSession> GetUserSessions(long id)
+    {
+        return _dbContext.Sessions
+            .Where(o => o.UserId == id)
+            .OrderBy(o => o.ExpiresIn);
+    }
+
     private AuthTokensDTO _createSession(string accessToken, long userId, bool extended)
     {
         var refreshToken = Guid.NewGuid();
         var expires= extended ? DateTimeOffset.UtcNow.AddDays(RefreshTokenExtendedLifetime) :
             DateTimeOffset.UtcNow.AddMinutes(RefreshTokenLifetime);
 
-        var sessions = _dbContext.Sessions
-            .Where(o => o.UserId == userId)
-            .OrderBy(o => o.ExpiresIn);
+        var sessions = GetUserSessions(userId);
         
         if (sessions.Count() >= MaxSessionsAmount)
         {

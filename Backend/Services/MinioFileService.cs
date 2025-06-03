@@ -6,22 +6,13 @@ namespace Backend.Services;
 
 public class MinioFileService(IMinioClient minioClient) : IS3FileService
 {
-    public async Task<string> UploadFileStreamAsync(Stream stream, string bucketName)
+    public async Task PutObjectAsync(Stream stream,string bucketName, string objName, int size = -1)
     {
-        /*if (string.IsNullOrWhiteSpace(filename))
-            throw new ArgumentException("Filename must be provided", nameof(filename));*/
+        if (stream.CanSeek)
+        {
+            stream.Seek(0, SeekOrigin.Begin);
+        }
 
-        var objName = $"{Guid.NewGuid()}";
-        
-
-        await PutObjectAsync(stream ,bucketName,objName+"_raw");
-
-        return objName;
-    }
-
-    public async Task PutObjectAsync(Stream stream,string bucketName, string objName)
-    {
-        stream.Seek(0, SeekOrigin.Begin);
         var bucketExists = await minioClient.BucketExistsAsync(
             new BucketExistsArgs().WithBucket(bucketName));
 
@@ -34,7 +25,7 @@ public class MinioFileService(IMinioClient minioClient) : IS3FileService
             .WithBucket(bucketName)
             .WithObject(objName)
             .WithStreamData(stream)
-            .WithObjectSize(stream.Length)
+            .WithObjectSize(size == -1 ? stream.Length : size)
             .WithContentType("application/octet-stream"));
     }
         

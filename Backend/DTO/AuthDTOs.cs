@@ -1,4 +1,6 @@
-﻿namespace Backend.DTO;
+﻿using Backend.Data.Entities;
+
+namespace Backend.DTO;
 
 public class SignupResultDTO
 {
@@ -23,6 +25,16 @@ public class LoginRequestDTO
     public required string Email { get; set; }
     public required string Password { get; set; }
     public required bool Remember { get; set; }
+}
+
+public class UserUpdateDTO
+{
+    public int Id { get; set; }
+    public string? OldPassword { get; set; }
+    public string? Password { get; set; }
+    public string? Username { get; set; }
+    public EUserRole? Role { get; set; }
+    public string? Email { get; set; }
 }
 
 public class LogOutDTO

@@ -1,6 +1,7 @@
 ﻿using Backend.Controllers.Abstraction;
 using Backend.Data.Entities;
 using Backend.DTO;
+using Backend.Infrastructure;
 using Backend.Repositories.Abstraction;
 using Backend.Services;
 using Backend.Services.Filters;
@@ -17,24 +18,56 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     [RequireRole(EUserRole.User)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> SelfUpdate([FromBody] User? entity)
+    public async Task<IActionResult> Update([FromBody] UserUpdateDTO entity)
     {
-        if (entity != null && JwtService.GetUserIdFromContext(HttpContext, out var id) && id == entity.Id)
+        JwtService.GetUserRoleFromContext(HttpContext, out var role);
+        JwtService.GetUserIdFromContext(HttpContext, out var id);
+        if(role < EUserRole.Moder && id != entity.Id)
         {
-            await accountRepository.Update(entity);
-            return NoContent();
+            return Forbid();
         }
-        return Forbid();
-    }
-    [HttpPatch]
-    [RequireRole(EUserRole.Moder)]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Update([FromBody] User entity)
-    {
-        await accountRepository.Update(entity);
+
+        var user = await accountRepository.Get(entity.Id);
+
+        if (user == null)
+        {
+            return NotFound("User not found");
+        }
+        
+        if (entity.Password != null)
+        {
+            if (entity.Password.Length < 6)
+            {
+                return BadRequest("New password must be at least 6 characters long");
+            }
+            
+            if (PasswordManager.CheckPassword(entity.Password, user.PasswordSalt, user.Password))
+            {
+                return BadRequest("New password cannot be the same as the old one");
+            }
+            
+            if (role < EUserRole.Moder && 
+                (string.IsNullOrWhiteSpace(entity.OldPassword) || !PasswordManager.CheckPassword(entity.OldPassword, user.PasswordSalt, user.Password)))
+            {
+                return BadRequest("Old password is incorrect");
+            }
+            
+            user.Password = PasswordManager.HashPassword(entity.Password, out var salt);
+            user.PasswordSalt = salt;
+            accountRepository.RevokeSessionsAsync(user);
+        }
+
+        user.Username = entity.Username ?? user.Username;
+        if (role >= EUserRole.Moder)
+        {
+            user.Email = entity.Email ?? user.Email;
+            user.Role = entity.Role ?? user.Role;
+        }
+
+        await accountRepository.WithAutoSave().Update(user);
         return NoContent();
     }
-
+    
     [HttpGet("{id}")]
     [ProducesResponseType(typeof(User),StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -266,7 +299,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(string) ,StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> DownloadAvatar([FromQuery] int userId)
+    public async Task<IActionResult> Avatar([FromQuery] int userId)
     {
         try
         {
@@ -288,8 +321,13 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     public async Task<IActionResult> UploadAvatar(){
         try
         {
-            var objName =
-                await _fileService.UploadFileStreamAsync(Request.Body, "avatars");
+            if(Request.ContentLength is null or <= 0)
+            {
+                return BadRequest(new { error = "No file uploaded or file is empty." });
+            }
+
+            var objName = Guid.NewGuid().ToString();
+            await _fileService.PutObjectAsync(Request.Body, "avatars", objName, (int)Request.ContentLength.Value);
             var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == JwtService.UserIdClaimType)?.Value;
             await accountRepository.SetAvatar(userId, objName);
             return NoContent();

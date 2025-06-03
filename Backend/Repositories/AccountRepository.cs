@@ -20,6 +20,11 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
         await SaveAsync();
     }
 
+    public void RevokeSessionsAsync(User user)
+    {
+        context.Sessions.RemoveRange(jwtAuth.GetUserSessions(user.Id));
+    }
+
     public async Task<string?> GetSignupToken(User user)
     {
         if (await context.Users.AnyAsync(o => o.Email == user.Email))
