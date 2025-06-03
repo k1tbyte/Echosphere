@@ -23,6 +23,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion } from "motion/react";
 import {useSidebar} from "@/store/uiMetaStore";
+import {UsersService} from "@/shared/services/usersService";
 
 const SidebarContext = React.createContext<boolean | null>(false);
 
@@ -179,7 +180,7 @@ const SidebarComponent: FC<ComponentProps<'div'>> = ({ className, ...props }) =>
                             <div className="p-3 flex gap-3 items-center hover:bg-accent/30 transition-colors rounded-xs cursor-pointer border-t-border border-t overflow-clip">
                                 <div className="flex shrink-0 gap-3 items-center">
                                     <Image
-                                        src={`https://ui-avatars.com/api/?name=${session?.user.username}.svg`}
+                                        src={UsersService.getLocalUserAvatarUrl() ?? `https://ui-avatars.com/api/?name=${session?.user.username}.svg`}
                                         alt="Avatar"
                                         width={45}
                                         height={45}

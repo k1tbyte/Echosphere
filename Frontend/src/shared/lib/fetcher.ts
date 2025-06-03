@@ -5,10 +5,17 @@ import {getSession} from "next-auth/react";
 type TypeFetcher = {
     postJson: (url: string, data: object, props?: RequestInit | null, authorized?: boolean) => Promise<Response>;
     getJson: (url: string, props?: RequestInit | null, authorized?: boolean) => Promise<Response>;
+    patchJson: (url: string, data: object, props?: RequestInit | null, authorized?: boolean) => Promise<Response>;
     exceptJson: <T>(Promise: Promise<Response>) => Promise<T>;
 }
 
-export const send = async (url: string, init: RequestInit, authorized?: boolean, noexcept?: boolean): Promise<Response> => {
+export const enum ExceptionType {
+    NoExcept = 0,
+    Code = 2,
+    Status
+}
+
+export const send = async (url: string, init: RequestInit, authorized?: boolean, noexcept?: ExceptionType | boolean): Promise<Response> => {
     let response;
     try {
         if(authorized) {
@@ -45,8 +52,11 @@ export const send = async (url: string, init: RequestInit, authorized?: boolean,
             }
         }
 
-        if(!noexcept) {
+        if(!noexcept || noexcept === ExceptionType.Code) {
             throw new Error(response.status.toString());
+        }
+        if(noexcept === ExceptionType.Status) {
+            throw new Error(await response.text());
         }
     }
     return response;
@@ -73,6 +83,17 @@ const fetcher: TypeFetcher = {
             headers: headers,
             ...props
         }, authorized);
+    },
+    patchJson: async (url: string, data: object, props?: RequestInit | null, authorized?: boolean) => {
+        let headers = props?.headers || {};
+        // @ts-ignore
+        headers['Content-Type'] = 'application/json';
+        return await send(url, {
+            method: 'PATCH',
+            headers: headers,
+            body: JSON.stringify(data),
+            ...props
+        }, authorized, ExceptionType.Status);
     },
     exceptJson: async <T> (Promise: Promise<Response>) => {
         return await (await Promise).json() as T;

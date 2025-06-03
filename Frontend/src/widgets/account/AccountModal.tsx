@@ -3,66 +3,152 @@
 import {FC, useEffect, useState} from "react";
 import {Button} from "@/shared/ui/Button";
 import {modal, ModalSeparator, useModalActions} from "@/shared/ui/Modal";
-import {useSession} from "next-auth/react";
+import {useSession, signOut } from "next-auth/react";
 import Image from "next/image";
-import {Plus, Lock, Users, User, Save} from "lucide-react";
+import {Plus, Lock, User, Save} from "lucide-react";
 import {Label} from "@/shared/ui/Label";
-import {Separator} from "@/shared/ui/Separator";
 import {Loader} from "@/shared/ui/Loader";
 import {toast, ToastVariant} from "@/shared/ui/Toast";
 import {Tab, TabPanel, TabTitle} from "@/shared/ui/Tabs";
 import {Input} from "@/shared/ui/Input";
+import {DropZone} from "@/widgets/dropzone";
+import useSWR from "swr";
+import {UsersService} from "@/shared/services/usersService";
 
 export const AccountModal: FC = () => {
     const { data: session, status } = useSession();
-    const { contentRef, closeModal } = useModalActions<HTMLDivElement>();
-    const [isLoading, setIsLoading] = useState(false);
-    const [username, setUsername] = useState<string>("");
-    const [currentPassword, setCurrentPassword] = useState<string>("");
-    const [newPassword, setNewPassword] = useState<string>("");
-    const [confirmPassword, setConfirmPassword] = useState<string>("");
+    const { contentRef } = useModalActions<HTMLDivElement>();
     const [activeTab, setActiveTab] = useState<string>("profile");
+    const [isAvatarUploading, setIsAvatarUploading] = useState(false);
+    const [isProfileLoading, setIsProfileLoading] = useState(false);
+    const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+    const [passwordError, setPasswordError] = useState<string | null>(null);
 
-    const handleUploadAvatar = () => {
-        toast.open({
-            body: "Avatar upload functionality will be available in an upcoming update!",
-            variant: ToastVariant.Info
-        });
+    const { data: user, mutate } = useSWR(
+        `getUserById-${session?.user.id}`,
+        () => {
+            if(!session?.user.id) return null;
+            return UsersService.getUserById(Number(session?.user.id));
+        }
+    );
+
+    useEffect(() => {
+        if (user?.avatar) {
+            localStorage.setItem("avatar", user.avatar);
+        }
+    }, [user?.avatar]);
+
+    const handleUploadAvatar = (f: File) => {
+        if(isAvatarUploading) {
+            return;
+        }
+        if(f.type !== "image/png" && f.type !== "image/jpeg") {
+            toast.open({
+                body: "Please upload a valid image file (PNG or JPEG).",
+                variant: ToastVariant.Error
+            });
+            return;
+        }
+        if(f.size > 1024 * 1024) { // 1MB limit
+            toast.open({
+                body: "Image size should not exceed 1MB.",
+                variant: ToastVariant.Error
+            });
+            return;
+        }
+        setIsAvatarUploading(true);
+        UsersService.uploadAvatar(f)
+            .catch((err) => {
+                console.error("Error uploading avatar:", err);
+                toast.open({
+                    body: "Failed to upload avatar.",
+                    variant: ToastVariant.Error
+                });
+            })
+            .then(async () => {
+                await mutate(); // Refresh user data
+                toast.open({
+                    body: "Avatar successfully updated!",
+                    variant: ToastVariant.Success
+                });
+            })
+            .finally(() => {
+                setIsAvatarUploading(false);
+            });
     };
 
-    const handleSaveProfile = () => {
-        setIsLoading(true);
-        setTimeout(() => {
-            setIsLoading(false);
+    const handleProfileSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setIsProfileLoading(true);
+
+        const formData = new FormData(e.currentTarget);
+        const username = formData.get('username') as string;
+
+        try {
+            // @ts-ignore
+            await UsersService.updateUser({
+                id: user!.id,
+                username: username
+            });
+            await mutate();
             toast.open({
                 body: "Profile successfully updated!",
                 variant: ToastVariant.Success
             });
-        }, 1000);
+        } catch (error) {
+            toast.open({
+                body: "Failed to update profile.",
+                variant: ToastVariant.Error
+            });
+        } finally {
+            setIsProfileLoading(false);
+        }
     };
 
-    const handleChangePassword = () => {
-        setIsLoading(true);
-        setTimeout(() => {
-            setIsLoading(false);
-            setCurrentPassword("");
-            setNewPassword("");
-            setConfirmPassword("");
+    const handlePasswordSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setPasswordError(null);
+        setIsPasswordLoading(true);
+
+        const formData = new FormData(e.currentTarget);
+        const oldPassword = formData.get('oldPassword') as string;
+        const password = formData.get('password') as string;
+        const confirmPassword = formData.get('confirmPassword') as string;
+
+        if (password !== confirmPassword) {
+            setPasswordError("Passwords don't match!");
+            setIsPasswordLoading(false);
+            return;
+        }
+
+        if (oldPassword === password) {
+            setPasswordError("New password must be different from the current one.");
+            setIsPasswordLoading(false);
+            return;
+        }
+
+        try {
+            // @ts-ignore
+            await UsersService.updateUser({
+                id: user!.id,
+                oldPassword,
+                password,
+            });
+
             toast.open({
                 body: "Password successfully changed!",
                 variant: ToastVariant.Success
             });
-        }, 1000);
+            await signOut();
+        } catch (error) {
+            // @ts-ignore
+            setPasswordError(error!.message as string || "Failed to change password");
+        } finally {
+            setIsPasswordLoading(false);
+        }
     };
 
-    // Set initial username value from session
-    useEffect(() => {
-        if (session?.user.username) {
-            setUsername(session.user.username);
-        }
-    }, [session]);
-
-    if (status === "loading") {
+    if (status === "loading" || !user) {
         return <div className="flex items-center justify-center py-8">
             <Loader variant="dots" size="md" />
         </div>;
@@ -82,24 +168,32 @@ export const AccountModal: FC = () => {
                         </TabTitle>
                     }
                     children={
-                        <div className="flex flex-col gap-5 w-full">
+                        <form onSubmit={handleProfileSubmit} className="flex flex-col gap-5 w-full">
                             <div className="flex flex-col md:flex-row gap-5 items-center md:items-start w-full">
                                 <div className="relative mx-auto md:mx-0">
-                                    {session?.user.avatar ? (
-                                        <Image
-                                            src={session.user.avatar}
-                                            alt="User avatar"
-                                            width={120}
-                                            height={120}
-                                            className="rounded-md border border-border object-cover"
-                                        />
-                                    ) : (
-                                        <div
-                                            onClick={handleUploadAvatar}
-                                            className="w-[120px] h-[120px] border border-dashed border-border rounded-md flex items-center justify-center cursor-pointer hover:bg-accent/30 transition-colors"
-                                        >
-                                            <Plus size={32} className="text-muted-foreground" />
+                                    {(user?.avatar) ? (
+                                        <div className="relative">
+                                            <Image
+                                                src={UsersService.getUserAvatarUrl(user)!}
+                                                alt="User avatar"
+                                                width={120}
+                                                height={120}
+                                                loading={"lazy"}
+                                                className="rounded-md border border-border object-cover"
+                                            />
+                                            {isAvatarUploading && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-md">
+                                                    <Loader variant="dots" size="sm" />
+                                                </div>
+                                            )}
                                         </div>
+                                    ) : (
+                                        <DropZone
+                                            className="w-[120px] h-[120px] hover:bg-accent/30 transition-colors flex-center"
+                                            promptText={""}
+                                            icon={isAvatarUploading ? <Loader variant="dots" size="sm" /> : <Plus size={32} className="text-muted-foreground" />}
+                                            onFileDrop={handleUploadAvatar}
+                                        />
                                     )}
                                 </div>
 
@@ -111,7 +205,7 @@ export const AccountModal: FC = () => {
                                                 variant="filled"
                                                 className="break-all w-fit mx-auto md:mx-0 px-3 py-1 rounded-md"
                                             >
-                                                {session?.user.email}
+                                                {user.email}
                                             </Label>
                                         </div>
 
@@ -124,24 +218,24 @@ export const AccountModal: FC = () => {
                                             </Label>
                                             <Input
                                                 id="username"
-                                                value={username}
-                                                onChange={(e) => setUsername(e.target.value)}
+                                                name="username"
+                                                defaultValue={user.username || ""}
                                                 placeholder="Enter your username"
                                             />
                                         </div>
                                     </div>
 
                                     <Button
+                                        type="submit"
                                         size="sm"
-                                        onClick={handleSaveProfile}
-                                        loading={isLoading}
+                                        loading={isProfileLoading}
                                         className="w-full md:w-32 mt-2 md:ml-auto md:mr-0"
                                     >
                                         <Save size={16} className="mr-2" /> Save
                                     </Button>
                                 </div>
                             </div>
-                        </div>
+                        </form>
                     }
                 />
 
@@ -153,70 +247,58 @@ export const AccountModal: FC = () => {
                         </TabTitle>
                     }
                     children={
-                        <div className="flex flex-col gap-2">
+                        <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-2">
                             <ModalSeparator/>
 
                             <div className="space-y-3">
                                 <div>
-                                    <Label htmlFor="current-password" className="mb-2 block text-sm">Current Password</Label>
+                                    <Label htmlFor="oldPassword" className="mb-2 block text-sm">Current Password</Label>
                                     <Input
-                                        id="current-password"
+                                        id="oldPassword"
+                                        name="oldPassword"
                                         type="password"
-                                        value={currentPassword}
-                                        onChange={(e) => setCurrentPassword(e.target.value)}
+                                        required
                                         placeholder="Enter current password"
                                     />
                                 </div>
 
                                 <div>
-                                    <Label htmlFor="new-password" className="mb-2 block text-sm">New Password</Label>
+                                    <Label htmlFor="password" className="mb-2 block text-sm">New Password</Label>
                                     <Input
-                                        id="new-password"
+                                        id="password"
+                                        name="password"
                                         type="password"
-                                        value={newPassword}
-                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        required
                                         placeholder="Enter new password"
                                     />
                                 </div>
 
                                 <div>
-                                    <Label htmlFor="confirm-password" className="mb-2 block text-sm">Confirm Password</Label>
+                                    <Label htmlFor="confirmPassword" className="mb-2 block text-sm">Confirm Password</Label>
                                     <Input
-                                        id="confirm-password"
+                                        id="confirmPassword"
+                                        name="confirmPassword"
                                         type="password"
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        required
                                         placeholder="Confirm new password"
                                     />
                                 </div>
 
+                                {passwordError && (
+                                    <Label className="text-red-500 text-sm text-wrap">
+                                        {passwordError}
+                                    </Label>
+                                )}
+
                                 <Button
-                                    onClick={handleChangePassword}
-                                    loading={isLoading}
-                                    className="w-full mt-2"
+                                    type="submit"
+                                    loading={isPasswordLoading}
+                                    className="w-full mt-4"
                                 >
                                     Change Password
                                 </Button>
                             </div>
-                        </div>
-                    }
-                />
-
-                <Tab
-                    key="friends"
-                    title={
-                        <TabTitle className="flex items-center gap-2">
-                            <Users size={16} /> Friends
-                        </TabTitle>
-                    }
-                    children={
-                        <div className="flex flex-col items-center justify-center py-10 text-center">
-                            <Users size={48} className="text-muted-foreground mb-4" />
-                            <h3 className="text-lg font-medium mb-2">Friends List</h3>
-                            <p className="text-muted-foreground max-w-sm">
-                                Friends functionality will be available in an upcoming update!
-                            </p>
-                        </div>
+                        </form>
                     }
                 />
             </TabPanel>

@@ -126,7 +126,6 @@ const handler = NextAuth({
                 session.user.username = token.username as string;
                 session.user.email = token.email as string;
                 session.user.id = token.id as string;
-                session.user.avatar = token.avatar as string;
                 session.accessToken = token.apiAccessToken!;
                 session.refreshToken = token.apiRefreshToken!;
             }
