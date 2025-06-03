@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Minio;
+using Minio.DataModel;
 using Minio.DataModel.Args;
 
 namespace Backend.Services;
@@ -28,7 +29,27 @@ public class MinioFileService(IMinioClient minioClient) : IS3FileService
             .WithObjectSize(size == -1 ? stream.Length : size)
             .WithContentType("application/octet-stream"));
     }
-        
+    public async Task DeleteObjectAsync(string bucketName, string objectName)
+    {
+        await minioClient.RemoveObjectAsync(new RemoveObjectArgs()
+            .WithBucket(bucketName)
+            .WithObject(objectName));
+    }
+    public async Task<ObjectStat?> TryGetObjectInfoAsync(string bucketName, string objectName)
+    {
+        try
+        {
+            var args = new StatObjectArgs()
+                .WithBucket(bucketName)
+                .WithObject(objectName);
+            return await minioClient.StatObjectAsync(args);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+    
     public async Task<(Stream Stream, string ContentType, string FileName)> DownloadFileStreamAsync(string bucketName, string objectName)
     {
         var bucketExists = await minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(bucketName));

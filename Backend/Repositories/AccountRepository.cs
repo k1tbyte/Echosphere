@@ -207,22 +207,7 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
 
         return pendingList;
     }
-
-    public async Task SetAvatar(string? userId,string objName)
-    {
-        if (userId != null && int.TryParse(userId, out int id))
-        {
-            var user = await Get(id);
-            if (user != null)
-            {
-                user.Avatar = objName;
-                await WithAutoSave().Update(user);
-            }
-        }
-    }
-
-
-
+    
     public async Task<EUserRole> GetUserRoleAsync(int userId)
     {
         var role = await context.Users

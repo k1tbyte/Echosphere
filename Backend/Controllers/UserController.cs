@@ -317,6 +317,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     [HttpPost]
     [RequireRole(EUserRole.User)]
     [ProducesResponseType( StatusCodes.Status200OK)]
+    [ProducesResponseType( StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> UploadAvatar(){
         try
@@ -325,11 +326,22 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
             {
                 return BadRequest(new { error = "No file uploaded or file is empty." });
             }
-
             var objName = Guid.NewGuid().ToString();
+            JwtService.GetUserIdFromContext(HttpContext, out var userId);
+            var user= await accountRepository.Get(userId);
+            if(user == null)
+                return NotFound();
+            if (!String.IsNullOrWhiteSpace(user.Avatar))
+            {
+                var info= await _fileService.TryGetObjectInfoAsync("avatars", user.Avatar);
+                if (info != null)
+                {
+                    await _fileService.DeleteObjectAsync("avatars", user.Avatar);
+                }
+            }
             await _fileService.PutObjectAsync(Request.Body, "avatars", objName, (int)Request.ContentLength.Value);
-            var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == JwtService.UserIdClaimType)?.Value;
-            await accountRepository.SetAvatar(userId, objName);
+            user.Avatar = objName;
+            await accountRepository.Update(user);
             return NoContent();
         }
         catch (Exception ex)
