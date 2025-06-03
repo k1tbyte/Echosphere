@@ -2,8 +2,11 @@
 using System.Collections;
 using System.Text;
 using System.Text.Json;
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Backend.Controllers.Abstraction;
 using Backend.Data.Entities;
+using Backend.DTO;
 using Backend.Repositories;
 using Backend.Repositories.Abstraction;
 using Backend.Requests;
@@ -20,7 +23,7 @@ namespace Backend.Controllers;
 [Route(Constants.DefaultRoutePattern)]
 public class VideoController(IS3FileService s3FileService,IVideoRepository videoRepository,
     IS3FileService fileService,
-    IAccountRepository accountRepository,IMemoryCache memoryCache): BaseFileController(fileService)
+    IAccountRepository accountRepository,IMemoryCache memoryCache,IMapper mapper): BaseFileController(fileService)
 {
     private const string BucketName = "videos";
     
@@ -95,7 +98,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     #if !DEBUG
     [RequireRole(EUserRole.User)]
     #endif
-    [ProducesResponseType(typeof(IEnumerable<Video>),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<VideoDTO>),StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<Video>> GetVideos(
@@ -105,7 +108,8 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         int offset = 0, 
         int limit = 20,
         string sortBy="CreatedAt",
-        int playlistId =-1)
+        int playlistId =-1,
+        bool fetchOwner = false)
     {
         try
         {
@@ -122,10 +126,12 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                 {
                     filtered = filtered.Where(v => EF.Functions.ILike(v.Title, $"%{filter}%"));
                 }
-
-                return onlyBlocked
+                filtered = onlyBlocked
                     ? filtered.Where(v => v.Status == EVideoStatus.Blocked)
                     : filtered.Where(v => v.Status == EVideoStatus.Ready);
+                return fetchOwner
+                    ? filtered.Include(v => v.Owner)
+                    : filtered;
             };
 
             if (playlistId != -1)
@@ -146,8 +152,9 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                 sortDescending: desc,
                 offset: offset,
                 limit: limit
-            ); 
-            return Ok(videos);
+            );
+            var videosDto = videos.Select(v => mapper.Map<VideoDTO>(v)).ToList();
+            return Ok(videosDto);
         }
         catch (ArgumentException e)
         {

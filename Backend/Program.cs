@@ -5,14 +5,17 @@ using Microsoft.AspNetCore.HttpOverrides;
 using System.Text;
 using System.Text.Json;
 using Backend.Data.Entities;
+using Backend.Hubs;
 using Backend.Repositories;
 using Backend.Repositories.Abstraction;
+using Backend.Utils;
 using Backend.Workers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.IdentityModel.Tokens;
 using Minio;
 using Xabe.FFmpeg;
+using AutoMapper;
 
 namespace Backend;
 
@@ -36,6 +39,7 @@ public class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
         builder.Services.AddMemoryCache();
+        builder.Services.AddSignalR();
         builder.Services.Configure<RouteOptions>(o => o.LowercaseUrls = true);
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddDbContext<AppDbContext>();
@@ -45,6 +49,7 @@ public class Program
         builder.Services.AddScoped<IPlaylistRepository,PlaylistRepository>();
         builder.Services.AddScoped<IPlaylistVideoRepository,PlaylistVideoRepository>();
         builder.Services.AddSingleton<EmailService>();
+        builder.Services.AddAutoMapper(typeof(MappingProfile));
         /*builder.Services.AddSingleton<VideoProcessingWorker>();
         builder.Services.AddHostedService(provider => provider.GetRequiredService<VideoProcessingWorker>());*/
         builder.Services.AddHostedService<VideoProcessingWorker>();
@@ -118,7 +123,7 @@ public class Program
         _app.UseCors("AllowFrontend");
         #endif
         _app.MapControllers();
-        
+        _app.MapHub<WatchPartyHub>("/hubs/watch");
         // For reverse proxy support
         _app.UseForwardedHeaders(new ForwardedHeadersOptions
         {
