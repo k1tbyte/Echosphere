@@ -12,3 +12,9 @@ public class RoleUpdateRequestDTO
     public int UserId { get; set; }
     public EUserRole NewRole { get; set; }
 }
+
+public class PlaylistVideoKeypairDTO
+{
+    public int PlaylistId { get; set; }
+    public Guid VideoId { get; set; }
+}

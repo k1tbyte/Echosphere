@@ -12,6 +12,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IConfig
     public DbSet<Friendship> Friendships { get; set; } = null!;
     public DbSet<UserSimplifiedDTO> UserSimplified { get; set; }= null!;
     public DbSet<Video> Videos { get; set; } = null!;
+    public DbSet<Playlist> Playlists { get; set; } = null!;
+    public DbSet<PlaylistVideo> PlaylistVideos { get; set; } = null!;
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.UseCollation("en_US.UTF-8");
@@ -36,6 +39,20 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IConfig
             .WithMany(u => u.Videos)           
             .HasForeignKey(v => v.OwnerId);
         modelBuilder.Entity<UserSimplifiedDTO>().HasNoKey().ToView(null);
+        
+        modelBuilder.Entity<PlaylistVideo>(entity =>
+        {
+            entity.HasKey(pv => new { pv.PlaylistId, pv.VideoId });
+            entity.HasOne(pv => pv.Playlist)
+                .WithMany(p => p.PlaylistVideos)
+                .HasForeignKey(pv => pv.PlaylistId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(pv => pv.Video)
+                .WithMany()
+                .HasForeignKey(pv => pv.VideoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        
         
         base.OnModelCreating(modelBuilder);
     }

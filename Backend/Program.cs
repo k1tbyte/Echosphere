@@ -4,6 +4,7 @@ using Backend.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Text;
 using System.Text.Json;
+using Backend.Data.Entities;
 using Backend.Repositories;
 using Backend.Repositories.Abstraction;
 using Backend.Workers;
@@ -41,6 +42,8 @@ public class Program
         builder.Services.AddScoped<JwtService>();
         builder.Services.AddScoped<IAccountRepository,AccountRepository>();
         builder.Services.AddScoped<IVideoRepository,VideoRepository>();
+        builder.Services.AddScoped<IPlaylistRepository,PlaylistRepository>();
+        builder.Services.AddScoped<IPlaylistVideoRepository,PlaylistVideoRepository>();
         builder.Services.AddSingleton<EmailService>();
         /*builder.Services.AddSingleton<VideoProcessingWorker>();
         builder.Services.AddHostedService(provider => provider.GetRequiredService<VideoProcessingWorker>());*/
