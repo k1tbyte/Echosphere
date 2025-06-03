@@ -1,4 +1,5 @@
-﻿using Backend.Controllers.Abstraction;
+﻿using AutoMapper;
+using Backend.Controllers.Abstraction;
 using Backend.Data.Entities;
 using Backend.DTO;
 using Backend.Infrastructure;
@@ -10,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Controllers;
 [Route(Constants.DefaultRoutePattern)]
-public class UserController(IAccountRepository accountRepository, IS3FileService fileService): BaseFileController(fileService)
+public class UserController(IAccountRepository accountRepository, IS3FileService fileService,IMapper mapper): BaseFileController(fileService)
 {
     private readonly IS3FileService _fileService = fileService;
 
@@ -183,7 +184,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
 #if !DEBUG
     [RequireRole(EUserRole.User)]
 #endif
-    [ProducesResponseType(typeof(IEnumerable<Video>),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<UserSimplifiedExtendedDTO>),StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<Video>> GetUsers(string? filter = null, 
@@ -213,7 +214,17 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
                 offset: offset,
                 limit: limit
             );
-            return Ok(users);
+          
+            if (userRole == EUserRole.Admin)
+            {
+                var usersDto= users.Select(u => mapper.Map<UserSimplifiedExtendedDTO>(u)).ToList();
+                return Ok(usersDto);
+            }
+            else
+            {
+                var usersDto= users.Select(u => mapper.Map<UserSimplifiedDTO>(u)).ToList();
+                return Ok(usersDto);
+            }
         }
         catch (ArgumentException e)
         {
