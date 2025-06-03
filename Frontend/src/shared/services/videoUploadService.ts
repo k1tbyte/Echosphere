@@ -2,6 +2,7 @@ import {toast, ToastVariant} from '../ui/Toast';
 import fetcher, {send} from "@/shared/lib/fetcher";
 import {IVideoPropsSchema} from "@/store/videoStore";
 import {toBase64} from "@/shared/lib/utils";
+import {IVideoSettingsDTO} from "@/shared/services/videosService";
 
 export enum EUploadProgressState {
     Started = 0,
@@ -170,8 +171,8 @@ export class VideoUploadService {
                             state: EUploadProgressState.Uploading
                         });
                     }
-                    // throttle for test purposes
-                    await new Promise(resolve => setTimeout(resolve, 777));
+/*                    // throttle for test purposes
+                    await new Promise(resolve => setTimeout(resolve, 777));*/
                 }
 
                 controller.close();

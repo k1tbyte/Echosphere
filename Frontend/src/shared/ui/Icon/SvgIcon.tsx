@@ -13,6 +13,12 @@ export const enum EIcon {
     Bell = 10,
     Vimeo = 11,
     YouTube = 12,
+    CircleFilled = 13,
+    CancelBlock = 14,
+    Plus = 15,
+    Magnifier,
+    OrderAscending,
+    OrderDescending,
 }
 
 export interface ISvgIconProps extends SVGProps<SVGSVGElement> {
@@ -27,7 +33,7 @@ export const SvgIcon: FC<ISvgIconProps> = ({size, icon, fill, ...props}) => {
              stroke={props.stroke ?? "currentColor"}
              strokeWidth={0}
              width={size ?? props.width}
-             height={size ?? props.height} {...props} >
+             height={size ?? props.height} {...props}>
             <use xlinkHref={`/images/sprites.svg#i${icon}`}/>
         </svg>
     )

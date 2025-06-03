@@ -66,14 +66,15 @@ export interface IVideoObject {
 export class VideosService {
 
     public static async getVideos(query: IQueryParams): Promise<IVideoObject[]> {
-        const url = process.env.NEXT_PUBLIC_API_URL + '/video/getVideos';
+        const url = process.env.NEXT_PUBLIC_API_URL + '/video/getUserVideos';
+        console.log("Order by:", query.orderBy, "Descending:", query.descending, "Filter:", query.filter);
         const params = new URLSearchParams({
             offset: query.offset.toString(),
             limit: query.limit.toString()
         });
 
         if (query.filter) {
-            params.append('filterString', query.filter);
+            params.append('filter', query.filter);
         }
         if (query.descending !== undefined) {
             params.append('desc', query.descending.toString());
@@ -90,6 +91,7 @@ export class VideosService {
                 video.settings = JSON.parse(video.settings as unknown as string);
             }
         }
+
         return result;
     }
 

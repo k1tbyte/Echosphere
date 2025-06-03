@@ -1,11 +1,12 @@
 import React, {FC, useEffect, useRef} from "react";
-import {EVideoProvider, IVideoObject, VideosService} from "@/shared/services/videosService";
+import {EVideoProvider, EVideoStatus, IVideoObject, VideosService} from "@/shared/services/videosService";
 import {formatDuration, formatFileSize, formatTimeAgoPrecise, getVideoQuality} from "@/shared/lib/formatters";
 import {PlyrPlayer, type PlyrProvider} from "@/widgets/player";
 import Image from "next/image";
 import {Badge} from "@/shared/ui/Badge";
 import {Label} from "@/shared/ui/Label";
 import {EIcon, SvgIcon} from "@/shared/ui/Icon";
+import {Progress} from "@/shared/ui/Progress/Progress";
 
 interface IVideoCardProps {
     video: IVideoObject;
@@ -19,12 +20,60 @@ const providers: PlyrProvider[] = [
     "vimeo"
 ]
 
+const getCoverFromStatus = (video: IVideoObject) => {
+    switch (video.status) {
+        case EVideoStatus.Ready:
+            return (
+                <Image  loading={"lazy"}
+                    className="object-cover"
+                    src={VideosService.getVideoPreviewUrl(video)}
+                    alt={video.title}
+                    fill
+                />
+            )
+        case EVideoStatus.Pending:
+            const progress = video.uploadSize ? Math.round((video.uploadSize / video.size!) * 100) : 0;
+            return (
+                <div className="flex flex-col h-full justify-end relative">
+                    <Badge variant={"outline"} className="absolute translate-center text-center">
+                        <SvgIcon icon={EIcon.CircleFilled} size={8} className="mr-1"/>
+                        Uploading... {progress}%
+                    </Badge>
+                    <br/>
+                    <div className="w-full flex justify-center">
+                        <Badge variant={"secondary"} className="mb-2">
+                            {formatFileSize(video.uploadSize || 0)}
+                        </Badge>
+                    </div>
+
+                    <Progress value={progress} className="rounded-none"/>
+                </div>
+            )
+        case EVideoStatus.Failed:
+        case EVideoStatus.Blocked:
+            return (
+                <Badge variant={"destructive"} className="absolute translate-center py-2">
+                    <SvgIcon icon={EIcon.CancelBlock} size={16} className="mr-1"/>
+                    { video.status === EVideoStatus.Failed ? "Failed to process" : "This video is blocked"}
+                </Badge>
+            )
+        case EVideoStatus.Processing:
+        case EVideoStatus.Queued:
+            return (
+                <Badge variant={"progress"} className="absolute translate-center">
+                    <SvgIcon icon={EIcon.CircleFilled} size={8} className="mr-1"/>
+                    {video.status === EVideoStatus.Processing ? "Processing..." : "In the queue for processing"}
+                </Badge>
+            )
+    }
+}
+
 export const VideoCard: FC<IVideoCardProps> = ({ video }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [withPlayer, setWithPlayer] = React.useState(false);
 
     useEffect(() => {
-        if(!containerRef.current) return;
+        if(!containerRef.current || video.status != EVideoStatus.Ready) return;
 
         let timeoutId = 0;
         let thresholdTimer = 0;
@@ -83,13 +132,7 @@ export const VideoCard: FC<IVideoCardProps> = ({ video }) => {
                                 enabled: video.settings?.thumbnailsCaptureInterval! > 0
                             }
                         }}
-                    /> :
-                    <Image
-                        className="object-cover"
-                        src={VideosService.getVideoPreviewUrl(video)}
-                        alt={video.title}
-                        fill
-                    />
+                    /> : getCoverFromStatus(video)
                 }
 
                 { !withPlayer &&
@@ -140,9 +183,9 @@ export const VideoCard: FC<IVideoCardProps> = ({ video }) => {
                             {formatTimeAgoPrecise(video.createdAt, { justNowThreshold: 10, showJustNow: true })}
                         </Label>
 
-                        {video.uploadSize && (
+                        {video.size && (
                             <Badge variant={"default"} className="py-0.5">
-                                {formatFileSize(video.uploadSize)}
+                                {formatFileSize(video.size)}
                             </Badge>
                         )}
                     </div>

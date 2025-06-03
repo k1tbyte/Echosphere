@@ -15,7 +15,7 @@ const badgeVariants = cva(
                     "bg-red-600/10 dark:bg-red-600/20 hover:bg-red-600/10 text-red-500 shadow-none rounded-sm px-2",
                 progress: "bg-amber-600/10 dark:bg-amber-600/20 hover:bg-amber-600/10 text-amber-500 shadow-none rounded-sm px-2",
                 success: "bg-emerald-600/10 dark:bg-emerald-600/20 hover:bg-emerald-600/10 text-emerald-500 shadow-none rounded-sm px-2",
-                outline: "text-foreground",
+                outline: "text-foreground border border-border rounded-sm",
             },
         },
         defaultVariants: {
