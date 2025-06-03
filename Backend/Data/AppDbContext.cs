@@ -14,6 +14,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IConfig
     public DbSet<Video> Videos { get; set; } = null!;
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.UseCollation("en_US.UTF-8");
         // Key generation strategy based on the database provider
         modelBuilder.UseIdentityColumns();
         modelBuilder.Entity<Friendship>()

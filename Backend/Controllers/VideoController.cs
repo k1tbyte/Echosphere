@@ -97,7 +97,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<Video>> GetVideos(string? filter = null, 
-        bool desc = false, 
+        bool desc = true, 
         bool onlyBlocked = false,
         int offset = 0, 
         int limit = 20,
@@ -139,33 +139,47 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     }
     
     [HttpGet]
+    #if !DEBUG
+    [RequireRole(EUserRole.User)]
+    #endif
     [ProducesResponseType(typeof(IEnumerable<Video>),StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string),StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<Video>> GetUserVideos( 
         string filter, 
         int userId = -1,
-        bool desc=false, 
+        bool desc=true, 
         int offset = 0,
         int limit = 20,
         string sortBy="CreatedAt")
     {
         try
         {
-            var resultId = JwtService.GetUserIdFromContext(HttpContext, out var loggedUserId);
+            JwtService.GetUserIdFromContext(HttpContext, out var loggedUserId);
+            JwtService.GetUserRoleFromContext(HttpContext, out var userRole);
             var videos = await videoRepository.GetAllAsync(
                 filter: q =>
                 {
-                    var filtered =q.Where(v=>v.OwnerId == userId);
-                    if (userId != loggedUserId)
+                    if (userId == -1)
                     {
-                        filtered  = filtered.Where(v => v.IsPublic && v.Status == EVideoStatus.Ready);
+                        q = q.Where(v => v.OwnerId == loggedUserId);
+                    } 
+                    else if (userId != loggedUserId)
+                    {
+                        q = userRole == EUserRole.Admin ? 
+                            q.Where(v => v.OwnerId == userId) : 
+                            q.Where(
+                                v => v.OwnerId == userId && 
+                                (userRole == EUserRole.Moder || v.IsPublic) && 
+                                v.Status >= EVideoStatus.Ready
+                            );
                     }
+                    
                     if (!string.IsNullOrWhiteSpace(filter))
                     {
-                        filtered = filtered.Where(v => EF.Functions.ILike(v.Title, $"%{filter}%"));
+                        return q.Where(v => EF.Functions.ILike(v.Title, $"%{filter}%"));
                     }
-                    return filtered;
+                    return q;
                 },
                 sortBy: sortBy,          
                 sortDescending: desc,
