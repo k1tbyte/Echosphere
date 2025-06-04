@@ -5,13 +5,14 @@ import {Separator} from "@/shared/ui/Separator";
 import {Badge} from "@/shared/ui/Badge";
 import {useSession} from "next-auth/react";
 import {Spinner} from "@/shared/ui/Loader";
-import {IFriendObjectMap, IUserSimpleDTO, UsersService} from "@/shared/services/usersService";
-import {FC, useRef, useState, useEffect} from "react";
+import {EUserOnlineStatus, IFriendObjectMap, IUserSimpleDTO, UsersService} from "@/shared/services/usersService";
+import {FC, useEffect, useRef, useState} from "react";
 import useSWR from "swr";
 import Image from "next/image";
 import {Input} from "@/shared/ui/Input";
 import {Button} from "@/shared/ui/Button";
 import {EIcon, SvgIcon} from "@/shared/ui/Icon";
+import {clsx} from "clsx";
 
 const FriendCard: FC<{user: IUserSimpleDTO, friends: IFriendObjectMap | undefined, userId: number}> = ({ user, friends, userId }) => {
     const friendRef = useRef(friends?.get(user.id));
@@ -58,12 +59,21 @@ const FriendCard: FC<{user: IUserSimpleDTO, friends: IFriendObjectMap | undefine
         <div className="w-full border-b border rounded-sm flex flex-y-center justify-between gap-3 hover:bg-secondary/40 transition-colors">
             <div className="flex flex-y-center">
                 <Image src={UsersService.getUserAvatarUrl(user, true)!}
-                       alt={user.username} className="rounded-l-sm border-r border-border mr-6"
+                       alt={user.username} className={clsx("rounded-sm border-r border-border mr-6 shrink-0", user)}
                        width={60} height={70}
                 />
+
                 <Label size={"lg"} variant={"default"}>
                     {user.username}
                 </Label>
+
+
+                { user.onlineStatus === EUserOnlineStatus.Online &&
+                    <Badge variant={"success"} className="ml-2">
+                        <SvgIcon icon={EIcon.CircleFilled} size={10}/>
+                        <span className="ml-1">Online</span>
+                    </Badge>
+                }
             </div>
 
             <div>
@@ -121,7 +131,7 @@ export const FriendsPage = () => {
         })
     );
     
-    const { data: friends } = useSWR(
+    const { data: friends, isLoading: isFriendsLoading } = useSWR(
         session?.user.id ? `friends-${session.user.id}` : null, 
         () => UsersService.getFriends(Number(session?.user.id))
     );
@@ -213,7 +223,7 @@ export const FriendsPage = () => {
                     </Button>
                 </form>
                 <div className="w-full">
-                    {isLoading && usersOffset === 0 ? (
+                    {((isLoading && usersOffset === 0) || isFriendsLoading)  ? (
                         <div className="flex-center py-8">
                             <Spinner/>
                         </div>

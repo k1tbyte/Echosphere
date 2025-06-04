@@ -30,6 +30,7 @@ const handler = NextAuth({
             credentials: {
                 email: { },
                 password: { },
+                remember: { }
             },
             async authorize(credentials, req) {
                 if (!credentials?.email || !credentials?.password) {
@@ -39,7 +40,7 @@ const handler = NextAuth({
 
                 let response;
                 try {
-                    response = await auth.login(credentials.email, credentials.password, true);
+                    response = await auth.login(credentials.email, credentials.password, credentials.remember === 'true');
                 } catch (error: any) {
                     if (error.cause?.code === 'ECONNREFUSED' || error.cause?.code === 'ECONNRESET') {
                         throw new Error("server_unavailable");

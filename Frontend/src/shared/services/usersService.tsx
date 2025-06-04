@@ -2,6 +2,11 @@ import {EUserRole} from "@/types/user-role";
 import fetcher, {send} from "@/shared/lib/fetcher";
 import {queryToSearchParams, IQueryParams } from "@/shared/services/queryHelper";
 
+export const enum EUserOnlineStatus {
+    Offline = 0,
+    Online = 1
+}
+
 export interface IUserDTO {
     id: number;
     username: string;
@@ -18,6 +23,7 @@ export interface IUserSimpleDTO {
     email?: string;
     role?: EUserRole;
     joinedAt?: string;
+    onlineStatus?: EUserOnlineStatus;
 }
 
 export interface IUserFriendsDTO {
@@ -39,9 +45,13 @@ let userAvatarUrl: string | null | undefined = undefined;
 
 export class UsersService {
     public static async getUserById(userId: number): Promise<IUserDTO> {
-        return await fetcher.exceptJson<IUserDTO>(fetcher.getJson(
+        const result =  await fetcher.exceptJson<IUserDTO>(fetcher.getJson(
             process.env.NEXT_PUBLIC_API_URL + '/user/get/' + userId, null, true
         ));
+
+
+        console.log("Users data:", result);
+        return result;
 
     }
 

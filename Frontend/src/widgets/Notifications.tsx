@@ -105,7 +105,7 @@ const FriendshipNotification: FC<{ user: IUserSimpleDTO, userId: number }> = ({ 
 
     return (
         <div className="flex gap-3">
-            <Image src={UsersService.getUserAvatarUrl(user)!} alt={user.username}
+            <Image src={UsersService.getUserAvatarUrl(user, true)!} alt={user.username}
                 height={20} width={60} className={"border border-border rounded-md"}/>
             <div className="text-xs w-full">
                 <Badge variant={"outline"} className="mr-2">

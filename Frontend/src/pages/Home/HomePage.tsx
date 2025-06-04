@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useRef} from 'react';
+import React, {useEffect, useRef} from 'react';
 import {Separator} from "@/shared/ui/Separator";
 import {useRouter} from 'next/navigation';
 import {useNavigationStore} from "@/store/navigationStore";
@@ -26,9 +26,10 @@ import {
 import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/shared/ui/ContextMenu";
 import {openConfirmationModal} from "@/widgets/modals/ConfirmationModal";
 import {toast, ToastVariant} from "@/shared/ui/Toast";
+import {videoSortOptions} from "@/shared/constants/sortOptions";
 
 
-export const VideoExample = () => {
+/*export const VideoExample = () => {
     const playerRef = useRef<HTMLVideoElement>(null);
 
     return (
@@ -53,38 +54,8 @@ export const VideoExample = () => {
             />
 
     );
-};
+};*/
 
-const orderByOptions = [
-    {
-        title: "Title",
-        value: "Title"
-    },
-    {
-        title: "Duration",
-        value: "Duration"
-    },
-    {
-        title: "Upload",
-        value: "CreatedAt"
-    },
-    {
-        title: "Visibility",
-        value: "IsPublic"
-    },
-    {
-        title: "Size",
-        value: "Size"
-    },
-    {
-        title: "Status",
-        value: "Status"
-    },
-    {
-        title: "Provider",
-        value: "Provider"
-    }
-]
 
 
 export const HomePage = () => {
@@ -194,7 +165,7 @@ export const HomePage = () => {
                         <SelectContent>
                             <SelectGroup>
                                 <SelectLabel>Order by</SelectLabel>
-                                {orderByOptions.map((option) => (
+                                {videoSortOptions.map((option) => (
                                     <SelectItem
                                         key={option.value}
                                         value={option.value}>
