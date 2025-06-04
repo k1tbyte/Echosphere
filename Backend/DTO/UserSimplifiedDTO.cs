@@ -3,6 +3,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend.DTO;
 
+public enum EUserOnlineStatus{
+    Offline,
+    Online
+}
+
 [Keyless]
 public class UserSimplifiedDTO
 {
@@ -16,6 +21,8 @@ public class UserSimplifiedDTO
     public required string Avatar { get; init; }
     
     [NotMapped]
-    [Column("joined_at")]
     public DateTime JoinedAt { get; set; }
+    
+    [NotMapped]
+    public EUserOnlineStatus OnlineStatus { get; set; }
 }

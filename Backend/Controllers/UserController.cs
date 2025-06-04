@@ -22,7 +22,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     public async Task<IActionResult> Update([FromBody] UserUpdateDTO entity)
     {
         JwtService.GetUserRoleFromContext(HttpContext, out var role);
-        JwtService.GetUserIdFromContext(HttpContext, out var id);
+        JwtService.GetUserIdFromHttpContext(HttpContext, out var id);
         if(role < EUserRole.Moder && id != entity.Id)
         {
             return Forbid();
@@ -80,7 +80,17 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         var result = await accountRepository.Get(id);
         if (result == null)
             return NotFound();
-        return Ok(result);
+        JwtService.GetUserRoleFromContext(HttpContext, out var role);
+        if (role == EUserRole.Admin)
+        {
+            var userDto = mapper.Map<UserSimplifiedExtendedDTO>(result);
+            return Ok(userDto);
+        }
+        else
+        {
+            var userDto = mapper.Map<UserSimplifiedDTO>(result);
+            return Ok(userDto);
+        }
     }
     [HttpDelete]
     [RequireRole(EUserRole.Admin)]
@@ -201,7 +211,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         try
         {
             JwtService.GetUserRoleFromContext(HttpContext, out var userRole);
-            JwtService.GetUserIdFromContext(HttpContext, out var userId);
+            JwtService.GetUserIdFromHttpContext(HttpContext, out var userId);
 
             var users = await accountRepository.GetAllAsync(
                 filter: q =>
@@ -353,7 +363,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
                 return BadRequest(new { error = "No file uploaded or file is empty." });
             }
             var objName = Guid.NewGuid().ToString();
-            JwtService.GetUserIdFromContext(HttpContext, out var userId);
+            JwtService.GetUserIdFromHttpContext(HttpContext, out var userId);
             var user= await accountRepository.Get(userId);
             if(user == null)
                 return NotFound();

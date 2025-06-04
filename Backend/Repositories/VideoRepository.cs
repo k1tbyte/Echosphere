@@ -13,12 +13,12 @@ public class VideoRepository(AppDbContext context): BaseAsyncCrudRepository<Vide
     {
         IQueryable<Video> query = context.Videos;
         if (fetchOwner)
-            query = query.Include(v => v.Owner); // предполагаем, что Video.Owner — навигационное свойство
+            query = query.Include(v => v.Owner); 
         return await query.FirstOrDefaultAsync(v => v.Id == id);
     }
     public static bool CheckVideoManagementAccess(HttpContext httpContext,Video video,bool deleteGranted)
     {
-        JwtService.GetUserIdFromContext(httpContext,out var userId);
+        JwtService.GetUserIdFromHttpContext(httpContext,out var userId);
         JwtService.GetUserRoleFromContext(httpContext,out var role);
         if (deleteGranted)
             return video.OwnerId == userId ||role >= EUserRole.Admin;
@@ -26,7 +26,7 @@ public class VideoRepository(AppDbContext context): BaseAsyncCrudRepository<Vide
     }
     public static bool CheckVideoAccess(HttpContext httpContext, Video video)
     {
-        JwtService.GetUserIdFromContext(httpContext,out var userId);
+        JwtService.GetUserIdFromHttpContext(httpContext,out var userId);
         JwtService.GetUserRoleFromContext(httpContext,out var role);
         if (video.OwnerId == userId || role >= EUserRole.Admin)
         {

@@ -35,7 +35,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> UpdateOwnVideo([FromBody] Video? entity)
     {
-        JwtService.GetUserIdFromContext(HttpContext,out int id);
+        JwtService.GetUserIdFromHttpContext(HttpContext,out int id);
         if (entity != null && id == entity.OwnerId)
         {
             await videoRepository.WithAutoSave().Update(entity);
@@ -121,7 +121,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     {
         try
         {
-            var resultId = JwtService.GetUserIdFromContext(HttpContext, out var userId);
+            var resultId = JwtService.GetUserIdFromHttpContext(HttpContext, out var userId);
             JwtService.GetUserRoleFromContext(HttpContext, out var userRole);
             IEnumerable<Video> videos;
             Func<IQueryable<Video>, IQueryable<Video>> videoFilter = q =>
@@ -191,7 +191,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     {
         try
         {
-            JwtService.GetUserIdFromContext(HttpContext, out var loggedUserId);
+            JwtService.GetUserIdFromHttpContext(HttpContext, out var loggedUserId);
             JwtService.GetUserRoleFromContext(HttpContext, out var userRole);
             var videos = await videoRepository.GetAllAsync(
                 filter: q =>
@@ -285,7 +285,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         }
         
         var video = await videoRepository.GetVideoByIdAsync(id);
-        if (video == null || !JwtService.GetUserIdFromContext(HttpContext, out var userId) || video.OwnerId != userId)
+        if (video == null || !JwtService.GetUserIdFromHttpContext(HttpContext, out var userId) || video.OwnerId != userId)
         {
             return NotFound("Video upload not found");
         }

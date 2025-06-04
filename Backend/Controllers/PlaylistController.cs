@@ -102,7 +102,7 @@ public class VideoPlaylistController(IPlaylistRepository playlistRepository,IPla
     {
         try
         {
-            var resultId = JwtService.GetUserIdFromContext(HttpContext, out var userId);
+            var resultId = JwtService.GetUserIdFromHttpContext(HttpContext, out var userId);
             JwtService.GetUserRoleFromContext(HttpContext, out var userRole);
 
             var playlists = await playlistRepository.GetAllAsync(
@@ -151,7 +151,7 @@ public class VideoPlaylistController(IPlaylistRepository playlistRepository,IPla
     {
         try
         {
-            JwtService.GetUserIdFromContext(HttpContext, out var loggedUserId);
+            JwtService.GetUserIdFromHttpContext(HttpContext, out var loggedUserId);
             JwtService.GetUserRoleFromContext(HttpContext, out var userRole);
             var playlists = await playlistRepository.GetAllAsync(
                 filter: q =>

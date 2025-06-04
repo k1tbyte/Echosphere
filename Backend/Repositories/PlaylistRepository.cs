@@ -9,7 +9,7 @@ public class PlaylistRepository(AppDbContext context) :BaseAsyncCrudRepository<P
 {
     public static bool CheckPlaylistManagementAccess(HttpContext httpContext,Playlist playlist,bool deleteGranted)
     {
-        JwtService.GetUserIdFromContext(httpContext,out var userId);
+        JwtService.GetUserIdFromHttpContext(httpContext,out var userId);
         JwtService.GetUserRoleFromContext(httpContext,out var role);
         if (deleteGranted)
             return playlist.OwnerId == userId ||role >= EUserRole.Admin;
@@ -17,7 +17,7 @@ public class PlaylistRepository(AppDbContext context) :BaseAsyncCrudRepository<P
     }
     public static bool CheckPlaylistAccess(HttpContext httpContext, Playlist playlist)
     {
-        JwtService.GetUserIdFromContext(httpContext,out var userId);
+        JwtService.GetUserIdFromHttpContext(httpContext,out var userId);
         JwtService.GetUserRoleFromContext(httpContext,out var role);
         return playlist.OwnerId == userId || role >= EUserRole.Admin || playlist.IsPublic;
     }

@@ -6,5 +6,4 @@ public class UserSimplifiedExtendedDTO : UserSimplifiedDTO
 {
     public required string Email { get; set; }
     public EUserRole Role { get; set; }
-    public DateTime JoinedAt { get; set; }
 }

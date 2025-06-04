@@ -4,6 +4,7 @@ using Backend.Data;
 using Backend.Data.Entities;
 using System.IdentityModel.Tokens.Jwt;
 using Backend.DTO;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Backend.Services;
@@ -112,10 +113,16 @@ public sealed class JwtService
         _dbContext.Sessions.Remove(session);
     }
     
-    public static bool GetUserIdFromContext(HttpContext context, out int userId)
+    public static bool GetUserIdFromHttpContext(HttpContext context, out int userId)
     {
         userId = 0;
         var userIdClaim = context.User.Claims.FirstOrDefault(o => o.Type == UserIdClaimType);
+        return userIdClaim != null && int.TryParse(userIdClaim.Value, out userId);
+    }
+    public static bool GetUserIdFromHubContext(HubCallerContext context, out int userId)
+    {
+        userId = 0;
+        var userIdClaim = context.User?.FindFirst(o => o.Type == JwtService.UserIdClaimType);
         return userIdClaim != null && int.TryParse(userIdClaim.Value, out userId);
     }
     public static bool GetUserRoleFromContext(HttpContext context, out EUserRole userRole)

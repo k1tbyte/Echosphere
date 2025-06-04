@@ -123,7 +123,7 @@ public class Program
         _app.UseCors("AllowFrontend");
         #endif
         _app.MapControllers();
-        _app.MapHub<WatchPartyHub>("/hubs/watch");
+        _app.MapHub<EchoHub>("/hubs/echo");
         // For reverse proxy support
         _app.UseForwardedHeaders(new ForwardedHeadersOptions
         {
