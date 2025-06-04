@@ -42,6 +42,11 @@ export const TopNavbar: FC = () => {
         if (!pathname) return [];
 
         const segments = pathname.split('/').filter(Boolean);
+        
+        // If this is a video page, don't show URL breadcrumbs
+        if (segments[0] === 'video') {
+            return breadcrumbsFromStore || [];
+        }
 
         const urlBreadcrumbs = segments.map((segment, index) => {
             const url = `/${segments.slice(0, index + 1).join('/')}`;

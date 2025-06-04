@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { IVideoObject, VideosService, EVideoProvider } from "@/shared/services/videosService";
 import { PlyrPlayer } from "@/widgets/player";
 import { Spinner } from "@/shared/ui/Loader";
@@ -19,7 +19,13 @@ import { UsersService } from "@/shared/services/usersService";
 import { openUserProfileModal } from "@/widgets/modals/UserProfileModal";
 import { EIcon, SvgIcon } from "@/shared/ui/Icon";
 import { Separator } from "@/shared/ui/Separator";
-import { ThumbsUp, Eye } from "lucide-react";
+import { ThumbsUp, Eye, Trash2 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { EUserRole } from "@/types/user-role";
+import { useBreadcrumbs } from "@/store/uiMetaStore";
+import { openConfirmationModal } from "@/widgets/modals/ConfirmationModal";
+import { toast, ToastVariant } from "@/shared/ui/Toast";
+import { Button } from "@/shared/ui/Button";
 
 const providers = [
     "local",
@@ -29,8 +35,12 @@ const providers = [
 
 export const VideoPage = () => {
     const params = useParams();
+    const router = useRouter();
+    const { data: session } = useSession();
+    const { setBreadcrumbs } = useBreadcrumbs();
     const [video, setVideo] = useState<IVideoObject>();
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string>();
 
     useEffect(() => {
         const loadVideo = async () => {
@@ -39,20 +49,84 @@ export const VideoPage = () => {
             try {
                 const videoData = await VideosService.getVideoById(params.id as string, true);
                 setVideo(videoData);
-            } catch (error) {
+                
+                // Update breadcrumbs to only show video title
+                setBreadcrumbs([{
+                    href: window.location.pathname,
+                    label: videoData.title,
+                    active: true
+                }]);
+            } catch (error: any) {
                 console.error('Failed to load video:', error);
+                if (error.status === 404) {
+                    setError("Video not found");
+                } else if (error.status === 403) {
+                    setError("You don't have permission to view this video");
+                } else {
+                    setError("Failed to load video");
+                }
             } finally {
                 setIsLoading(false);
             }
         };
 
         loadVideo();
-    }, [params?.id]);
 
-    if (isLoading || !video) {
+        // Clear breadcrumbs on unmount
+        return () => {
+            setBreadcrumbs([]);
+        };
+    }, [params?.id, setBreadcrumbs]);
+
+    // Clear breadcrumbs when navigating away
+    useEffect(() => {
+        return () => {
+            setBreadcrumbs([]);
+        };
+    }, [setBreadcrumbs]);
+
+    const canDelete = session && (
+        session.user.role === EUserRole.Admin || 
+        (video && video.ownerId === Number(session.user.id))
+    );
+
+    const handleDelete = () => {
+        if (!video) return;
+
+        openConfirmationModal({
+            body: `Are you sure you want to delete the video "${video.title}"?`,
+            destructiveYes: true,
+            onYes: async () => {
+                try {
+                    await VideosService.deleteVideo(video.id);
+                    router.push('/');
+                } catch (error) {
+                    toast.open({
+                        variant: ToastVariant.Error,
+                        body: 'Failed to delete video'
+                    });
+                }
+            }
+        });
+    };
+
+    if (isLoading) {
         return (
             <div className="flex-center py-8">
                 <Spinner />
+            </div>
+        );
+    }
+
+    if (error || !video) {
+        return (
+            <div className="container py-6 max-w-7xl mx-auto">
+                <div className="flex flex-col items-center justify-center py-12">
+                    <h2 className="text-2xl font-semibold mb-4">{error || "Video not found"}</h2>
+                    <Button onClick={() => router.push('/')}>
+                        Go to Home
+                    </Button>
+                </div>
             </div>
         );
     }
@@ -88,7 +162,19 @@ export const VideoPage = () => {
 
                     {/* Video Info */}
                     <div className="mt-4">
-                        <h1 className="text-2xl font-semibold mb-2">{video.title}</h1>
+                        <div className="flex items-center justify-between">
+                            <h1 className="text-2xl font-semibold mb-2">{video.title}</h1>
+                            {canDelete && (
+                                <Button 
+                                    variant="destructive" 
+                                    size="sm"
+                                    onClick={handleDelete}
+                                >
+                                    <Trash2 size={18} className="mr-2" />
+                                    Delete Video
+                                </Button>
+                            )}
+                        </div>
                         <Separator className="my-4" />
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
@@ -134,12 +220,11 @@ export const VideoPage = () => {
                         {video.provider === EVideoProvider.Local && (
                                 <div className="bg-secondary/30 rounded-sm p-4 mt-2">
                                     <div className="flex gap-2 flex-wrap">
-                                        { video.settings?.adaptive?.qualities.length > 0 && (
+                                        { Boolean(video.settings?.adaptive?.qualities?.length) && (
                                             <Badge variant="success">
                                                 Adaptive
                                             </Badge>
-                                        )
-                                        }
+                                        )}
                                         {quality && (
                                             <Badge variant="outline" className={quality.color}>
                                                 {quality.label}

@@ -6,6 +6,7 @@ export const isClientSide = typeof window !== 'undefined';
 export interface IBreadcrumbData {
     href: string;
     label: string;
+    active?: boolean;
 }
 
 export interface IUiMetadataState {
