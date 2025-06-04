@@ -55,8 +55,7 @@ export const usePlyrInstance = ({
             mutations.forEach((mutation) => {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
                     let target = mutation.target as HTMLElement;
-
-                    // Проверяем появление меню
+                    // Check if the target is a controls element
                     if (target && target.classList.contains('plyr__controls')) {
                         const plyrContainer = container.querySelector('.plyr');
                         const controlsElement = container.querySelector('.plyr__controls');
@@ -75,11 +74,9 @@ export const usePlyrInstance = ({
                                 }
                                 const menuHeight = target.scrollHeight;
                                 if (menuHeight <= maxMenuHeight) {
-                                    // Места хватает - скрываем скролл
                                     target.style.overflowY = 'hidden';
                                     target.style.maxHeight = 'none';
                                 } else {
-                                    // Места не хватает - показываем скролл
                                     target.style.overflowY = 'auto';
                                     target.style.maxHeight = `${maxMenuHeight}px`;
                                 }
@@ -92,7 +89,6 @@ export const usePlyrInstance = ({
             });
         });
 
-        // Наблюдаем за всем контейнером плеера
         mutationObserver.observe(container, {
             attributes: true,
             subtree: true,
@@ -162,7 +158,7 @@ export const usePlyrInstance = ({
 
                     wasInitializedRef.current = true;
                     if (onReady) {
-                        onReady(playerRef.current);
+                        playerRef.current.on('ready', () => onReady(playerRef.current))
                     }
                     setIsLoaded(true);
 
@@ -236,7 +232,7 @@ export const usePlyrInstance = ({
 
                             // Call onReady only after adding qualities
                             if (onReady) {
-                                onReady(playerRef.current);
+                                playerRef.current.on('ready', () => onReady(playerRef.current))
                             }
                             setIsLoaded(true);
                         });
@@ -266,7 +262,7 @@ export const usePlyrInstance = ({
 
                         wasInitializedRef.current = true;
                         if (onReady) {
-                            onReady(playerRef.current);
+                            playerRef.current.on('ready', () => onReady(playerRef.current))
                         }
                         setIsLoaded(true);
                     }

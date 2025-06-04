@@ -1,6 +1,7 @@
 import React, {FC} from "react";
 import {TopNavbar} from "@/widgets/TopNavbar";
 import Sidebar from "@/widgets/sidebar/Sidebar";
+import { FloatingPlayer } from "@/widgets/player/FloatingPlayer";
 
 interface IMainLayoutProps {
     isAuthenticated: boolean;
@@ -22,6 +23,9 @@ export const MainLayout: FC<IMainLayoutProps> = ({ children, isAuthenticated }) 
                     {children}
                 </main>
             </div>
+            
+            {/* Floating Player */}
+            <FloatingPlayer />
         </div>
     )
 }

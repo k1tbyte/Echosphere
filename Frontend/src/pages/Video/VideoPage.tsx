@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { IVideoObject, VideosService, EVideoProvider } from "@/shared/services/videosService";
-import { PlyrPlayer } from "@/widgets/player";
+import { PlyrPlayer, PlyrOptions } from "@/widgets/player";
 import { Spinner } from "@/shared/ui/Loader";
 import { Badge } from "@/shared/ui/Badge";
 import { Label } from "@/shared/ui/Label";
@@ -19,19 +19,26 @@ import { UsersService } from "@/shared/services/usersService";
 import { openUserProfileModal } from "@/widgets/modals/UserProfileModal";
 import { EIcon, SvgIcon } from "@/shared/ui/Icon";
 import { Separator } from "@/shared/ui/Separator";
-import { ThumbsUp, Eye, Trash2 } from "lucide-react";
+import { ThumbsUp, Eye, Trash2, MinimizeIcon } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { EUserRole } from "@/types/user-role";
 import { useBreadcrumbs } from "@/store/uiMetaStore";
 import { openConfirmationModal } from "@/widgets/modals/ConfirmationModal";
 import { toast, ToastVariant } from "@/shared/ui/Toast";
 import { Button } from "@/shared/ui/Button";
+import { useVideoPlayerStore } from "@/store/videoPlayerStore";
 
 const providers = [
     "local",
     "youtube",
     "vimeo"
 ] as const;
+
+// Define type for PlyrSource including title property
+// This can be removed since we've updated the types in index.ts
+/*interface EnhancedPlyrOptions extends Omit<import('plyr').Options, 'title'> {
+    title?: string;
+}*/
 
 export const VideoPage = () => {
     const params = useParams();
@@ -41,6 +48,17 @@ export const VideoPage = () => {
     const [video, setVideo] = useState<IVideoObject>();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string>();
+
+    // Get player state from store
+    const { 
+        videoId: storedVideoId, 
+        source: storedSource, 
+        currentTime, 
+        setVideoData, 
+        setFloating, 
+        setPlayerInstance,
+        syncPlayerState
+    } = useVideoPlayerStore();
 
     useEffect(() => {
         const loadVideo = async () => {
@@ -110,6 +128,48 @@ export const VideoPage = () => {
         });
     };
 
+    // Handle player ready
+    const handlePlayerReady = (player: any) => {
+        setPlayerInstance(player);
+        
+        // If we have a stored time position, set it
+        if (storedVideoId === params?.id && currentTime > 0) {
+            player.currentTime = currentTime;
+        }
+    };
+
+    // Handle minimize button click to enter floating mode
+    const handleMinimize = () => {
+        if (!video) return;
+        
+        // Save current player state before minimizing
+        syncPlayerState();
+        
+        // Activate floating mode with current video
+        setFloating(true);
+        
+        // Navigate back to home or previous page
+        router.back();
+    };
+
+    // Update video data in store whenever the video changes
+    useEffect(() => {
+        if (!video) return;
+        
+        const videoSource = {
+            type: "video" as const,
+            sources: [video.provider === EVideoProvider.Local ? {
+                src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/master.m3u8`,
+                type: "application/x-mpegURL",
+            } : {
+                src: video.videoUrl!, // id actually
+                provider: providers[video.provider]
+            }]
+        };
+        
+        setVideoData(video.id, videoSource, { title: video.title });
+    }, [video, setVideoData]);
+
     if (isLoading) {
         return (
             <div className="flex-center py-8">
@@ -138,27 +198,40 @@ export const VideoPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Video Player Section */}
                 <div className="lg:col-span-2">
-                    <PlyrPlayer
-                        source={{
-                            type: "video",
-                            sources: [video.provider === EVideoProvider.Local ? {
-                                src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/master.m3u8`,
-                                type: "application/x-mpegURL",
-                            } : {
-                                src: video.videoUrl!, // id actually
-                                provider: providers[video.provider]
-                            }]
-                        }}
-                        options={{
-                            controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
-                            settings: ['captions', 'quality', 'speed'],
-                            previewThumbnails: video.provider === EVideoProvider.Local ? {
-                                src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/thumbnails.vtt`,
-                                enabled: video.settings?.thumbnailsCaptureInterval! > 0
-                            } : {}
-                        }}
-                        className="border-border border rounded-lg"
-                    />
+                    <div className="relative">
+                        <PlyrPlayer
+                            source={{
+                                type: "video" as const,
+                                sources: [video.provider === EVideoProvider.Local ? {
+                                    src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/master.m3u8`,
+                                    type: "application/x-mpegURL",
+                                } : {
+                                    src: video.videoUrl!, // id actually
+                                    provider: providers[video.provider]
+                                }]
+                            }}
+                            options={{
+                                controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
+                                settings: ['captions', 'quality', 'speed'],
+                                previewThumbnails: video.provider === EVideoProvider.Local ? {
+                                    src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/thumbnails.vtt`,
+                                    enabled: video.settings?.thumbnailsCaptureInterval! > 0
+                                } : {},
+                                title: video.title
+                            }}
+                            onReady={handlePlayerReady}
+                            className="border-border border rounded-lg"
+                        />
+                        <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            className="absolute top-2 right-2 opacity-60 hover:opacity-100"
+                            onClick={handleMinimize}
+                        >
+                            <MinimizeIcon size={16} className="mr-1" />
+                            Minimize
+                        </Button>
+                    </div>
 
                     {/* Video Info */}
                     <div className="mt-4">
