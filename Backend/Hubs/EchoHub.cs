@@ -1,10 +1,13 @@
 ﻿using System.Collections.Concurrent;
 using Backend.DTO;
 using Backend.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Backend.Hubs;
 
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 public class EchoHub : Hub
 {
     private static readonly ConcurrentDictionary<int,EUserOnlineStatus> UserStatus = new ();

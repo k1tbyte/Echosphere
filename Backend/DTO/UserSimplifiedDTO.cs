@@ -18,7 +18,7 @@ public class UserSimplifiedDTO
     public required string Username { get; init; }
 
     [Column("avatar")]
-    public required string Avatar { get; init; }
+    public string? Avatar { get; init; }
     
     [NotMapped]
     public DateTime JoinedAt { get; set; }

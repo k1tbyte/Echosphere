@@ -63,6 +63,8 @@ public class Program
             options.ConfigureEndpointDefaults(listenOptions => {
                 listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
             });
+            
+            options.AllowSynchronousIO = true;
         });
 
 
@@ -87,16 +89,17 @@ public class Program
                 {
                     policy.WithOrigins(frontendUrl)
                         .AllowAnyHeader()
-                        .AllowAnyMethod();
+                        .AllowAnyMethod()
+                        .AllowCredentials();
                 }
             });
 
+            /*
             options.AddPolicy("AllowAll", policy =>
             {
-                policy.AllowAnyOrigin()
-                    .AllowAnyHeader()
-                    .AllowAnyMethod();
-            });
+                policy.AllowAnyHeader()
+                    .AllowAnyMethod().AllowCredentials();
+            });*/
         });
         
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -113,17 +116,16 @@ public class Program
             _app.UseSwaggerUI();
         }
 
-        _app.UseHttpsRedirection();
+          _app.UseHttpsRedirection();
 
         _app.UseRouting();
-        _app.UseAuthorization();
-        #if DEBUG
-        _app.UseCors("AllowAll");
-        #else
         _app.UseCors("AllowFrontend");
-        #endif
+        _app.UseAuthentication();
+        _app.UseAuthorization();
         _app.MapControllers();
-        _app.MapHub<EchoHub>("/hubs/echo");
+        _app.MapHub<EchoHub>("/hubs/echo")
+            .RequireAuthorization();
+        
         // For reverse proxy support
         _app.UseForwardedHeaders(new ForwardedHeadersOptions
         {
@@ -221,6 +223,31 @@ public class Program
                 ValidateAudience = false,
                 ValidateIssuerSigningKey = true,
                 ValidateLifetime         = false,
+            };
+            
+            o.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = (context) =>
+                {
+                    var path = context.HttpContext.Request.Path;
+                    if (!path.StartsWithSegments("/hubs"))
+                    {
+                        return Task.CompletedTask; 
+                    }
+
+                    context.Token = context.Request.Query["access_token"];
+                    
+                    if (string.IsNullOrEmpty(context.Token))
+                    {
+                        var authHeader = context.Request.Headers.Authorization.ToString();
+                        if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
+                        {
+                            context.Token = authHeader.Substring("Bearer ".Length);
+                        }
+                    }
+                    
+                    return Task.CompletedTask;
+                }
             };
         });
     }
