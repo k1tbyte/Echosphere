@@ -36,7 +36,7 @@ export const VideoExample = () => {
                 source={{
                     type: "video",
                     sources: [{
-                        src: "https://localhost:7245/api/v2/video/resource/c1f03f22-4caa-4c33-b23b-bde768deaf56/master.m3u8",
+                        src:  process.env.NEXT_PUBLIC_API_URL + "/video/resource/c1f03f22-4caa-4c33-b23b-bde768deaf56/master.m3u8",
                         type: "application/x-mpegURL"
                     }]
                 }}
@@ -44,7 +44,7 @@ export const VideoExample = () => {
                     controls: [ 'play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen' ],
                     settings: [ 'captions', 'quality', 'speed', 'loop' ],
                     previewThumbnails: {
-                        src: "https://localhost:7245/api/v2/video/resource/c1f03f22-4caa-4c33-b23b-bde768deaf56/thumbnails.vtt",
+                        src: process.env.NEXT_PUBLIC_API_URL + "/video/resource/c1f03f22-4caa-4c33-b23b-bde768deaf56/thumbnails.vtt",
                         enabled: true
                     }
                 }}
@@ -100,17 +100,15 @@ export const HomePage = () => {
     const [orderBy, setOrderBy] = React.useState<string>("CreatedAt");
     const [orderByDescending, setOrderByDescending] = React.useState(true);
 
-    // При изменении параметров сортировки сбрасываем состояние
     const resetPagination = React.useCallback(() => {
         setOffset(0);
         setAllVideos([]);
         setHasMore(true);
     }, []);
 
-    // Используем SWR для получения данных
     const { data, error, isLoading, mutate } = useSWR(
         `getVideos-${offset}-${limit}-${currentFilter}-${orderBy}-${orderByDescending}`,
-        () => VideosService.getVideos({
+        () => VideosService.getUserVideos({
             offset: offset,
             limit: limit,
             filter: currentFilter,

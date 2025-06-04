@@ -71,7 +71,12 @@ export const TabPanel: FC<ITabPanelProps> = forwardRef<HTMLDivElement,ITabPanelP
                                         )}
                                         <span className="relative z-10">
                                             {typeof child.props.title === 'function' ?
-                                                child.props.title(isActive) : child.props.title}
+                                                child.props.title(isActive) :
+                                                typeof child.props.title === 'string' ?
+                                                    <div className="mx-2.5">
+                                                        {child.props.title}
+                                                    </div> :
+                                                child.props.title}
                                         </span>
                                     </button>
                                 );
@@ -97,4 +102,6 @@ export const TabPanel: FC<ITabPanelProps> = forwardRef<HTMLDivElement,ITabPanelP
         );
     });
 
-export const Tab: FC<ITabProps> = ({ children}) => children;
+export const Tab: FC<ITabProps> = ({ children}) => {
+    return children;
+};

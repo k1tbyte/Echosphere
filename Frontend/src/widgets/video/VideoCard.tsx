@@ -7,9 +7,13 @@ import {Badge} from "@/shared/ui/Badge";
 import {Label} from "@/shared/ui/Label";
 import {EIcon, SvgIcon} from "@/shared/ui/Icon";
 import {Progress} from "@/shared/ui/Progress/Progress";
+import {UsersService} from "@/shared/services/usersService";
+import {openUserProfileModal} from "@/widgets/modals/UserProfileModal";
+import { useRouter } from "next/navigation";
 
 interface IVideoCardProps {
     video: IVideoObject;
+    isOwned?: boolean;
 }
 
 
@@ -68,9 +72,10 @@ const getCoverFromStatus = (video: IVideoObject) => {
     }
 }
 
-export const VideoCard: FC<IVideoCardProps> = ({ video }) => {
+export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [withPlayer, setWithPlayer] = React.useState(false);
+    const router = useRouter();
 
     useEffect(() => {
         if(!containerRef.current || video.status != EVideoStatus.Ready) return;
@@ -105,15 +110,23 @@ export const VideoCard: FC<IVideoCardProps> = ({ video }) => {
     // @ts-ignore
     const quality = getVideoQuality(video.settings?.adaptive?.qualities[0].height);
 
+    const handleClick = (e: React.MouseEvent) => {
+        // Don't navigate if clicking on the owner's profile
+        if ((e.target as HTMLElement).closest('.owner-profile')) {
+            return;
+        }
+        router.push(`/video/${video.id}`);
+    };
+
     return (
-        <div  ref={containerRef} className="flex flex-col bg-background/50 rounded-md border hover:bg-secondary/30 transition-all hover:scale-105 hover:z-10">
+        <div ref={containerRef} onClick={handleClick} className="flex flex-col bg-background/50 rounded-md border hover:bg-secondary/30 transition-all hover:scale-105 hover:z-10 cursor-pointer">
             <div className="relative w-full aspect-video border-b rounded-t-lg overflow-hidden">
                 {withPlayer ?
                     <PlyrPlayer
                         source={{
                             type: "video",
                             sources: [ video.provider === EVideoProvider.Local ? {
-                                src: `https://localhost:7245/api/v2/video/resource/${video.id}/master.m3u8`,
+                                src: process.env.NEXT_PUBLIC_API_URL + `/video/resource/${video.id}/master.m3u8`,
                                 type: "application/x-mpegURL",
                             } : {
                                 src: video.videoUrl!, // id actually
@@ -128,7 +141,7 @@ export const VideoCard: FC<IVideoCardProps> = ({ video }) => {
                             hideControls: false,
                             autoplay: true,
                             previewThumbnails: {
-                                src: `https://localhost:7245/api/v2/video/resource/${video.id}/thumbnails.vtt`,
+                                src: process.env.NEXT_PUBLIC_API_URL + `/video/resource/${video.id}/thumbnails.vtt`,
                                 enabled: video.settings?.thumbnailsCaptureInterval! > 0
                             }
                         }}
@@ -171,26 +184,50 @@ export const VideoCard: FC<IVideoCardProps> = ({ video }) => {
                 }
             </div>
 
-            <div className="flex flex-col py-2 mx-2.5">
-                <h3 className="font-medium text-sm line-clamp-2 leading-tight text-nowrap overflow-ellipsis">
-                    {video.title}
-                </h3>
 
-                <div className="flex flex-col gap-1 text-muted-foreground">
+            <div className="flex py-2 mx-2.5 grow-0">
+                { video.ownerSimplified &&
+                    <div className="mr-2 cursor-pointer owner-profile" onClick={(e) => {
+                        e.stopPropagation()
+                        openUserProfileModal(video.ownerSimplified!.id);
+                    }}>
+                        <Image src={UsersService.getUserAvatarUrl(video.ownerSimplified!)!}
+                               alt={video.ownerSimplified?.username!}
+                               width={40} height={40} className={"rounded-full border border-border" + (isOwned ? " border-green-400" : " ")}
+                        />
+                    </div>
+                }
 
-                    <div className="flex justify-between items-center gap-2">
-                        <Label className="font-normal text-xs">
-                            {formatTimeAgoPrecise(video.createdAt, { justNowThreshold: 10, showJustNow: true })}
-                        </Label>
+                <div className="flex flex-col w-full overflow-hidden">
+                    <h3 className="font-medium text-sm line-clamp-2 leading-tight text-nowrap overflow-ellipsis">
+                        {video.title}
+                    </h3>
 
-                        {video.size && (
-                            <Badge variant={"default"} className="py-0.5">
-                                {formatFileSize(video.size)}
-                            </Badge>
-                        )}
+                    <div className="flex flex-col gap-1 text-muted-foreground">
+
+                        <div className="flex justify-between items-center gap-2">
+                            <div className="flex gap-x-1 md:flex-row flex-col">
+                                { video.ownerSimplified &&
+                                    <Label className="text-xs font-medium">
+                                        Uploaded by {isOwned ? "you" : video.ownerSimplified.username} •
+                                    </Label>
+                                }
+                                <Label className="font-normal text-xs">
+                                    {formatTimeAgoPrecise(video.createdAt, { justNowThreshold: 10, showJustNow: true })}
+                                </Label>
+                            </div>
+
+
+                            {video.size && isOwned && (
+                                <Badge variant={"default"} className="py-0.5">
+                                    {formatFileSize(video.size)}
+                                </Badge>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
+
         </div>
     );
 };

@@ -1,5 +1,6 @@
 import fetcher, { send } from "@/shared/lib/fetcher";
-import {queryToSearchParams} from "@/shared/services/queryHelper";
+import {IQueryParams, queryToSearchParams} from "@/shared/services/queryHelper";
+import {IUserSimpleDTO} from "@/shared/services/usersService";
 
 export const enum EVideoProvider {
     Local = 0,
@@ -56,11 +57,12 @@ export interface IVideoObject {
     isPublic: boolean;
     uploadSize?: number;
     size?: number;
+    ownerSimplified?: IUserSimpleDTO;
 }
 
 export class VideosService {
 
-    public static async getVideos(query: IQueryParams): Promise<IVideoObject[]> {
+    public static async getUserVideos(query: IQueryParams): Promise<IVideoObject[]> {
         const url = process.env.NEXT_PUBLIC_API_URL + '/video/getUserVideos';
         const params = queryToSearchParams(query)
 
@@ -75,6 +77,24 @@ export class VideosService {
 
         return result;
     }
+
+    public static async getPublicVideos(query: IQueryParams & { includeOwner?: boolean }): Promise<IVideoObject[]> {
+        const url = process.env.NEXT_PUBLIC_API_URL + '/video/getVideos';
+        const params = queryToSearchParams(query)
+        if(query.includeOwner !== undefined) {
+            params.append('includeOwner', query.includeOwner.toString());
+        }
+        const result = await fetcher.exceptJson<IVideoObject[]>(
+            fetcher.getJson(url + '?' + params.toString(), null, true)
+        );
+        for (const video of result) {
+            if (video.settings) {
+                video.settings = JSON.parse(video.settings as unknown as string);
+            }
+        }
+        return result;
+    }
+
 
     public static async deleteVideo(videoId: string): Promise<Response> {
         return await send(

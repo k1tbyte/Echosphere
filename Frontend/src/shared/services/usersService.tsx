@@ -15,6 +15,9 @@ export interface IUserSimpleDTO {
     id: number,
     username: string;
     avatar?: string | null;
+    email?: string;
+    role?: EUserRole;
+    joinedAt?: string;
 }
 
 export interface IUserFriendsDTO {
@@ -39,6 +42,7 @@ export class UsersService {
         return await fetcher.exceptJson<IUserDTO>(fetcher.getJson(
             process.env.NEXT_PUBLIC_API_URL + '/user/get/' + userId, null, true
         ));
+
     }
 
     public static async uploadAvatar(file: File): Promise<Response> {
@@ -140,6 +144,14 @@ export class UsersService {
     public static async updateUser(user: IUserDTO & { password?: string, oldPassword?: string }): Promise<Response> {
         return fetcher.patchJson(
             process.env.NEXT_PUBLIC_API_URL + '/user/update', user, null, true
+        );
+    }
+
+    public static async deleteUser(userId: number): Promise<Response> {
+        return send(
+            process.env.NEXT_PUBLIC_API_URL + '/user/delete' + '?id=' + userId, {
+                method: 'DELETE',
+            }, true
         );
     }
 
