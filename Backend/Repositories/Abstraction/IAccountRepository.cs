@@ -13,7 +13,7 @@ public interface IAccountRepository :IAsyncCrudRepository<User, IAccountReposito
     public Task SendFriendshipRequestAsync(int userId, int friendId);
     public Task AcceptFriendshipAsync(int userId, int friendId);
     public Task DeleteFriendshipAsync(int userId, int friendId);
-    public Task<List<UserSimplifiedDTO>> GetFriends(int userId, int page, int pageSize);
+    public Task<List<UserSimplifiedDTO>> GetFriends(int userId, int offset, int limit);
     public Task<List<UserSimplifiedDTO>> GetPendingFriends(int userId, bool pendingFromYou);
     public Task<EUserRole> GetUserRoleAsync(int userId);
     public void RevokeSessionsAsync(User user);

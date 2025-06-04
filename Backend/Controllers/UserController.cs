@@ -122,6 +122,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         }
         
     }
+    
     [HttpPost]
     [RequireRole(EUserRole.User)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -142,6 +143,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         }
         
     }
+    
     [HttpPost]
     [RequireRole(EUserRole.User)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -160,8 +162,8 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         {
             return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Internal server error." });
         }
-        
     }
+    
     [HttpPost]
     [RequireRole(EUserRole.User)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -199,18 +201,19 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         try
         {
             JwtService.GetUserRoleFromContext(HttpContext, out var userRole);
+            JwtService.GetUserIdFromContext(HttpContext, out var userId);
 
             var users = await accountRepository.GetAllAsync(
                 filter: q =>
                 {
                     var filtered = (userRole >= EUserRole.Admin )
                         ? q
-                        : q.Where(u => u.Role!=EUserRole.Banned);
+                        : q.Where(u => u.Role > EUserRole.Banned);
                     if (!string.IsNullOrWhiteSpace(filter))
                     {
                         filtered= filtered.Where(u => EF.Functions.ILike(u.Username, $"%{filter}%"));
                     }
-                    return filtered;
+                    return filtered.Where(o => o.Id != userId);
                 },
                 sortBy: sortBy,          
                 sortDescending: desc,
@@ -220,12 +223,12 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
           
             if (userRole == EUserRole.Admin)
             {
-                var usersDto= users.Select(u => mapper.Map<UserSimplifiedExtendedDTO>(u)).ToList();
+                var usersDto= users.Select(mapper.Map<UserSimplifiedExtendedDTO>).ToList();
                 return Ok(usersDto);
             }
             else
             {
-                var usersDto= users.Select(u => mapper.Map<UserSimplifiedDTO>(u)).ToList();
+                var usersDto= users.Select(mapper.Map<UserSimplifiedDTO>).ToList();
                 return Ok(usersDto);
             }
         }
@@ -265,14 +268,20 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     
-    
+    [HttpGet]
+    [RequireRole(EUserRole.User)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    public async Task<List<UserSimplifiedDTO>> GetPendingFriends(int userId, bool fromYou = false)
+    {
+        return await accountRepository.GetPendingFriends(userId, fromYou);
+    }
     
     [HttpGet]
     [RequireRole(EUserRole.User)]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetFriends(int userId,bool includeSentRequests, bool includeReceivedRequests, int page=1, int pageSize=50)
+    public async Task<IActionResult> GetFriends(int userId,bool includeSentRequests, bool includeReceivedRequests, int offset=0, int limit=50)
     {
-        var friends = await accountRepository.GetFriends(userId,page,pageSize);
+        var friends = await accountRepository.GetFriends(userId, offset, limit);
 
         if (includeSentRequests && includeReceivedRequests)
         {
@@ -281,8 +290,8 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
             return Ok(new
             {
                 friends,
-                yourRequests = sent,
-                requestsToAccept = received
+                sentRequests = sent,
+                receivedRequests = received
             });
         }
         if (includeSentRequests)
@@ -291,7 +300,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
             return Ok(new
             {
                 friends,
-                yourRequests = sent
+                sentRequests = sent
             });
         }
         if (includeReceivedRequests )
@@ -300,7 +309,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
             return Ok(new
             {
                 friends,
-                requestsToAccept = received
+                receivedRequests = received
             });
         }
         return Ok(new

@@ -4,6 +4,7 @@ using Backend.DTO;
 using Backend.Infrastructure;
 using Backend.Repositories.Abstraction;
 using Backend.Services;
+using Backend.Services.Filters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -134,18 +135,13 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
 
     if (friendship == null)
             throw new InvalidOperationException("Friendship not found.");
-
-        if (friendship.Status != EFriendshipStatus.Accepted)
-            throw new InvalidOperationException("Friendship is not accepted yet.");
-
+    
         context.Friendships.Remove(friendship);
         await SaveAsync();
     }
 
-    public async Task<List<UserSimplifiedDTO>> GetFriends(int userId, int page, int pageSize)
+    public async Task<List<UserSimplifiedDTO>> GetFriends(int userId, int offset, int limit)
     {
-        int offset = (page - 1) * pageSize;
-
         var result = await context.UserSimplified
             .FromSqlRaw("""
                         
@@ -161,13 +157,13 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
                                     ORDER BY u.username
                                     OFFSET {1} ROWS FETCH NEXT {2} ROWS ONLY
                                 
-                        """, userId, offset, pageSize)
+                        """, userId, offset, limit)
             .ToListAsync();
 
         return result;
     }
     
-    public async Task<List<UserSimplifiedDTO>> GetPendingFriends(int userId, bool pendingFromYou)
+    public async Task<List<UserSimplifiedDTO>> GetPendingFriends(int userId, bool pendingFromYou = false)
     {
         var user = await context.Users
             .Include(u => u.SentFriendRequests)

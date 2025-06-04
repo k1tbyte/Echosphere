@@ -85,7 +85,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> DeleteVideo(Guid id)
+    public async Task<IActionResult> Delete(Guid id)
     {
         var video = await videoRepository.GetVideoByIdAsync(id);
         if (video == null)
@@ -96,7 +96,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         {
             return Forbid();
         }
-        var success = await accountRepository.WithAutoSave().DeleteById(id);
+            var success = await accountRepository.WithAutoSave().DeleteById(id);
         if (!success)
             return NotFound();
         return NoContent();
@@ -117,7 +117,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         int limit = 20,
         string sortBy="CreatedAt",
         int playlistId =-1,
-        bool fetchOwner = false)
+        bool includeOwner = false)
     {
         try
         {
@@ -128,7 +128,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
             {
                 var filtered = (userRole >= EUserRole.Admin)
                     ? q
-                    : q.Where(v => v.IsPublic || (resultId && v.OwnerId == userId));
+                    : q.Where(v => v.IsPublic);
 
                 if (!string.IsNullOrWhiteSpace(filter))
                 {
@@ -137,7 +137,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                 filtered = onlyBlocked
                     ? filtered.Where(v => v.Status == EVideoStatus.Blocked)
                     : filtered.Where(v => v.Status == EVideoStatus.Ready);
-                return fetchOwner
+                return includeOwner
                     ? filtered.Include(v => v.Owner)
                     : filtered;
             };
@@ -414,6 +414,11 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
             {
                 return BadRequest("Video ID is required for third-party providers");
             }
+
+            if (request.IsPublic)
+            {
+                return BadRequest("Videos with third-party providers cannot be public");
+            }
             
             await videoRepository.WithAutoSave().Add(new Video
             {
@@ -431,7 +436,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         }
 
         if(request.SizeBytes is null or <= 0)
-        {
+        {   
             return BadRequest("Video size must be specified");
         }
         

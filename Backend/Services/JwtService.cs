@@ -91,7 +91,7 @@ public sealed class JwtService
         {
             new("userid",user.Id.ToString()),
             new ("display_name", user.Username),
-            new("access_role", user.Role.ToString()),
+            new("access_role", ((int)user.Role).ToString()),
             new("email", user.Email),
             new("remember", extended.ToString())
         });
