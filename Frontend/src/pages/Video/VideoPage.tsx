@@ -7,7 +7,13 @@ import { PlyrPlayer } from "@/widgets/player";
 import { Spinner } from "@/shared/ui/Loader";
 import { Badge } from "@/shared/ui/Badge";
 import { Label } from "@/shared/ui/Label";
-import { formatDuration, formatFileSize, formatTimeAgoPrecise, getVideoQuality } from "@/shared/lib/formatters";
+import {
+    formatDuration,
+    formatDurationExtended,
+    formatFileSize,
+    formatTimeAgoPrecise,
+    getVideoQuality
+} from "@/shared/lib/formatters";
 import Image from "next/image";
 import { UsersService } from "@/shared/services/usersService";
 import { openUserProfileModal } from "@/widgets/modals/UserProfileModal";
@@ -31,15 +37,8 @@ export const VideoPage = () => {
             if (!params?.id) return;
 
             try {
-                const videoData = await VideosService.getPublicVideos({
-                    offset: 0,
-                    limit: 1,
-                    filter: params.id as string,
-                    includeOwner: true
-                });
-                if (videoData.length > 0) {
-                    setVideo(videoData[0]);
-                }
+                const videoData = await VideosService.getVideoById(params.id as string, true);
+                setVideo(videoData);
             } catch (error) {
                 console.error('Failed to load video:', error);
             } finally {
@@ -65,32 +64,32 @@ export const VideoPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Video Player Section */}
                 <div className="lg:col-span-2">
-                    <div className="rounded-lg overflow-hidden border border-border">
-                        <PlyrPlayer
-                            source={{
-                                type: "video",
-                                sources: [video.provider === EVideoProvider.Local ? {
-                                    src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/master.m3u8`,
-                                    type: "application/x-mpegURL",
-                                } : {
-                                    src: video.videoUrl!, // id actually
-                                    provider: providers[video.provider]
-                                }]
-                            }}
-                            options={{
-                                controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
-                                settings: ['captions', 'quality', 'speed'],
-                                previewThumbnails: video.provider === EVideoProvider.Local ? {
-                                    src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/thumbnails.vtt`,
-                                    enabled: video.settings?.thumbnailsCaptureInterval! > 0
-                                } : undefined
-                            }}
-                        />
-                    </div>
+                    <PlyrPlayer
+                        source={{
+                            type: "video",
+                            sources: [video.provider === EVideoProvider.Local ? {
+                                src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/master.m3u8`,
+                                type: "application/x-mpegURL",
+                            } : {
+                                src: video.videoUrl!, // id actually
+                                provider: providers[video.provider]
+                            }]
+                        }}
+                        options={{
+                            controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
+                            settings: ['captions', 'quality', 'speed'],
+                            previewThumbnails: video.provider === EVideoProvider.Local ? {
+                                src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/thumbnails.vtt`,
+                                enabled: video.settings?.thumbnailsCaptureInterval! > 0
+                            } : {}
+                        }}
+                        className="border-border border rounded-lg"
+                    />
 
                     {/* Video Info */}
                     <div className="mt-4">
                         <h1 className="text-2xl font-semibold mb-2">{video.title}</h1>
+                        <Separator className="my-4" />
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 {video.ownerSimplified && (
@@ -112,12 +111,12 @@ export const VideoPage = () => {
                                 )}
                             </div>
                             {video.provider === EVideoProvider.Local && (
-                                <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-2">
+                                <div className="flex items-center">
+                                    <div className="flex cursor-pointer items-center gap-2 border-r px-3 bg-secondary/40 hover:bg-secondary/60 py-2.5 rounded-l-lg transition-colors">
                                         <ThumbsUp size={20} className="text-muted-foreground" />
                                         <span className="text-sm">0</span>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex  cursor-pointer items-center gap-2 px-3 py-2.5 bg-secondary/40 hover:bg-secondary/60 rounded-r-lg transition-colors">
                                         <Eye size={20} className="text-muted-foreground" />
                                         <span className="text-sm">0</span>
                                     </div>
@@ -125,63 +124,55 @@ export const VideoPage = () => {
                             )}
                         </div>
 
+                        <div className="mt-4 bg-secondary/30 py-2 rounded-sm">
+                            <Label className="text-md mx-4">Description</Label>
+                            <Separator className="my-1" />
+                            <p className="mt-3 mb-1 mx-4 text-sm whitespace-pre-wrap text-muted-foreground">{video.description ?
+                                video.description : "No description provided"} </p>
+                        </div>
+
                         {video.provider === EVideoProvider.Local && (
-                            <>
-                                <Separator className="my-4" />
-                                <div className="bg-secondary/30 rounded-lg p-4">
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                <div className="bg-secondary/30 rounded-sm p-4 mt-2">
+                                    <div className="flex gap-2 flex-wrap">
+                                        { video.settings?.adaptive?.qualities.length > 0 && (
+                                            <Badge variant="success">
+                                                Adaptive
+                                            </Badge>
+                                        )
+                                        }
                                         {quality && (
-                                            <div className="flex flex-col gap-1">
-                                                <Label className="text-xs text-muted-foreground">Quality</Label>
-                                                <Badge variant="outline" className={quality.color}>
-                                                    {quality.label}
-                                                </Badge>
-                                            </div>
+                                            <Badge variant="outline" className={quality.color}>
+                                                {quality.label}
+                                            </Badge>
                                         )}
                                         {video.duration && (
-                                            <div className="flex flex-col gap-1">
-                                                <Label className="text-xs text-muted-foreground">Duration</Label>
                                                 <Badge variant="outline">
-                                                    {formatDuration(video.duration)}
+                                                    {formatDurationExtended(video.duration, { format: "full" })}
                                                 </Badge>
-                                            </div>
                                         )}
                                         {video.size && (
-                                            <div className="flex flex-col gap-1">
-                                                <Label className="text-xs text-muted-foreground">Size</Label>
                                                 <Badge variant="outline">
                                                     {formatFileSize(video.size)}
                                                 </Badge>
-                                            </div>
                                         )}
-                                        <div className="flex flex-col gap-1">
-                                            <Label className="text-xs text-muted-foreground">Visibility</Label>
-                                            <Badge variant={video.isPublic ? "success" : "secondary"}>
-                                                {video.isPublic ? "Public" : "Private"}
-                                            </Badge>
-                                        </div>
+
+                                        <Badge variant={video.isPublic ? "success" : "secondary"}>
+                                            {video.isPublic ? "Public" : "Private"}
+                                        </Badge>
                                     </div>
-                                    {video.description && (
-                                        <div className="mt-4">
-                                            <Label className="text-xs text-muted-foreground">Description</Label>
-                                            <p className="mt-1 text-sm whitespace-pre-wrap">{video.description}</p>
-                                        </div>
-                                    )}
+
                                 </div>
-                            </>
                         )}
 
-                        {video.provider === EVideoProvider.Local && (
-                            <>
-                                <Separator className="my-4" />
-                                <div className="flex flex-col gap-4">
-                                    <h2 className="text-xl font-semibold">Comments</h2>
-                                    <div className="text-center text-muted-foreground py-8">
-                                        Comments are not implemented yet
-                                    </div>
-                                </div>
-                            </>
-                        )}
+
+                        <Separator className="my-4" />
+                        <div className="flex flex-col gap-4">
+                            <h2 className="text-xl font-semibold">Comments</h2>
+                            <div className="text-center text-muted-foreground py-8">
+                                Comments are not implemented yet
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 

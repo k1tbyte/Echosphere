@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
-import { Input } from "@/shared/ui/Input";
-import { Button } from "@/shared/ui/Button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/Select";
-import { EIcon, SvgIcon } from "@/shared/ui/Icon";
-import { IVideoObject, VideosService } from "@/shared/services/videosService";
+import React, {useRef, useState} from 'react';
+import {Input} from "@/shared/ui/Input";
+import {Button} from "@/shared/ui/Button";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/shared/ui/Select";
+import {EIcon, SvgIcon} from "@/shared/ui/Icon";
+import {IVideoObject, VideosService} from "@/shared/services/videosService";
 import useSWR from "swr";
-import { Spinner } from "@/shared/ui/Loader";
-import { VideoCard } from "@/widgets/video/VideoCard";
-import { videoSortOptions } from "@/shared/constants/sortOptions";
+import {Spinner} from "@/shared/ui/Loader";
+import {VideoCard, VideoCardWithContext} from "@/widgets/video/VideoCard";
+import {videoSortOptions} from "@/shared/constants/sortOptions";
 import {useSession} from "next-auth/react";
+import {EUserRole} from "@/types/user-role";
 
 export const VideosPage = () => {
     const [offset, setOffset] = useState(0);
@@ -153,9 +154,14 @@ export const VideosPage = () => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {allVideos.map(video => (
-                            <VideoCard key={video.id} video={video} isOwned={localId === video.ownerSimplified?.id}/>
-                        ))}
+                        {allVideos.map(video => {
+                            const isOwned = localId === video.ownerSimplified?.id;
+                            return (
+                                isOwned || session?.user.role >= EUserRole.Admin ?
+                                <VideoCardWithContext key={video.id} video={video} isOwned={isOwned} setVideos={setAllVideos} /> :
+                                <VideoCard key={video.id} video={video} isOwned={isOwned}/>
+                            );
+                        })}
                     </div>
                 )}
 

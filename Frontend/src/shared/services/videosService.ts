@@ -106,6 +106,17 @@ export class VideosService {
         );
     }
 
+    public static async getVideoById(videoId: string, includeOwner?: boolean = true): Promise<IVideoObject> {
+        const url = process.env.NEXT_PUBLIC_API_URL + '/video/getVideo?id=' + videoId + (includeOwner ? '&includeOwner=true' : '');
+        const video = await fetcher.exceptJson<IVideoObject>(
+            fetcher.getJson(url, null, true)
+        );
+        if (video.settings) {
+            video.settings = JSON.parse(video.settings as unknown as string);
+        }
+        return video;
+    }
+
     public static getVideoPreviewUrl(video: IVideoObject) {
         if (video.previewUrl) {
             return video.previewUrl;

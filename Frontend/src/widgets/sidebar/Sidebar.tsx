@@ -25,6 +25,7 @@ import {motion} from "motion/react";
 import {useSidebar} from "@/store/uiMetaStore";
 import {UsersService} from "@/shared/services/usersService";
 import {EUserRole} from "@/types/user-role";
+import { Separator } from "@/shared/ui/Separator";
 
 const SidebarContext = React.createContext<boolean | null>(false);
 
@@ -153,7 +154,7 @@ const SidebarComponent: FC<ComponentProps<'div'>> = ({ className, ...props }) =>
                         className="mx-auto"
                     />
 
-                    <hr className="bg-border -mt-1 mb-1" />
+                    <Separator className="bg-border -mt-1 mb-1" />
                     <SidebarContext.Provider value={isSidebarOpen}>
                         <SidebarItem text="Home" href="/home">
                             <House />

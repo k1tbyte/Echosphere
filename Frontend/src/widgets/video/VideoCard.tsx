@@ -10,6 +10,9 @@ import {Progress} from "@/shared/ui/Progress/Progress";
 import {UsersService} from "@/shared/services/usersService";
 import {openUserProfileModal} from "@/widgets/modals/UserProfileModal";
 import { useRouter } from "next/navigation";
+import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/shared/ui/ContextMenu";
+import {openConfirmationModal} from "@/widgets/modals/ConfirmationModal";
+import {toast, ToastVariant} from "@/shared/ui/Toast";
 
 interface IVideoCardProps {
     video: IVideoObject;
@@ -231,3 +234,41 @@ export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
         </div>
     );
 };
+
+export const VideoCardWithContext: FC<IVideoCardProps & { setVideos: React.Dispatch<React.SetStateAction<IVideoObject[]>> }> =
+    ({ video, isOwned, setVideos }) => {
+
+    const onDelete = () => {
+        openConfirmationModal({
+            body: `Are you sure you want to delete the video "${video.title}"? Uploaded by ${video.ownerSimplified?.username}`,
+            destructiveYes: true,
+            onYes: () => {
+                VideosService.deleteVideo(video.id)
+                    .then(() => {
+                        setVideos(prev => prev.filter(v => v.id !== video.id));
+                    })
+                    .catch(() => {
+                        toast.open({
+                            variant: ToastVariant.Error,
+                            body: `Failed to delete video`
+                        });
+                    });
+            }
+        })
+    }
+
+        return  (
+                <ContextMenu>
+                <ContextMenuTrigger>
+                    <VideoCard key={video.id} video={video}
+                               isOwned={isOwned}/>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-52">
+                    <ContextMenuItem className="text-red-400 font-medium"
+                                     onClick={onDelete}>
+                        Delete
+                    </ContextMenuItem>
+                </ContextMenuContent>
+            </ContextMenu>
+        )
+}
