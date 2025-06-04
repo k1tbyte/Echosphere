@@ -9,9 +9,12 @@ namespace Backend.Repositories;
 
 public class VideoRepository(AppDbContext context): BaseAsyncCrudRepository<Video, IVideoRepository>(context, context.Videos), IVideoRepository
 {
-    public async Task<Video?> GetVideoByIdAsync(Guid id)
+    public async Task<Video?> GetVideoByIdAsync(Guid id, bool fetchOwner = false)
     {
-        return await context.Videos.FirstOrDefaultAsync(v => v.Id == id);
+        IQueryable<Video> query = context.Videos;
+        if (fetchOwner)
+            query = query.Include(v => v.Owner); // предполагаем, что Video.Owner — навигационное свойство
+        return await query.FirstOrDefaultAsync(v => v.Id == id);
     }
     public static bool CheckVideoManagementAccess(HttpContext httpContext,Video video,bool deleteGranted)
     {

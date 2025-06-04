@@ -13,6 +13,9 @@ namespace Backend.Controllers;
 public class VideoPlaylistController(IPlaylistRepository playlistRepository,IPlaylistVideoRepository playlistVideoRepository,IVideoRepository videoRepository): ControllerBase
 {
     [HttpPost]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(string),StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(string),StatusCodes.Status404NotFound)]
@@ -53,6 +56,9 @@ public class VideoPlaylistController(IPlaylistRepository playlistRepository,IPla
         }
     }
     [HttpPost]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(string),StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(string),StatusCodes.Status500InternalServerError)]

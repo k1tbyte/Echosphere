@@ -70,6 +70,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpGet("{id}")]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(typeof(User),StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<User>> Get(int id)
@@ -307,6 +310,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpGet]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(string) ,StatusCodes.Status500InternalServerError)]
@@ -360,9 +366,5 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
             return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
         }
     }
-    
-    
-
-    
 }
 

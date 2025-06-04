@@ -28,13 +28,15 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     private const string BucketName = "videos";
     
     [HttpPatch]
-    [RequireRole(EUserRole.User)]
+    #if !DEBUG
+        [RequireRole(EUserRole.User)]
+    #endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> UpdateOwnVideo([FromBody] Video? entity)
     {
-        var userId = HttpContext.User.Claims.FirstOrDefault(o => o.Type == JwtService.UserIdClaimType)?.Value;
-        if (entity != null && int.TryParse(userId, out var id) && id == entity.OwnerId)
+        JwtService.GetUserIdFromContext(HttpContext,out int id);
+        if (entity != null && id == entity.OwnerId)
         {
             await videoRepository.WithAutoSave().Update(entity);
             return NoContent();
@@ -58,22 +60,28 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(Video),StatusCodes.Status200OK)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
+    [ProducesResponseType(typeof(VideoDTO),StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<Video>> GetVideo(Guid id)
+    public async Task<ActionResult<Video>> GetVideo(Guid id, bool fetchOwner = false)
     {
-        var result = await videoRepository.GetVideoByIdAsync(id);
-        if (result == null)
+        var video = await videoRepository.GetVideoByIdAsync(id, fetchOwner);
+        if (video == null)
             return NotFound();
-        if (VideoRepository.CheckVideoAccess(HttpContext, result))
+        if (VideoRepository.CheckVideoAccess(HttpContext, video))
         {
-            return Ok(result);
+            var videoDto = mapper.Map<VideoDTO>(video);
+            return Ok(videoDto);
         }
         return Forbid();
     }
 
     [HttpDelete]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -230,6 +238,9 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     
     
     [HttpGet("{id:guid}/{*path}")]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -258,6 +269,9 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     }
     
     [HttpPost]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
@@ -349,6 +363,9 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     }
     
     [HttpPost]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
@@ -499,7 +516,9 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
 
     
     [HttpGet]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> DownloadRawVideo(string objectName)
@@ -515,7 +534,9 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     }
 
     [HttpGet]
-  //  [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     public async Task<VideoSettingsSchema> SettingsSchema()
     {
         Response.ContentType = "application/json";
@@ -526,55 +547,4 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         var schema = await FFmpegTools.GetSettingsSchemaAsync();
         return FFmpegTools.Schema;
     }
-    
-    
-    /*
-    [HttpPost]
-    //[RequireRole(EUserRole.User)]
-    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> UploadVideo([FromQuery] bool multiQuality=true)
-    {
-        var contentType= Request.ContentType ?? "application/octet-stream";
-        string tempFilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}");
-        try
-        {
-            await using (var fs = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write))
-            {
-                await Request.Body.CopyToAsync(fs);
-            }
-            await using (var readStream = new FileStream(tempFilePath, FileMode.Open, FileAccess.Read))
-            {
-
-                var objName = await fileService.UploadFileStreamAsync(readStream, BucketName, contentType);
-                if (multiQuality)
-                { 
-                    await videoProcessingService.ProcessVideoMultiQualityAsync(tempFilePath, BucketName, objName);
-                }
-                else
-                {
-                    await videoProcessingService.ProcessVideoSingleQualityAsync(tempFilePath, BucketName, objName);
-                }
-            }
-
-            return Ok("File uploaded and processed successfully.");
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, $"Error during upload or processing: {ex.Message}");
-        }
-        finally
-        {
-            try
-            {
-                if (System.IO.File.Exists(tempFilePath))
-                    System.IO.File.Delete(tempFilePath);
-            }
-            catch (Exception cleanupEx)
-            {
-                Console.Error.WriteLine($"Failed to delete temp file {tempFilePath}: {cleanupEx.Message}");
-            }
-        }
-    }
-    */
 }

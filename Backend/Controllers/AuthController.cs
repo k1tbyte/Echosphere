@@ -14,7 +14,6 @@ namespace Backend.Controllers;
 public class AuthController(IAccountRepository accountRepository,JwtService jwtService, IHttpContextAccessor accessor): ControllerBase
 {
     [HttpPost]
-    //[TypeFilter(typeof(CaptchaRequired))]
     [ProducesResponseType(typeof(AuthTokensDTO), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] LoginRequestDTO? dto)
