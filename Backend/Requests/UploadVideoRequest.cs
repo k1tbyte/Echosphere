@@ -15,5 +15,6 @@ public class UploadVideoRequest
     public int[]? VideoQualities { get; init; }
     public string? PreviewUrl { get; init; } 
     public long? PreviewSizeBytes { get; init; } 
+    public bool IsPublic { get; init; } = false;
     public VideoSettingsConfig? Settings { get; init; }
 }
