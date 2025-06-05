@@ -6,10 +6,12 @@ import {Label} from "@/shared/ui/Label/Label";
 import {Input} from "@/shared/ui/Input/Input";
 import {EIcon, SvgIcon} from "@/shared/ui/Icon";
 import Link from "next/link";
-import {signIn} from 'next-auth/react';
+import {getSession, signIn} from 'next-auth/react';
 import {cn} from "@/shared/lib/utils";
 import {useRouter} from 'next/navigation';
 import {toast, ToastVariant} from "@/shared/ui/Toast";
+import {UsersService} from "@/shared/services/usersService";
+import {Checkbox} from "@/shared/ui/Checkbox";
 
 interface ILoginFormProps extends ComponentPropsWithoutRef<'form'> {
     callbackUrl: string;
@@ -41,6 +43,7 @@ export const LoginForm: FC<ILoginFormProps> = ({ className, callbackUrl }, ...pr
                 redirect: false,
                 email,
                 password,
+                remember: formData.get("remember") === "on",
                 callbackUrl: decodeURIComponent(callbackUrl),
             });
 
@@ -57,6 +60,10 @@ export const LoginForm: FC<ILoginFormProps> = ({ className, callbackUrl }, ...pr
                 setError(errorMessage.message);
                 return;
             }
+
+            const session = (await getSession())!;
+            const user = await UsersService.getUserById(Number(session.user.id))
+            UsersService.storeUserAvatarUrl(user);
 
             if (result?.ok) {
                 router.push(result.url || callbackUrl);
@@ -92,6 +99,11 @@ export const LoginForm: FC<ILoginFormProps> = ({ className, callbackUrl }, ...pr
                         Forgot your password?
                     </a>
                 </div>
+                <div className="flex-y-center gap-2 -mt-3">
+                    <Checkbox name="remember" id="remember"/>
+                    <Label htmlFor="remember">Remember me</Label>
+                </div>
+
                 {error && <Label size={"md"} className="font-normal text-red-500 -mt-3 -mb-3">{error}</Label>}
                 <Button className="w-full" loading={isLoading}>
                     Login
@@ -102,7 +114,7 @@ export const LoginForm: FC<ILoginFormProps> = ({ className, callbackUrl }, ...pr
           </span>
                 </div>
                 <Button variant="outline" className="w-full" disabled={isLoading}>
-                    <SvgIcon icon={EIcon.Google}/>
+                    <SvgIcon icon={EIcon.Google} size={15}/>
                     Login with Google
                 </Button>
             </div>

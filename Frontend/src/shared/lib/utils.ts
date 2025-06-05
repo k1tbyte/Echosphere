@@ -15,3 +15,9 @@ export const debounce = <T extends (...args: any[]) => any>(func: T, delay: numb
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
+
+export function toBase64(str: string): string {
+    return btoa(new TextEncoder().encode(str).reduce(
+        (data, byte) => data + String.fromCharCode(byte), ''
+    ));
+}

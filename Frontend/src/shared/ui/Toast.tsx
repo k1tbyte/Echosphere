@@ -82,7 +82,7 @@ const Toast: FC<IToastProps> = React.memo(
                                           onClose();}}
                                       size={18} />}
             </div>
-            <div className="text-2xs mt-1.5 ml-9 mr-5 text-foreground">
+            <div className="text-[13px] mt-1.5 ml-9 mr-5 text-foreground">
                 {body}
             </div>
         </motion.div>

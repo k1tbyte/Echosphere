@@ -1,13 +1,35 @@
+import { getSession, signOut } from "next-auth/react";
+
 import fetcher  from "@/shared/lib/fetcher"
 
 const url = process.env.NEXT_PUBLIC_API_URL;
 
 export const auth = {
-    login: async (email: string, password: string) => {
-        return await fetcher.postJson(url + '/auth/login', { email, password });
+    login: async (email: string, password: string, remember: boolean) => {
+        return await fetcher.postJson(url + '/auth/login', { email, password, remember },
+            {
+                cache: 'no-store',
+            }
+        );
     },
-    logout: async () => {
-        return await fetcher.postJson(url + '/auth/logout', {});
+    logout: async (refreshToken: string, accessToken: string) => {
+        const session = await getSession();
+        return await fetcher.postJson(url + '/auth/logout', { refreshToken },
+            {
+                cache: 'no-store',
+                headers: {
+                    Authorization: `Bearer ${session?.accessToken ?? accessToken}`
+                }
+            }
+        );
+    },
+    refreshSession: async (refreshToken: string, accessToken: string) => {
+        const response = await fetcher.postJson(url + '/auth/refreshSession', { refreshToken, accessToken });
+
+        return (await response.json()) as {
+            accessToken: string;
+            refreshToken: string;
+        }
     },
     signup: async (username: string, email: string, password: string) => {
         let response = await fetcher.postJson(url + '/auth/signup', {  username, email, password });

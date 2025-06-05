@@ -8,7 +8,7 @@ interface ICheckeredContainer extends ComponentProps<'div'> {
 
 }
 
-export const GetCheckeredClass = () => {
+export const getCheckeredClass = () => {
     return styles.checkered;
 }
 

@@ -6,31 +6,34 @@ declare module 'next-auth' {
     interface Session {
         user: {
             id: string;
-            name?: string;
-            avatar?: string;
+            username: string;
+            email: string;
             role: EUserRole;
         };
         accessToken: string;
+        refreshToken: string;
         error?: string;
     }
 
     interface User {
         id: string;
-        name?: string;
-        avatar?: string;
-        accessToken?: string;
-        refreshToken?: string;
-        // Другие поля пользователя
+        username: string;
+        apiAccessToken: string;
+        apiRefreshToken: string;
+        role: EUserRole;
+        error?: string;
+        accessExp: number;
     }
 }
 
 declare module 'next-auth/jwt' {
     interface JWT {
         id: string;
-        accessToken?: string;
-        refreshToken?: string;
-        avatar?: string;
+        username: string;
+        apiAccessToken: string;
+        apiRefreshToken: string;
+        role: EUserRole;
         error?: string;
-        // Другие поля JWT
+        accessExp: number;
     }
 }

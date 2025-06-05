@@ -1,0 +1,311 @@
+/**
+ * Custom theme for Plyr video player that integrates with shadcn/ui color palette
+ * Supports both light and dark themes with minimalist black and white design
+ */
+
+/* Main player styling */
+.plyr {
+    --plyr-color-main: var(--primary);
+    font-family: var(--font-sans), serif;
+}
+
+/* Base colors for light theme */
+:root {
+    /* Background and text colors */
+    --plyr-video-background: var(--background);
+    --plyr-menu-background: var(--card);
+    --plyr-menu-color: var(--card-foreground);
+
+    /* Control elements dimensions */
+    --plyr-control-icon-size: 18px;
+    --plyr-control-spacing: 10px;
+
+    /* Core player colors */
+    --plyr-color-main: var(--primary);
+    --plyr-audio-controls-background: var(--secondary);
+    --plyr-video-controls-background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.4));
+
+    /* Progress and range elements */
+    --plyr-range-fill-background: var(--primary);
+    --plyr-range-thumb-background: var(--primary);
+    --plyr-range-thumb-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+
+    /* UI elements */
+    --plyr-badge-background: var(--primary);
+    --plyr-badge-text-color: var(--primary-foreground);
+    --plyr-tooltip-background: var(--card);
+    --plyr-tooltip-color: var(--card-foreground);
+    --plyr-tooltip-shadow: var(--shadow-sm);
+}
+
+/* Dark theme overrides */
+.dark .plyr {
+    --plyr-video-background: var(--background);
+    --plyr-menu-background: var(--card);
+    --plyr-menu-color: var(--card-foreground);
+    --plyr-color-main: var(--primary);
+    --plyr-range-fill-background: var(--primary);
+    --plyr-range-thumb-background: white;
+    --plyr-tooltip-background: var(--card);
+    --plyr-tooltip-color: var(--card-foreground);
+    --plyr-audio-controls-background: var(--secondary);
+    --plyr-video-controls-background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.7));
+}
+
+/* Container for the React wrapper of Plyr */
+.plyr-react-container {
+    font-family: var(--font-sans);
+    overflow: hidden;
+    position: relative;
+}
+
+/* Plyr main container */
+.plyr {
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+
+/* Control bar styling */
+.plyr__controls {
+    padding: 10px !important;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    background: var(--plyr-video-controls-background);
+    transition: opacity 0.2s ease;
+}
+
+/* Button controls styling */
+.plyr__control {
+    color: var(--foreground);
+    opacity: 0.85;
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+/* Button hover state */
+.plyr__control:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.15) !important; /* Increased contrast on hover */
+}
+
+/* Settings button when dropdown is open */
+.plyr__control[aria-expanded=true] {
+    background: var(--foreground) !important;
+    color: var(--background) !important;
+    opacity: 1;
+}
+
+/* Large play button overlay */
+.plyr__control--overlaid {
+    background: var(--primary) !important;
+    color: var(--primary-foreground) !important;
+    border-radius: 50%;
+    padding: calc(var(--plyr-control-spacing) * 1.5);
+    opacity: 0.9;
+    box-shadow: var(--shadow-lg);
+}
+
+/* Large play button hover state */
+.plyr__control--overlaid:hover {
+    opacity: 1;
+    background: var(--primary) !important;
+}
+
+/* Progress bar container */
+.plyr__progress {
+    --range-track-height: 4px;
+}
+
+/* Increase clickable area for progress bar */
+.plyr__progress input[type="range"] {
+    height: 10px;
+}
+
+/* Buffer and volume display background */
+.plyr__progress__buffer,
+.plyr__volume--display {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Video buffer styling */
+.plyr--video .plyr__progress__buffer {
+    color: rgba(255, 255, 255, 0.25);
+}
+
+/* Time tooltip styling */
+.plyr__tooltip {
+    background: var(--card);
+    color: var(--card-foreground);
+    border-radius: var(--radius-sm);
+    padding: 6px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    pointer-events: none;
+}
+
+/* Floating player styles */
+@keyframes slide-in {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slide-out {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+}
+
+.floating-player-enter {
+    animation: slide-in 0.3s ease-out forwards;
+}
+
+.floating-player-exit {
+    animation: slide-out 0.3s ease-in forwards;
+}
+
+/* ===== SETTINGS MENU STYLING ===== */
+/* Menu container */
+.plyr__menu__container {
+    border: 1px solid var(--border);
+}
+
+/* Menu items */
+.plyr__menu__container .plyr__control {
+    border-radius: 4px !important;
+}
+
+/* Hide default markers/dots in menu */
+.plyr__menu__container .plyr__control::before {
+    display: none !important;
+}
+
+/* Hover state for interactive menu items */
+.plyr__menu__container .plyr__control[role="menuitemradio"]:hover,
+.plyr__menu__container .plyr__control--back:hover {
+    background: var(--muted) !important;
+    color: var(--foreground) !important;
+}
+
+/* Custom radio indicators for speed menu */
+.plyr__menu__container .plyr__control[role="menuitemradio"]::before {
+    content: "";
+    display: inline-block !important;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--muted-foreground);
+    border-radius: 50%;
+    margin-right: 10px;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+/* Active radio button state - transparent background */
+.plyr__menu__container .plyr__control[aria-checked=true][role="menuitemradio"] {
+    background: transparent !important;
+    color: var(--foreground) !important;
+}
+
+/* Active radio button indicator */
+.plyr__menu__container .plyr__control[aria-checked=true][role="menuitemradio"]::before {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* Back button in submenu */
+.plyr__menu__container .plyr__control--back {
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0 !important;
+}
+
+/* Menu value display (e.g., "Normal" in Speed menu) */
+.plyr__menu__container .plyr__menu__value {
+    color: var(--muted-foreground);
+}
+
+/* Menu separator */
+.plyr__menu__container .plyr__menu__list::after {
+    border-color: var(--border);
+}
+
+/* Volume slider */
+.plyr__volume input[type=range] {
+    color: var(--primary);
+}
+
+/* Fullscreen button size adjustment */
+.plyr__control[data-plyr="fullscreen"] svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Buffer loading indicator */
+.plyr__progress__buffer {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* Paused state for play button */
+.plyr--paused .plyr__control--overlaid {
+    opacity: 0.6;
+}
+
+/* Show controls on hover */
+.plyr:hover .plyr__controls {
+    opacity: 1;
+}
+
+/* Hide controls during video loading */
+.plyr--loading .plyr__controls {
+    opacity: 0;
+}
+
+/* Time display styling */
+.plyr__time {
+    padding: 0 6px;
+    font-variant-numeric: tabular-nums; /* For consistent number widths */
+    color: var(--foreground);
+}
+
+/* Focus state for controls (accessibility) */
+.plyr__control:focus {
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px var(--primary) !important;
+}
+
+/* Focus state for menu items */
+.plyr__menu__container .plyr__control:focus {
+    background: transparent !important;
+    color: var(--card-foreground) !important;
+}
+
+/* Focus state for active menu items */
+.plyr__menu__container .plyr__control[aria-checked="true"]:focus {
+    color: var(--foreground) !important;
+}
+
+/* Focus state for control bar buttons */
+.plyr__controls .plyr__control:focus {
+    color: var(--foreground) !important;
+    outline: none;
+    opacity: 1;
+}
+
+/* Keyboard focus for accessibility */
+.plyr__control:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--primary) !important;
+}

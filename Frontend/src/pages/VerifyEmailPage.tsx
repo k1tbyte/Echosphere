@@ -25,7 +25,7 @@ export default function VerifyPage() {
 
         async function verifyEmail() {
             try {
-                const status = await fetcher.noexceptRequest(auth.confirmEmail(token!));
+                const status = await auth.confirmEmail(token!);
                 setVerificationStatus(status!);
 
                 if (status?.accessToken && status?.refreshToken) {

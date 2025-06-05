@@ -1,3 +1,3 @@
-import {Loader } from "./Loader"
+import {Loader, Spinner, LoaderProps } from "./Loader"
 
-export { Loader }
+export { Loader, Spinner, type LoaderProps };
