@@ -1,57 +1,30 @@
 ﻿using Backend.Data;
 using Backend.Data.Entities;
 using Backend.DTO;
+using Backend.Hubs;
 using Backend.Infrastructure;
 using Backend.Repositories.Abstraction;
 using Backend.Services;
+using Backend.Services.Filters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace Backend.Repositories;
 
-public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemoryCache signupCache) : IAccountRepository
+public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemoryCache signupCache) : 
+    BaseAsyncCrudRepository<User, IAccountRepository>(context,context.Users), IAccountRepository
 {
     private static readonly TimeSpan CacheExpireTime = TimeSpan.FromHours(24);
-    public bool Autosave { get; set; } = true;
-    public async Task<User> Add(User entity)
-    {
-        var entry = await context.Users.AddAsync(entity);
-        await SaveAsync();
-        return entry.Entity;
-    }
-
-    public async Task<User?> Get(int id)
-    {
-        return await context.Users.FirstOrDefaultAsync(u => u.Id == id);
-    }
-
-    public async Task Update(User entity)
-    {
-        context.Users.Update(entity);
-        await SaveAsync();
-    }
-
-    public async Task<bool> DeleteById(long id)
-    {
-        var entity = await context.Users.FindAsync(id);
-        return await Delete(entity);
-    }
-
-    public async Task<bool> Delete(User? entity)
-    {
-        if (entity == null)
-            return false;
-
-        context.Users.Remove(entity);
-        await SaveAsync();
-        return true;
-    }
-
 
     public async Task LogOutAsync(string? refreshToken)
     {
         jwtAuth.CloseSession(refreshToken);
         await SaveAsync();
+    }
+
+    public void RevokeSessionsAsync(User user)
+    {
+        context.Sessions.RemoveRange(jwtAuth.GetUserSessions(user.Id));
     }
 
     public async Task<string?> GetSignupToken(User user)
@@ -65,7 +38,7 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
     }
     
 
-    public async Task<Tokens?> AuthenticateAsync(string email, string password,bool remember)
+    public async Task<AuthTokensDTO?> AuthenticateAsync(string email, string password,bool remember)
     {
         var user = await context.Users.FirstOrDefaultAsync(o => o.Email == email);
         
@@ -100,18 +73,17 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
         };
     }
 
-    public async Task<bool> SendFriendshipRequestAsync(int userId, int friendId)
+    public async Task SendFriendshipRequestAsync(int userId, int friendId)
     {
         if (userId == friendId)
-            return false; 
-        
+            throw new ArgumentException("User cannot send a friendship request to themselves.");
+
         bool exists = await context.Friendships.AnyAsync(f =>
             (f.RequesterId == userId && f.AddresseeId == friendId) ||
             (f.RequesterId == friendId && f.AddresseeId == userId));
 
         if (exists)
-            return false; 
-
+            throw new InvalidOperationException("Friendship request already exists or users are already friends.");
 
         var requester = await context.Users
             .Include(u => u.SentFriendRequests)
@@ -121,9 +93,11 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
             .Include(u => u.ReceivedFriendRequests)
             .FirstOrDefaultAsync(u => u.Id == friendId);
 
-        if (requester == null || addressee == null)
-            return false;
+        if (requester == null)
+            throw new KeyNotFoundException($"User with ID {userId} not found.");
 
+        if (addressee == null)
+            throw new KeyNotFoundException($"User with ID {friendId} not found.");
 
         var friendship = new Friendship
         {
@@ -131,12 +105,11 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
             AddresseeId = friendId,
             Status = EFriendshipStatus.Pending
         };
-        
+
         requester.SentFriendRequests.Add(friendship);
         addressee.ReceivedFriendRequests.Add(friendship);
-        
+
         await context.SaveChangesAsync();
-        return true;
     }
 
     public async Task AcceptFriendshipAsync(int userId, int friendId)
@@ -163,18 +136,13 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
 
     if (friendship == null)
             throw new InvalidOperationException("Friendship not found.");
-
-        if (friendship.Status != EFriendshipStatus.Accepted)
-            throw new InvalidOperationException("Friendship is not accepted yet.");
-
+    
         context.Friendships.Remove(friendship);
-        await context.SaveChangesAsync();
+        await SaveAsync();
     }
 
-    public async Task<List<UserSimplifiedDTO>> GetFriends(int userId, int page, int pageSize)
+    public async Task<List<UserSimplifiedDTO>> GetFriends(int userId, int offset, int limit)
     {
-        int offset = (page - 1) * pageSize;
-
         var result = await context.UserSimplified
             .FromSqlRaw("""
                         
@@ -190,13 +158,18 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
                                     ORDER BY u.username
                                     OFFSET {1} ROWS FETCH NEXT {2} ROWS ONLY
                                 
-                        """, userId, offset, pageSize)
+                        """, userId, offset, limit)
             .ToListAsync();
+
+        foreach (var user in result)
+        {
+            user.OnlineStatus = EchoHub.GetUserStatus(user.Id);
+        }
 
         return result;
     }
     
-    public async Task<List<UserSimplifiedDTO>> GetPendingFriends(int userId, bool pendingFromYou)
+    public async Task<List<UserSimplifiedDTO>> GetPendingFriends(int userId, bool pendingFromYou = false)
     {
         var user = await context.Users
             .Include(u => u.SentFriendRequests)
@@ -236,12 +209,13 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
 
         return pendingList;
     }
-
-    public async Task SaveAsync()
+    
+    public async Task<EUserRole> GetUserRoleAsync(int userId)
     {
-        if (!Autosave)
-            return;
-        
-        await context.SaveChangesAsync().ConfigureAwait(false);
+        var role = await context.Users
+            .Where(u => u.Id == userId)
+            .Select(u => u.Role)
+            .FirstOrDefaultAsync();
+        return role;
     }
 }

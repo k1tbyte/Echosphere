@@ -1,15 +1,25 @@
+using System.Runtime.InteropServices;
 using Backend.Data;
 using Backend.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Text;
 using System.Text.Json;
+using Backend.Data.Entities;
+using Backend.Hubs;
 using Backend.Repositories;
 using Backend.Repositories.Abstraction;
+using Backend.Utils;
+using Backend.Workers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.IdentityModel.Tokens;
+using Minio;
+using Xabe.FFmpeg;
+using AutoMapper;
+
 namespace Backend;
 
-internal static class Program
+public class Program
 {
     private static WebApplication _app = null!;
     
@@ -29,21 +39,73 @@ internal static class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
         builder.Services.AddMemoryCache();
+        builder.Services.AddSignalR();
         builder.Services.Configure<RouteOptions>(o => o.LowercaseUrls = true);
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddDbContext<AppDbContext>();
         builder.Services.AddScoped<JwtService>();
         builder.Services.AddScoped<IAccountRepository,AccountRepository>();
+        builder.Services.AddScoped<IVideoRepository,VideoRepository>();
+        builder.Services.AddScoped<IPlaylistRepository,PlaylistRepository>();
+        builder.Services.AddScoped<IPlaylistVideoRepository,PlaylistVideoRepository>();
         builder.Services.AddSingleton<EmailService>();
-        builder.Services.AddCors(o => o.AddPolicy("AllowAll", o =>
+        builder.Services.AddAutoMapper(typeof(MappingProfile));
+        /*builder.Services.AddSingleton<VideoProcessingWorker>();
+        builder.Services.AddHostedService(provider => provider.GetRequiredService<VideoProcessingWorker>());*/
+        builder.Services.AddHostedService<VideoProcessingWorker>();
+        builder.Services.Configure<KestrelServerOptions>(options => {
+            options.ConfigureHttpsDefaults(httpsOptions =>
+            {
+                httpsOptions.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 |
+                                            System.Security.Authentication.SslProtocols.Tls13;
+            });
+    
+            options.ConfigureEndpointDefaults(listenOptions => {
+                listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+            });
+            
+            options.AllowSynchronousIO = true;
+        });
+
+
+        builder.Services.AddSingleton<IMinioClient>(sp =>
         {
-            o.AllowAnyOrigin()
-                .AllowAnyMethod()
-                .AllowAnyHeader();
-        }));
+            var config = builder.Configuration.GetSection("Minio");
+            return new MinioClient()
+                .WithEndpoint(config["Endpoint"].Replace("https://", "").Replace("http://", ""))
+                .WithCredentials(config["Username"], config["Password"])
+                .WithSSL(bool.Parse(config["WithSSL"]))
+                .Build();
+        });
+        builder.Services.AddScoped<IS3FileService, MinioFileService>();
+        builder.Services.AddScoped<IVideoProcessingService, XabeFfmpegService>();
+        
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowFrontend", policy =>
+            {
+                var frontendUrl = builder.Configuration["Frontend:URL"];
+                if (!string.IsNullOrEmpty(frontendUrl))
+                {
+                    policy.WithOrigins(frontendUrl)
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
+                }
+            });
+
+            /*
+            options.AddPolicy("AllowAll", policy =>
+            {
+                policy.AllowAnyHeader()
+                    .AllowAnyMethod().AllowCredentials();
+            });*/
+        });
         
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
+        ConfigureAuthentication(builder);
+        ConfigureFFmpeg(builder.Configuration);
         _app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -54,15 +116,15 @@ internal static class Program
             _app.UseSwaggerUI();
         }
 
-        _app.UseHttpsRedirection();
+          _app.UseHttpsRedirection();
 
         _app.UseRouting();
+        _app.UseCors("AllowFrontend");
+        _app.UseAuthentication();
         _app.UseAuthorization();
-        #if DEBUG
-        _app.UseCors("AllowAll");
-        
-        #endif
         _app.MapControllers();
+        _app.MapHub<EchoHub>("/hubs/echo")
+            .RequireAuthorization();
         
         // For reverse proxy support
         _app.UseForwardedHeaders(new ForwardedHeadersOptions
@@ -74,15 +136,29 @@ internal static class Program
         _app.Run();
     }
     
+    private static string CheckEnvPaths(params string[] paths)
+    {
+        foreach (var path in paths)
+        {
+            if (File.Exists(path))
+            {
+                return path;
+            }
+            #if DEBUG
+            if (File.Exists(Path.Combine("../../../", path)))
+            {
+                return Path.Combine("../../../", path);
+            }
+            #endif
+        }
+        return string.Empty;
+    }
+    
     private static void MapEnvToConfig(ConfigurationManager configuration)
     {
-        var path = File.Exists(".env") ? ".env" 
-#if DEBUG
-            : File.Exists("../../../.env") ? "../../../.env" 
-#endif
-            : null;
+        var path = CheckEnvPaths(".env.development.local", ".env.local", ".env");
 
-        if (path == null)
+        if (string.IsNullOrEmpty(path))
         {
             return;
         }
@@ -148,10 +224,43 @@ internal static class Program
                 ValidateIssuerSigningKey = true,
                 ValidateLifetime         = false,
             };
+            
+            o.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = (context) =>
+                {
+                    var path = context.HttpContext.Request.Path;
+                    if (!path.StartsWithSegments("/hubs"))
+                    {
+                        return Task.CompletedTask; 
+                    }
+
+                    context.Token = context.Request.Query["access_token"];
+                    
+                    if (string.IsNullOrEmpty(context.Token))
+                    {
+                        var authHeader = context.Request.Headers.Authorization.ToString();
+                        if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
+                        {
+                            context.Token = authHeader.Substring("Bearer ".Length);
+                        }
+                    }
+                    
+                    return Task.CompletedTask;
+                }
+            };
         });
     }
-    private static void ConfigureAuthStrategy()
+
+    private static void ConfigureFFmpeg(ConfigurationManager configuration)
     {
-        // TODO: Implement authentication strategy
+        string? ffmpegPath = configuration["ffmpeg:Path"];
+        if (string.IsNullOrEmpty(ffmpegPath))
+        {
+            ffmpegPath = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? "C:\\ffmpeg\\bin"
+                : "/usr/bin";
+        }
+        FFmpeg.SetExecutablesPath(ffmpegPath);
     }
 }

@@ -15,9 +15,9 @@ public sealed class RequireRole(EUserRole rights) : Attribute, IAuthorizationFil
             context.Result = new UnauthorizedResult();
             return;
         }
-        var claim = user.Claims.FirstOrDefault(o => o.Type == "role")?.Value;
+        var claim = user.Claims.FirstOrDefault(o => o.Type == "access_role")?.Value;
         
-        if (claim == null || byte.Parse(claim) < (byte)rights)
+        if (claim == null || !Enum.TryParse(claim, out EUserRole userRights) || userRights < rights)
         {
             context.Result = new ForbidResult();
         }
