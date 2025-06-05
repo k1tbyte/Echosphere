@@ -98,7 +98,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         }
         
         var success = await videoRepository.WithAutoSave().DeleteById(id);
-        await s3FileService.DeleteObjectAsync(BucketName, id.ToString());
+        await s3FileService.DeleteObjectOrFolderAsync(BucketName, id.ToString());
         if (!success)
             return NotFound();
         return NoContent();
