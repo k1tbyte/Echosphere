@@ -16,7 +16,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     private readonly IS3FileService _fileService = fileService;
 
     [HttpPatch]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Update([FromBody] UserUpdateDTO entity)
@@ -93,7 +95,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         }
     }
     [HttpDelete]
-    [RequireRole(EUserRole.Admin)]
+#if !DEBUG
+        [RequireRole(EUserRole.Admin)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id)
@@ -105,7 +109,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpPost]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> SendFriendship([FromBody] FriendshipRequestDTO dto)
     {
@@ -134,7 +140,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpPost]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> AcceptFriendship([FromBody] FriendshipRequestDTO dto)
     {
@@ -155,7 +163,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpPost]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RejectFriendship([FromBody] FriendshipRequestDTO dto)
     {
@@ -175,7 +185,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpPost]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteFriend([FromBody] FriendshipRequestDTO dto)
     {
@@ -253,7 +265,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpPatch]
-    [RequireRole(EUserRole.Admin)]
+#if !DEBUG
+        [RequireRole(EUserRole.Admin)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -279,7 +293,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     
     
     [HttpGet]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     public async Task<List<UserSimplifiedDTO>> GetPendingFriends(int userId, bool fromYou = false)
     {
@@ -287,7 +303,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpGet]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFriends(int userId,bool includeSentRequests, bool includeReceivedRequests, int offset=0, int limit=50)
     {
@@ -351,7 +369,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpPost]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType( StatusCodes.Status200OK)]
     [ProducesResponseType( StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -372,7 +392,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
                 var info= await _fileService.TryGetObjectInfoAsync("avatars", user.Avatar);
                 if (info != null)
                 {
-                    await _fileService.DeleteObjectAsync("avatars", user.Avatar);
+                    await _fileService.DeleteObjectOrFolderAsync("avatars", user.Avatar);
                 }
             }
             await _fileService.PutObjectAsync(Request.Body, "avatars", objName, (int)Request.ContentLength.Value);

@@ -95,8 +95,8 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         if (!VideoRepository.CheckVideoManagementAccess(HttpContext, video,true))
         {
             return Forbid();
-        }
-            var success = await accountRepository.WithAutoSave().DeleteById(id);
+        } 
+        var success = await accountRepository.WithAutoSave().DeleteById(id);
         if (!success)
             return NotFound();
         return NoContent();

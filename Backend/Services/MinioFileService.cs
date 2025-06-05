@@ -29,7 +29,7 @@ public class MinioFileService(IMinioClient minioClient) : IS3FileService
             .WithObjectSize(size == -1 ? stream.Length : size)
             .WithContentType("application/octet-stream"));
     }
-    public async Task DeleteObjectAsync(string bucketName, string objectName)
+    public async Task DeleteObjectOrFolderAsync(string bucketName, string objectName)
     {
         await minioClient.RemoveObjectAsync(new RemoveObjectArgs()
             .WithBucket(bucketName)

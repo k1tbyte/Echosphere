@@ -203,7 +203,7 @@ public class VideoPlaylistController(IPlaylistRepository playlistRepository,IPla
     {
         try
         {
-            var result = await playlistRepository.Add(entity);
+            var result = await playlistRepository.WithAutoSave().Add(entity);
             return Ok(result);
         }
         catch (Exception e)
@@ -253,7 +253,7 @@ public class VideoPlaylistController(IPlaylistRepository playlistRepository,IPla
             {
                 return Forbid();
             }
-            await playlistRepository.Update(entity);
+            await playlistRepository.WithAutoSave().Update(entity);
             return NoContent();
         }
         catch (Exception e)
@@ -277,7 +277,7 @@ public class VideoPlaylistController(IPlaylistRepository playlistRepository,IPla
             {
                 return Forbid();
             }
-            var success = await playlistRepository.Delete(entity);
+            var success = await playlistRepository.WithAutoSave().Delete(entity);
             if (!success)
                 return NotFound();
             return NoContent();
