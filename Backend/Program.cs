@@ -1,6 +1,12 @@
 using Backend.Data;
+using Backend.Services;
 using Microsoft.AspNetCore.HttpOverrides;
-
+using System.Text;
+using System.Text.Json;
+using Backend.Repositories;
+using Backend.Repositories.Abstraction;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 namespace Backend;
 
 internal static class Program
@@ -15,12 +21,26 @@ internal static class Program
         builder.Services.AddControllers().AddJsonOptions(options =>
         {
             options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+            options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
         });
-        
+
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGen();
+        builder.Services.AddMemoryCache();
         builder.Services.Configure<RouteOptions>(o => o.LowercaseUrls = true);
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddDbContext<AppDbContext>();
+        builder.Services.AddScoped<JwtService>();
+        builder.Services.AddScoped<IAccountRepository,AccountRepository>();
+        builder.Services.AddSingleton<EmailService>();
+        builder.Services.AddCors(o => o.AddPolicy("AllowAll", o =>
+        {
+            o.AllowAnyOrigin()
+                .AllowAnyMethod()
+                .AllowAnyHeader();
+        }));
         
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
@@ -30,11 +50,18 @@ internal static class Program
         if (_app.Environment.IsDevelopment())
         {
             _app.MapOpenApi();
+            _app.UseSwagger();
+            _app.UseSwaggerUI();
         }
 
         _app.UseHttpsRedirection();
 
+        _app.UseRouting();
         _app.UseAuthorization();
+        #if DEBUG
+        _app.UseCors("AllowAll");
+        
+        #endif
         _app.MapControllers();
         
         // For reverse proxy support
@@ -102,6 +129,27 @@ internal static class Program
         }
     }
 
+    private static void ConfigureAuthentication(WebApplicationBuilder builder)
+    {
+        builder.Services.AddAuthentication(o =>
+        {
+            o.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            o.DefaultChallengeScheme    = JwtBearerDefaults.AuthenticationScheme;
+            o.DefaultScheme             = JwtBearerDefaults.AuthenticationScheme;
+        }).AddJwtBearer(o =>
+        {
+            o.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidIssuer              = _app.Configuration["JwtSettings:Issuer"],
+                IssuerSigningKey         = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(_app.Configuration["JwtSettings:Key"]!)),
+                ValidateIssuer           = true,
+                ValidateAudience = false,
+                ValidateIssuerSigningKey = true,
+                ValidateLifetime         = false,
+            };
+        });
+    }
     private static void ConfigureAuthStrategy()
     {
         // TODO: Implement authentication strategy
