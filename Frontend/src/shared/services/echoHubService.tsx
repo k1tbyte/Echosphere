@@ -15,8 +15,11 @@ export class EchoHubService {
     public readonly OnUserOffline = new EventEmitter<number>();
     public readonly OnRoomCreated = new EventEmitter<string>();
     public readonly OnRoomInviteReceived = new EventEmitter<{ roomId: string, inviterId: number }>();
+    public readonly OnRoomJoined = new EventEmitter<{ roomId: string, masterId: number, participants: any[] }>();
     public readonly OnUserJoinedRoom = new EventEmitter<number>();
     public readonly OnUserLeftRoom = new EventEmitter<{ roomId: string, userId: number }>();
+    public readonly OnUserKicked = new EventEmitter<{ roomId: string, userId: number }>();
+    public readonly OnYouWereKicked = new EventEmitter<string>();
     public readonly OnNewRoomMaster = new EventEmitter<{ roomId: string, newMasterId: number }>();
     public readonly OnRoomDeleted = new EventEmitter<string>();
     public readonly OnRoomClosed = new EventEmitter<string>();
@@ -92,18 +95,50 @@ export class EchoHubService {
         this.connection.on("RoomCreated", (roomId) => {
             console.log(`Комната создана: ${roomId}`);
             getSession().then(session => {
+                const currentUserId = Number(session?.user?.id);
                 useRoomStore.setState({
                     roomId: roomId,
                     isRoomOwner: true,
-                    ownerId: Number(session?.user?.id),
-                    users: new Map<number, IUserSimpleDTO>,
-                })}
-            )
+                    ownerId: currentUserId,
+                    users: new Map<number, IUserSimpleDTO>(),
+                });
+                console.log(`Room created: roomId=${roomId}, isRoomOwner=true, ownerId=${currentUserId}`);
+            });
         });
 
         this.connection.on("RoomInviteReceived", (roomId, inviterId) => {
             console.log(`Получено приглашение в комнату ${roomId} от ${inviterId}`);
             this.OnRoomInviteReceived.emit({ roomId, inviterId });
+        });
+
+        this.connection.on("RoomJoined", (roomId, masterId, participants) => {
+            console.log(`Вы присоединились к комнате ${roomId}, владелец: ${masterId}`);
+            console.log("Room participants:", participants);
+            
+            // Emit the event for components to react to
+            this.OnRoomJoined.emit({ roomId, masterId, participants });
+            
+            getSession().then(async session => {
+                const currentUserId = Number(session?.user?.id);
+                const isOwner = currentUserId === masterId;
+                
+                console.log(`RoomJoined: currentUserId=${currentUserId}, masterId=${masterId}, isOwner=${isOwner}`);
+                
+                // Set room state when joining via invitation
+                useRoomStore.setState({
+                    roomId: roomId,
+                    isRoomOwner: isOwner,
+                    ownerId: masterId,
+                    users: new Map<number, IUserSimpleDTO>(),
+                });
+                
+                console.log(`Room state set: roomId=${roomId}, isRoomOwner=${isOwner}, ownerId=${masterId}`);
+                
+                // We'll fetch full user data in the LobbyPanel component
+                // But we can trigger a refresh by emitting the UserJoinedRoom event
+                // This will cause the LobbyPanel to fetch all participants
+                this.OnUserJoinedRoom.emit(currentUserId);
+            });
         });
 
         this.connection.on("UserJoinedRoom", (userId) => {
@@ -114,6 +149,18 @@ export class EchoHubService {
         this.connection.on("UserLeftRoom", (roomId, userId) => {
             console.log(`Пользователь ${userId} покинул комнату ${roomId}`);
             this.OnUserLeftRoom.emit({ roomId, userId });
+        });
+
+        this.connection.on("UserKicked", (roomId, userId) => {
+            console.log(`Пользователь ${userId} был исключен из комнаты ${roomId}`);
+            this.OnUserKicked.emit({ roomId, userId });
+        });
+
+        this.connection.on("YouWereKicked", (roomId) => {
+            console.log(`Вы были исключены из комнаты ${roomId}`);
+            // Reset room state when kicked
+            useRoomStore.getState().resetRoom();
+            this.OnYouWereKicked.emit(roomId);
         });
 
         this.connection.on("NewRoomMaster", (roomId, newMasterId) => {
@@ -182,6 +229,11 @@ export class EchoHubService {
     public async leaveRoom(roomId: string): Promise<void> {
         await this.ensureConnected();
         await this.connection!.invoke("LeaveRoom", roomId);
+    }
+
+    public async kickUser(roomId: string, userId: number): Promise<void> {
+        await this.ensureConnected();
+        await this.connection!.invoke("KickUser", roomId, userId);
     }
 
     public async getRoomParticipants(roomId: string): Promise<any[]> {
