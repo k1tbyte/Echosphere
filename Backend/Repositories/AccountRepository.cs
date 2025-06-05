@@ -1,6 +1,7 @@
 ﻿using Backend.Data;
 using Backend.Data.Entities;
 using Backend.DTO;
+using Backend.Hubs;
 using Backend.Infrastructure;
 using Backend.Repositories.Abstraction;
 using Backend.Services;
@@ -159,6 +160,11 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
                                 
                         """, userId, offset, limit)
             .ToListAsync();
+
+        foreach (var user in result)
+        {
+            user.OnlineStatus = EchoHub.GetUserStatus(user.Id);
+        }
 
         return result;
     }
