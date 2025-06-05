@@ -14,6 +14,7 @@ export interface IUserDTO {
     role: EUserRole;
     avatar?: string;
     joinedAt: string;
+    onlineStatus?: EUserOnlineStatus;
 }
 
 export interface IUserSimpleDTO {
@@ -49,10 +50,7 @@ export class UsersService {
             process.env.NEXT_PUBLIC_API_URL + '/user/get/' + userId, null, true
         ));
 
-
-        console.log("Users data:", result);
         return result;
-
     }
 
     public static async uploadAvatar(file: File): Promise<Response> {
@@ -174,6 +172,10 @@ export class UsersService {
         }
 
         return null;
+    }
+
+    public static getFallbackAvatarUrl(username: string): string {
+        return `https://ui-avatars.com/api/?name=${username}.svg`;
     }
 
     public static getLocalUserAvatarUrl(): string | null {

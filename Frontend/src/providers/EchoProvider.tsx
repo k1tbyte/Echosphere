@@ -5,17 +5,23 @@ import {createContext, FC, ReactNode, useContext, useEffect, useState} from "rea
 import {EchoHubService} from "@/shared/services/echoHubService";
 import {useSession} from "next-auth/react";
 
+export enum HubState {
+    Connecting = "Connecting",
+    Connected = "Connected",
+    Reconnecting = "Reconnecting"
+}
+
 interface IEchoContext {
-    isConnected: boolean;
+    state: HubState;
     echoHub?: EchoHubService;
 }
 
-const EchoContext = createContext<IEchoContext | undefined>({ isConnected: false });
+const EchoContext = createContext<IEchoContext | undefined>({ state: HubState.Connecting });
 
 export const useEcho = () => useContext(EchoContext);
 
 export const EchoProvider: FC<{children: ReactNode}> = ({ children }) => {
-    const [isConnected, setIsConnected] = useState(false);
+    const [connectState, setConnectState] = useState<HubState>(HubState.Connecting);
     const session = useSession();
     const echoHub = EchoHubService.getInstance();
 
@@ -28,11 +34,18 @@ export const EchoProvider: FC<{children: ReactNode}> = ({ children }) => {
 
         echoHub.startConnection()
             .then(() => {
-                setIsConnected(true);
+                setConnectState(HubState.Connected);
                 const connection = echoHub.getConnection();
                 connection?.onclose(() => {
                     console.log("Connection to the echo hub is closed");
-                    setIsConnected(false);
+                    setConnectState(HubState.Connecting);
+                });
+                connection?.onreconnecting(() => {
+                    setConnectState(HubState.Reconnecting);
+                });
+                connection?.onreconnected(() => {
+                    console.log("Connection to the echo hub is re-established");
+                    setConnectState(HubState.Connected);
                 });
             })
             .catch(console.error);
@@ -46,7 +59,7 @@ export const EchoProvider: FC<{children: ReactNode}> = ({ children }) => {
     }, [session]);
 
     return (
-        <EchoContext.Provider value={{ isConnected, echoHub }}>
+        <EchoContext.Provider value={{ state: connectState, echoHub }}>
             {children}
         </EchoContext.Provider>
     )
