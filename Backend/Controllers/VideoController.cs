@@ -96,7 +96,9 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         {
             return Forbid();
         }
-            var success = await accountRepository.WithAutoSave().DeleteById(id);
+        
+        var success = await videoRepository.WithAutoSave().DeleteById(id);
+        await s3FileService.DeleteObjectAsync(BucketName, id.ToString());
         if (!success)
             return NotFound();
         return NoContent();
@@ -255,10 +257,10 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                     return NotFound("Video not found");
                 memoryCache.Set($"video_meta_{id}", video, TimeSpan.FromMinutes(5));
             }
-            if (VideoRepository.CheckVideoAccess(HttpContext, video!))
+            /*if (VideoRepository.CheckVideoAccess(HttpContext, video!))
             {
                 return Forbid();
-            }
+            }*/
             var result = await s3FileService.DownloadFileStreamAsync(BucketName, $"{id}/{path}");
             return File(result.Stream, "application/octet-stream", result.FileName);
         }
@@ -495,6 +497,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                 Id = id,
                 Size = request.SizeBytes,
                 UploadSize = 0,
+                IsPublic = request.IsPublic,
                 Status = EVideoStatus.Pending,
                 PreviewUrl = request.PreviewUrl,
                 Provider = EVideoProvider.Local,
