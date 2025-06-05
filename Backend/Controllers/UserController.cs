@@ -83,7 +83,8 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         if (result == null)
             return NotFound();
         JwtService.GetUserRoleFromContext(HttpContext, out var role);
-        if (role == EUserRole.Admin)
+        JwtService.GetUserIdFromHttpContext(HttpContext, out var userId);
+        if (role == EUserRole.Admin || id == userId)
         {
             var userDto = mapper.Map<UserSimplifiedExtendedDTO>(result);
             return Ok(userDto);
@@ -397,7 +398,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
             }
             await _fileService.PutObjectAsync(Request.Body, "avatars", objName, (int)Request.ContentLength.Value);
             user.Avatar = objName;
-            await accountRepository.Update(user);
+            await accountRepository.WithAutoSave().Update(user);
             return NoContent();
         }
         catch (Exception ex)
