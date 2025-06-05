@@ -75,7 +75,7 @@ const LobbyMember: FC<ILobbyMemberProps> = ({ id, user, role, isOnline, onInvite
                         <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full w-3 h-3 border border-secondary" 
                              title="Room Owner" />
                     )}
-                    {data.onlineStatus === EUserOnlineStatus.Online && !isOffline && !isOwner && (
+                    {data.onlineStatus !== undefined && data.onlineStatus >= EUserOnlineStatus.Online && !isOffline && !isOwner && (
                         <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border border-secondary"/>
                     )}
                     {isOffline && (
@@ -351,11 +351,11 @@ export const Lobby: FC<ILobbyProps> = ({
                         // Don't show friends who are already in the room
                         const friendId = friend.user.id;
                         if (roomParticipants) {
-                            return friend.user.onlineStatus === EUserOnlineStatus.Online && 
+                            return friend.user.onlineStatus !== undefined && friend.user.onlineStatus >= EUserOnlineStatus.Online &&
                                 !roomParticipants.has(friendId) && 
                                 friendId !== userId;
                         }
-                        return friend.user.onlineStatus === EUserOnlineStatus.Online &&
+                        return friend.user.onlineStatus !== undefined && friend.user.onlineStatus >= EUserOnlineStatus.Online &&
                             !roomStore.users.has(friendId);
                     })
                     .map(([friendId, friend]) => (

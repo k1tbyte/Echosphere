@@ -145,7 +145,7 @@ export const LobbyPanel = () => {
                         userMap.set(participant.userId, {
                             ...participant,
                             user: userData,
-                            isOnline: userData.onlineStatus === EUserOnlineStatus.Online
+                            isOnline: userData.onlineStatus !== undefined && userData.onlineStatus >= EUserOnlineStatus.Online
                         });
                     } catch (error) {
                         console.error(`Failed to fetch user data for ${participant.userId}:`, error);
@@ -368,7 +368,7 @@ export const LobbyPanel = () => {
                 setTimeout(() => {
                     toast.open({
                         body: "You were kicked from the room",
-                        variant: ToastVariant.Error
+                        variant: ToastVariant.Warning
                     });
                 }, 0);
             }

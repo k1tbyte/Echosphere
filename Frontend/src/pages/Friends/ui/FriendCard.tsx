@@ -61,7 +61,7 @@ export const FriendCard: FC<{user: IUserSimpleDTO, friends: IFriendObjectMap | u
                 </Label>
 
 
-                { user.onlineStatus === EUserOnlineStatus.Online &&
+                { user.onlineStatus !== undefined && user.onlineStatus >= EUserOnlineStatus.Online &&
                     <Badge variant={"success"} className="ml-2">
                         <SvgIcon icon={EIcon.CircleFilled} size={10}/>
                         <span className="ml-1">Online</span>
