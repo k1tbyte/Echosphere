@@ -5,15 +5,15 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace Backend.Hubs;
 
-// Роли пользователей в комнате
+
 public enum ERoomRole
 {
-    Master,    // Создатель/владелец комнаты
-    Member,    // Участник комнаты
-    Invited    // Приглашенный, но еще не принявший приглашение
+    Master,    
+    Member,    
+    Invited    
 }
 
-// Модель комнаты
+
 public class Room
 {
     public string RoomId { get; set; } = null!;
@@ -22,7 +22,7 @@ public class Room
     public List<RoomParticipant> Participants { get; set; } = new();
 }
 
-// Модель участника комнаты
+
 public class RoomParticipant
 {
     public int UserId { get; set; }
@@ -33,34 +33,45 @@ public class RoomParticipant
 
 public class EchoHub : Hub
 {
-    // Хранилище статусов онлайн пользователей
+    // User status storage
     private static readonly ConcurrentDictionary<int, EUserOnlineStatus> UserStatus = new();
     
-    // Соединения пользователей: userId -> set<ConnectionId>
+    // UserConnections: userId -> set<ConnectionId>
     private static readonly ConcurrentDictionary<int, HashSet<string>> UserConnections = new();
     
-    // Комнаты: roomId -> Room
+    // Rooms: roomId -> Room
     private static readonly ConcurrentDictionary<string, Room> Rooms = new();
-
-    // МЕТОДЫ ДЛЯ РАБОТЫ С ОНЛАЙН СТАТУСАМИ
     
-    // Получить статус пользователя
+    
     public static EUserOnlineStatus GetUserStatus(int userId)
     {
         return UserStatus.GetValueOrDefault(userId, EUserOnlineStatus.Offline);
     }
 
-    // МЕТОДЫ ДЛЯ УПРАВЛЕНИЯ КОМНАТАМИ
+    public static int GetUserRoomMasterId(int userId)
+    {
+        if(UserStatus.GetValueOrDefault(userId, EUserOnlineStatus.Offline)!=EUserOnlineStatus.InWatchParty)
+            return -1;
+        foreach (var room in Rooms.Values)
+        {
+            foreach (var t in room.Participants)
+            {
+                if (t.UserId == userId)
+                {
+                    return room.MasterId;
+                }
+            }
+        }
+        return -1;
+    }
     
-    // Создать новую комнату
     public async Task<string> CreateRoom()
     {
         if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
         {
             throw new HubException("Unauthorized");
         }
-
-        // Используем GUID для уникальных ID комнат (можно заменить на более короткий ID)
+        
         var roomId = Guid.NewGuid().ToString("N");
         
         var room = new Room
@@ -70,7 +81,6 @@ public class EchoHub : Hub
             CreatedAt = DateTime.UtcNow
         };
         
-        // Добавляем создателя как мастера комнаты
         var master = new RoomParticipant
         {
             UserId = userId,
@@ -82,16 +92,14 @@ public class EchoHub : Hub
         room.Participants.Add(master);
         Rooms[roomId] = room;
         
-        // Добавляем соединение в группу SignalR
         await Groups.AddToGroupAsync(Context.ConnectionId, roomId);
         
-        // Уведомляем пользователя об успешном создании комнаты
         await Clients.Caller.SendAsync("RoomCreated", roomId);
         
         return roomId;
     }
     
-    // Пригласить пользователя в комнату
+
     public async Task InviteToRoom(string roomId, int targetUserId)
     {
         if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
@@ -99,26 +107,22 @@ public class EchoHub : Hub
             throw new HubException("Unauthorized");
         }
         
-        // Проверяем, что комната существует
         if (!Rooms.TryGetValue(roomId, out var room))
         {
             throw new HubException("Room not found");
         }
         
-        // Проверяем права - приглашать могут только участники комнаты
         var participant = room.Participants.FirstOrDefault(p => p.UserId == userId);
         if (participant == null)
         {
             throw new HubException("You are not a member of this room");
         }
         
-        // Проверяем, не приглашен ли пользователь уже
         if (room.Participants.Any(p => p.UserId == targetUserId))
         {
             throw new HubException("User is already in the room or invited");
         }
         
-        // Добавляем пользователя как приглашенного
         var invite = new RoomParticipant
         {
             UserId = targetUserId,
@@ -128,7 +132,6 @@ public class EchoHub : Hub
         
         room.Participants.Add(invite);
         
-        // Уведомляем пользователя о приглашении, если он в сети
         if (UserConnections.TryGetValue(targetUserId, out var connections))
         {
             foreach (var connectionId in connections)
@@ -138,7 +141,6 @@ public class EchoHub : Hub
         }
     }
     
-    // Принять приглашение в комнату
     public async Task AcceptInvite(string roomId)
     {
         if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
@@ -146,35 +148,29 @@ public class EchoHub : Hub
             throw new HubException("Unauthorized");
         }
         
-        // Проверяем, что комната существует
+
         if (!Rooms.TryGetValue(roomId, out var room))
         {
             throw new HubException("Room not found");
         }
         
-        // Находим приглашение
         var invite = room.Participants.FirstOrDefault(p => p.UserId == userId && p.Role == ERoomRole.Invited);
         if (invite == null)
         {
             throw new HubException("Invite not found");
         }
         
-        // Обновляем роль
         invite.Role = ERoomRole.Member;
         invite.ConnectionIds.Add(Context.ConnectionId);
-        
-        // Добавляем соединение в группу SignalR
+        UserStatus[userId] = EUserOnlineStatus.InWatchParty;
         await Groups.AddToGroupAsync(Context.ConnectionId, roomId);
         
-        // Уведомляем всех участников комнаты
         await Clients.Group(roomId).SendAsync("UserJoinedRoom", userId);
         
-        // Отправляем присоединившемуся список участников
         await Clients.Caller.SendAsync("RoomJoined", roomId, room.MasterId, 
             room.Participants.Select(p => new { UserId = p.UserId, Role = p.Role }).ToList());
     }
     
-    // Отклонить приглашение в комнату
     public async Task DeclineInvite(string roomId)
     {
         if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
@@ -182,19 +178,16 @@ public class EchoHub : Hub
             throw new HubException("Unauthorized");
         }
         
-        // Проверяем, что комната существует
         if (!Rooms.TryGetValue(roomId, out var room))
         {
             throw new HubException("Room not found");
         }
         
-        // Удаляем приглашение
         var invite = room.Participants.FirstOrDefault(p => p.UserId == userId && p.Role == ERoomRole.Invited);
         if (invite != null)
         {
             room.Participants.Remove(invite);
             
-            // Уведомляем мастера комнаты
             if (UserConnections.TryGetValue(room.MasterId, out var masterConnections))
             {
                 foreach (var connectionId in masterConnections)
@@ -205,7 +198,6 @@ public class EchoHub : Hub
         }
     }
     
-    // Выгнать пользователя из комнаты (только для владельца комнаты)
     public async Task KickUser(string roomId, int targetUserId)
     {
         if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
@@ -213,44 +205,36 @@ public class EchoHub : Hub
             throw new HubException("Unauthorized");
         }
         
-        // Проверяем, что комната существует
         if (!Rooms.TryGetValue(roomId, out var room))
         {
             throw new HubException("Room not found");
         }
         
-        // Проверяем, что запрос от владельца комнаты
         if (room.MasterId != userId)
         {
             throw new HubException("Only the room owner can kick users");
         }
         
-        // Находим участника для исключения
         var targetParticipant = room.Participants.FirstOrDefault(p => p.UserId == targetUserId);
         if (targetParticipant == null)
         {
             throw new HubException("User is not in the room");
         }
         
-        // Нельзя выгнать самого себя (владельца)
         if (targetUserId == userId)
         {
             throw new HubException("You cannot kick yourself from the room");
         }
         
-        // Удаляем участника из комнаты
         room.Participants.Remove(targetParticipant);
         
-        // Удаляем все соединения участника из группы
         foreach (var connectionId in targetParticipant.ConnectionIds)
         {
             await Groups.RemoveFromGroupAsync(connectionId, roomId);
         }
         
-        // Уведомляем всех оставшихся участников
         await Clients.Group(roomId).SendAsync("UserKicked", roomId, targetUserId);
-        
-        // Уведомляем выгнанного пользователя
+        UserStatus[userId] = EUserOnlineStatus.Online;
         if (UserConnections.TryGetValue(targetUserId, out var connections))
         {
             foreach (var connectionId in connections)
@@ -260,7 +244,6 @@ public class EchoHub : Hub
         }
     }
     
-    // Покинуть комнату
     public async Task LeaveRoom(string roomId)
     {
         if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
@@ -268,42 +251,35 @@ public class EchoHub : Hub
             throw new HubException("Unauthorized");
         }
         
-        // Проверяем, что комната существует
         if (!Rooms.TryGetValue(roomId, out var room))
         {
-            return; // Комната не найдена, ничего не делаем
+            return; 
         }
         
-        // Находим участника
         var participant = room.Participants.FirstOrDefault(p => p.UserId == userId);
         if (participant == null)
         {
-            return; // Пользователь не в комнате, ничего не делаем
+            return; 
         }
         
-        // Удаляем соединение из группы
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomId);
         
-        // Если это мастер комнаты
         if (participant.Role == ERoomRole.Master)
         {
             if (Rooms.TryRemove(roomId, out _))
             {
-                // Уведомляем всех участников
                 await Clients.Group(roomId).SendAsync("RoomClosed", roomId);
             }
         }
         else
         {
-            // Просто удаляем участника
             room.Participants.Remove(participant);
             
-            // Уведомляем остальных участников
             await Clients.Group(roomId).SendAsync("UserLeftRoom", roomId, userId);
         }
+        UserStatus[userId] = EUserOnlineStatus.Online;
     }
     
-    // Получить список участников комнаты
     public Task<List<object>> GetRoomParticipants(string roomId)
     {
         if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
@@ -311,19 +287,16 @@ public class EchoHub : Hub
             throw new HubException("Unauthorized");
         }
         
-        // Проверяем, что комната существует
         if (!Rooms.TryGetValue(roomId, out var room))
         {
             return Task.FromResult(new List<object>());
         }
         
-        // Проверяем, что пользователь имеет доступ к комнате
         if (!room.Participants.Any(p => p.UserId == userId && (p.Role == ERoomRole.Master || p.Role == ERoomRole.Member)))
         {
             throw new HubException("You don't have access to this room");
         }
         
-        // Возвращаем список участников с их ролями
         var participants = room.Participants.Select(p => new
         {
             UserId = p.UserId,
@@ -334,7 +307,6 @@ public class EchoHub : Hub
         return Task.FromResult(participants);
     }
     
-    // Удалить комнату (только мастер)
     public async Task DeleteRoom(string roomId)
     {
         if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
@@ -342,29 +314,28 @@ public class EchoHub : Hub
             throw new HubException("Unauthorized");
         }
         
-        // Проверяем, что комната существует
         if (!Rooms.TryGetValue(roomId, out var room))
         {
             throw new HubException("Room not found");
         }
         
-        // Проверяем, что запрос от мастера
         if (room.MasterId != userId)
         {
             throw new HubException("Only the room master can delete the room");
         }
         
-        // Удаляем комнату
-        if (Rooms.TryRemove(roomId, out _))
+        if (Rooms.TryRemove(roomId, out var deletedRoom))
         {
-            // Уведомляем всех участников
+            foreach (var t in deletedRoom.Participants)
+            {
+                UserStatus[t.UserId] = EUserOnlineStatus.Online;
+            }
+
             await Clients.Group(roomId).SendAsync("RoomDeleted", roomId);
         }
     }
 
-    // МЕТОДЫ ДЛЯ СИНХРОНИЗАЦИИ ПРОСМОТРА
-    
-    // Синхронизация события (пауза/воспроизведение)
+    // WATCH SYNC METHODS
     public async Task SyncPlayerEvent(string roomId, string action, double time)
     {
         if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
@@ -372,24 +343,22 @@ public class EchoHub : Hub
             throw new HubException("Unauthorized");
         }
         
-        // Проверяем, что комната существует
         if (!Rooms.TryGetValue(roomId, out var room))
         {
             throw new HubException("Room not found");
         }
-        
-        // Проверяем, что пользователь в комнате
+
         var participant = room.Participants.FirstOrDefault(p => p.UserId == userId);
         if (participant == null || (participant.Role != ERoomRole.Master && participant.Role != ERoomRole.Member))
         {
             throw new HubException("You are not a member of this room");
         }
         
-        // Отправляем всем участникам, кроме отправителя
+
         await Clients.OthersInGroup(roomId).SendAsync("ReceivePlayerEvent", action, time, userId);
     }
     
-    // Синхронизация времени воспроизведения
+
     public async Task SyncPlayerTime(string roomId, double currentTime)
     {
         if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
@@ -397,33 +366,28 @@ public class EchoHub : Hub
             throw new HubException("Unauthorized");
         }
         
-        // Проверяем, что комната существует
         if (!Rooms.TryGetValue(roomId, out var room))
         {
             throw new HubException("Room not found");
         }
         
-        // Проверяем, что пользователь в комнате
         var participant = room.Participants.FirstOrDefault(p => p.UserId == userId);
         if (participant == null || (participant.Role != ERoomRole.Master && participant.Role != ERoomRole.Member))
         {
             throw new HubException("You are not a member of this room");
         }
         
-        // Отправляем всем участникам, кроме отправителя
         await Clients.OthersInGroup(roomId).SendAsync("ReceiveTimeSync", currentTime, userId);
     }
 
-    // МЕТОДЫ ЖИЗНЕННОГО ЦИКЛА СОЕДИНЕНИЯ
+    // CONNECTION LIFETIME METHODS
     
-    // При подключении пользователя
     public override async Task OnConnectedAsync()
     {
         if (JwtService.GetUserIdFromHubContext(Context, out var userId))
         {
             Console.WriteLine($"User {userId} connected with connection ID {Context.ConnectionId}");
             
-            // Добавляем соединение к списку пользователя
             UserConnections.AddOrUpdate(userId,
                 _ => new HashSet<string> { Context.ConnectionId },
                 (_, connections) =>
@@ -432,16 +396,13 @@ public class EchoHub : Hub
                     return connections;
                 });
             
-            // Обновляем статус онлайн
             UserStatus[userId] = EUserOnlineStatus.Online;
             
-            // Проверяем, есть ли комнаты, в которых пользователь уже участвует
             foreach (var room in Rooms.Values)
             {
                 var participant = room.Participants.FirstOrDefault(p => p.UserId == userId);
                 if (participant != null && (participant.Role == ERoomRole.Master || participant.Role == ERoomRole.Member))
                 {
-                    // Добавляем соединение к комнате
                     participant.ConnectionIds.Add(Context.ConnectionId);
                     await Groups.AddToGroupAsync(Context.ConnectionId, room.RoomId);
                 }
@@ -452,20 +413,16 @@ public class EchoHub : Hub
         await base.OnConnectedAsync();
     }
     
-    // При отключении пользователя
     public override async Task OnDisconnectedAsync(Exception exception)
     {
-        // Находим пользователя по ConnectionId
         var userKvp = UserConnections.FirstOrDefault(kvp => kvp.Value.Contains(Context.ConnectionId));
-        if (userKvp.Key != 0) // 0 означает, что пользователь не найден (int default)
+        if (userKvp.Key != 0) 
         {
             int userId = userKvp.Key;
             var connections = userKvp.Value;
-            
-            // Удаляем текущее соединение
+
             connections.Remove(Context.ConnectionId);
             
-            // Если это последнее соединение пользователя
             if (connections.Count == 0)
             {
                 UserConnections.TryRemove(userId, out _);
@@ -474,37 +431,29 @@ public class EchoHub : Hub
                 await Clients.Others.SendAsync("UserOffline", userId);
             }
             
-            // Обрабатываем комнаты
             foreach (var room in Rooms.Values)
             {
                 var participant = room.Participants.FirstOrDefault(p => p.UserId == userId);
                 if (participant != null)
                 {
-                    // Удаляем соединение из списка соединений участника
                     participant.ConnectionIds.Remove(Context.ConnectionId);
                     
-                    // Если это последнее соединение для этого участника в комнате
                     if (participant.ConnectionIds.Count == 0 && participant.Role == ERoomRole.Master)
                     {
-                        // Это последнее соединение мастера
-                        // Находим нового мастера среди членов комнаты
                         var newMaster = room.Participants
                             .FirstOrDefault(p => p.UserId != userId && p.Role == ERoomRole.Member 
                                               && p.ConnectionIds.Count > 0);
                         
                         if (newMaster != null)
                         {
-                            // Назначаем нового мастера
                             newMaster.Role = ERoomRole.Master;
                             room.MasterId = newMaster.UserId;
                             
-                            // Уведомляем всех о смене мастера
                             await Clients.Group(room.RoomId).SendAsync("NewRoomMaster", room.RoomId, newMaster.UserId);
                         }
                         else
                         {
-                            // Некого назначать мастером - сохраняем комнату без активных соединений
-                            // Комнату можно удалить или оставить для последующего подключения
+
                         }
                     }
                 }
@@ -514,7 +463,6 @@ public class EchoHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
     
-    // Отправить сообщение в чат комнаты
     public async Task SendRoomMessage(string roomId, string message)
     {
         if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
@@ -522,20 +470,17 @@ public class EchoHub : Hub
             throw new HubException("Unauthorized");
         }
         
-        // Проверяем, что комната существует
         if (!Rooms.TryGetValue(roomId, out var room))
         {
             throw new HubException("Room not found");
         }
         
-        // Проверяем, что пользователь в комнате
         var participant = room.Participants.FirstOrDefault(p => p.UserId == userId);
         if (participant == null || (participant.Role != ERoomRole.Master && participant.Role != ERoomRole.Member))
         {
             throw new HubException("You are not a member of this room");
         }
         
-        // Отправляем сообщение всем участникам комнаты
         await Clients.Group(roomId).SendAsync("RoomMessage", roomId, userId, message, DateTime.UtcNow);
     }
 }

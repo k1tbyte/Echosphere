@@ -1,5 +1,6 @@
 ﻿using Backend.Data;
 using Backend.Data.Entities;
+using Backend.Hubs;
 using Backend.Infrastructure;
 using Backend.Repositories.Abstraction;
 using Backend.Services;
@@ -28,7 +29,9 @@ public class VideoRepository(AppDbContext context): BaseAsyncCrudRepository<Vide
     {
         JwtService.GetUserIdFromHttpContext(httpContext,out var userId);
         JwtService.GetUserRoleFromContext(httpContext,out var role);
-        if (video.OwnerId == userId || role >= EUserRole.Admin)
+        var masterId= EchoHub.GetUserRoomMasterId(userId);
+
+        if (video.OwnerId == userId||video.OwnerId == masterId || role >= EUserRole.Admin)
         {
             return true;
         }

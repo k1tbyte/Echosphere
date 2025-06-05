@@ -5,7 +5,8 @@ namespace Backend.DTO;
 
 public enum EUserOnlineStatus{
     Offline,
-    Online
+    Online,
+    InWatchParty
 }
 
 [Keyless]
