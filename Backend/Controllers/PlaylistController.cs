@@ -43,11 +43,11 @@ public class VideoPlaylistController(IPlaylistRepository playlistRepository,IPla
                 PlaylistId = dto.PlaylistId,
                 VideoId = dto.VideoId,
             };
-            await playlistVideoRepository.Add(playlistVideo);
+            await playlistVideoRepository.WithAutoSave().Add(playlistVideo);
             playlist.VideoAmount += 1;
             playlist.PreviewUrl = video.PreviewUrl;
 
-            await playlistRepository.Update(playlist);
+            await playlistRepository.WithAutoSave().Update(playlist);
             return NoContent();
         }
         catch (Exception e)
@@ -76,9 +76,9 @@ public class VideoPlaylistController(IPlaylistRepository playlistRepository,IPla
             {
                 return NotFound("Playlist not found");
             }
-            await playlistVideoRepository.Delete(entity);
+            await playlistVideoRepository.WithAutoSave().Delete(entity);
             playlist.VideoAmount -= 1;
-            await playlistRepository.Update(playlist);
+            await playlistRepository.WithAutoSave().Update(playlist);
             return NoContent();
         }
         catch (Exception e)

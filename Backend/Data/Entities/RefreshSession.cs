@@ -14,5 +14,5 @@ public class RefreshSession
     public required long ExpiresIn { get; init; }
         
     [Column("user_id")]
-    public required long UserId { get; init; } 
+    public required int UserId { get; init; } 
 }

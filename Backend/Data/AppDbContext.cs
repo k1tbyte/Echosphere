@@ -1,6 +1,7 @@
 ﻿using Backend.Data.Entities;
 using Backend.DTO;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Backend.Data;
 
@@ -19,6 +20,23 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IConfig
     {
         modelBuilder.UseCollation("en_US.UTF-8");
         // Key generation strategy based on the database provider
+        modelBuilder.Entity<User>()
+            .Property(u => u.Id)
+            .UseIdentityAlwaysColumn() 
+            .ValueGeneratedOnAdd()
+            .Metadata.SetBeforeSaveBehavior(PropertySaveBehavior.Ignore);
+        modelBuilder.Entity<Playlist>()
+            .Property(p => p.Id)
+            .UseIdentityAlwaysColumn() 
+            .ValueGeneratedOnAdd()
+            .Metadata.SetBeforeSaveBehavior(PropertySaveBehavior.Ignore);
+        
+        modelBuilder.Entity<RefreshSession>()
+            .HasOne<User>()
+            .WithMany()     
+            .HasForeignKey(rs => rs.UserId)
+            .OnDelete(DeleteBehavior.Cascade); 
+        
         modelBuilder.UseIdentityColumns();
         modelBuilder.Entity<Friendship>()
             .HasKey(f => new { f.RequesterId, f.AddresseeId });

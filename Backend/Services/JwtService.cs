@@ -51,14 +51,14 @@ public sealed class JwtService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    public IOrderedQueryable<RefreshSession> GetUserSessions(long id)
+    public IOrderedQueryable<RefreshSession> GetUserSessions(int id)
     {
         return _dbContext.Sessions
             .Where(o => o.UserId == id)
             .OrderBy(o => o.ExpiresIn);
     }
 
-    private AuthTokensDTO _createSession(string accessToken, long userId, bool extended)
+    private AuthTokensDTO _createSession(string accessToken, int userId, bool extended)
     {
         var refreshToken = Guid.NewGuid();
         var expires= extended ? DateTimeOffset.UtcNow.AddDays(RefreshTokenExtendedLifetime) :
@@ -150,7 +150,7 @@ public sealed class JwtService
             return null;
         }
         var payload = jwtToken.Payload;
-        if (!long.TryParse(payload["userid"].ToString(), out var userId) ||
+        if (!int.TryParse(payload["userid"].ToString(), out var userId) ||
             !Guid.TryParse(dto.RefreshToken, out var refreshToken))
             return null;
         

@@ -240,9 +240,6 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
     
     
     [HttpGet("{id:guid}/{*path}")]
-#if !DEBUG
-        [RequireRole(EUserRole.User)]
-#endif
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -257,7 +254,7 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
                     return NotFound("Video not found");
                 memoryCache.Set($"video_meta_{id}", video, TimeSpan.FromMinutes(5));
             }
-            /*if (VideoRepository.CheckVideoAccess(HttpContext, video!))
+            /*if (!VideoRepository.CheckVideoAccess(HttpContext, video!))
             {
                 return Forbid();
             }*/

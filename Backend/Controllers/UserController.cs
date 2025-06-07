@@ -103,7 +103,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id)
     {
-        var success = await accountRepository.DeleteById(id);
+        var success = await accountRepository.WithAutoSave().DeleteById(id);
         if (!success)
             return NotFound();
         return NoContent();
@@ -149,7 +149,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     {
         try
         {
-            await accountRepository.AcceptFriendshipAsync(dto.UserId, dto.FriendId);
+            await accountRepository.WithAutoSave().AcceptFriendshipAsync(dto.UserId, dto.FriendId);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -172,7 +172,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     {
         try
         {
-            await accountRepository.DeleteFriendshipAsync(dto.UserId, dto.FriendId);
+            await accountRepository.WithAutoSave().DeleteFriendshipAsync(dto.UserId, dto.FriendId);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -194,7 +194,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     {
         try
         {
-            await accountRepository.DeleteFriendshipAsync(dto.UserId, dto.FriendId);
+            await accountRepository.WithAutoSave().DeleteFriendshipAsync(dto.UserId, dto.FriendId);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -288,7 +288,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
             return NoContent();
         }
         user.Role = dto.NewRole;
-        await accountRepository.Update(user);
+        await accountRepository.WithAutoSave().Update(user);
         return NoContent();
     }
     
