@@ -3,3 +3,4 @@ obj
 
 .env*
 !.env.example
+/backend.env

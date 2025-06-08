@@ -4,6 +4,7 @@ using Backend.DTO;
 using Backend.Repositories;
 using Backend.Repositories.Abstraction;
 using Backend.Services;
+using Backend.Services.Filters;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 

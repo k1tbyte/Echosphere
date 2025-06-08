@@ -30,7 +30,7 @@ public class VideoProcessingWorker(IServiceScopeFactory scopeFactory) : Backgrou
     {
         using var scope = scopeFactory.CreateScope();
         var videoRepository = scope.ServiceProvider.GetRequiredService<IVideoRepository>();
-
+        
         var pendingVideosIds = await videoRepository.GetQueuedVideoIdsAsync();
         foreach (var id in pendingVideosIds)
         {
@@ -57,29 +57,50 @@ public class VideoProcessingWorker(IServiceScopeFactory scopeFactory) : Backgrou
                     deadVideoIds.Add(videoId);
                     continue;
                 }
+
                 try
                 {
                     var videoRepository = scope.ServiceProvider.GetRequiredService<IVideoRepository>();
                     var video = await videoRepository.GetVideoByIdAsync(videoId);
-                    if( video != null)
+                    if (video != null)
                     {
-                        if (video.Status != EVideoStatus.Processing)
+                        switch (video.Status)
                         {
-                            video.Status = EVideoStatus.Processing;
-                            await videoRepository.WithAutoSave().Update(video);
+                            case EVideoStatus.Ready:
+                                continue;
+                            case EVideoStatus.Queued:
+                                video.Status = EVideoStatus.Processing;
+                                await videoRepository.WithAutoSave().Update(video);
+                                break;
                         }
-                 
-                        // TODO: Process the video
-                        await videoProcessingService.ProcessVideoMultiQualityAsync(videoPath, videoId.ToString(), video.GetSettings());
+                        try
+                        {
+                            await videoProcessingService.ProcessVideoMultiQualityAsync(videoPath, videoId.ToString(),
+                                video.GetSettings());
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new VideoProcessingException($"Error processing video: {videoId}", ex);
+                        }
+
                         video.Status = EVideoStatus.Ready;
                         await videoRepository.WithAutoSave().Update(video);
                     }
 
                     Directory.Delete(directory, true);
                 }
-                catch (Exception e)
+                catch (VideoProcessingException e)
+                {
+                    Enqueue(videoId);
+                    Console.WriteLine(e.Message);
+                }
+                catch (IOException e)
                 {
                     Console.WriteLine($"Error deleting video file {videoPath}: {e.Message}");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Error {videoPath}: {e.Message}");
                 }
             }
             

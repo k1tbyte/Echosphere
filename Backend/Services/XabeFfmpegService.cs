@@ -26,7 +26,6 @@ public class XabeFfmpegService(IS3FileService s3FileService) : IVideoProcessingS
 
     public async Task ProcessVideoMultiQualityAsync(string inputFilePath, string outputPrefix, VideoSettingsConfig? config)
     {
-        
         var workingDir =  Path.GetDirectoryName(inputFilePath) ?? throw new ArgumentException("Input file path is invalid.");
         //disabled preview auto generation
         var mediaInfo = await FFmpeg.GetMediaInfo(inputFilePath);
