@@ -25,6 +25,8 @@ export type PlyrSource = {
     tracks?: PlyrTrack[];
 };
 
+export type PlyrProvider = Provider;
+
 // Extend the PlyrOptions to include custom properties
 export interface PlyrOptions extends Options {
     title?: string;

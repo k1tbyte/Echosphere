@@ -1,7 +1,7 @@
 import React, {FC, useEffect, useRef} from "react";
 import {EVideoProvider, EVideoStatus, IVideoObject, VideosService} from "@/shared/services/videosService";
 import {formatDuration, formatFileSize, formatTimeAgoPrecise, getVideoQuality} from "@/shared/lib/formatters";
-import {PlyrPlayer, type PlyrProvider} from "@/widgets/player";
+import {PlyrPlayer, type PlyrProvider } from "@/widgets/player";
 import Image from "next/image";
 import {Badge} from "@/shared/ui/Badge";
 import {Label} from "@/shared/ui/Label";
@@ -121,6 +121,7 @@ export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
         router.push(`/video/${video.id}`);
     };
 
+    console.log(process.env.NEXT_PUBLIC_API_URL + `/video/resource/${video.id}/preview`);
     return (
         <div ref={containerRef} className="flex flex-col bg-background/50 rounded-md border hover:bg-secondary/30 transition-all hover:scale-105 hover:z-10 cursor-pointer">
             <div className="relative w-full aspect-video border-b rounded-t-lg overflow-hidden">
