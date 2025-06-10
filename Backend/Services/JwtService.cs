@@ -15,11 +15,11 @@ public sealed class JwtService
 {
     private const int RefreshTokenExtendedLifetime = 7; //days
     private const int RefreshTokenLifetime = 30;//minutes
-    #if DEBUG
+    /*#if DEBUG
     private const int AccessTokenLifetime = 200; //minutes
-    #else
+    #else*/
     private const int AccessTokenLifetime = 1; //minutes
-    #endif
+    /*#endif*/
     private const int MaxSessionsAmount = 5;
     private readonly IConfiguration _config;
     private readonly AppDbContext _dbContext;

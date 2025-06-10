@@ -68,7 +68,7 @@ public class AuthController(IAccountRepository accountRepository,JwtService jwtS
             return ValidationProblem("Invalid form data");
         }
         
-        var token = await accountRepository.GetSignupToken(new User()
+        var token = await accountRepository.GetSignupToken(new User
         {
             Email        = user.Email,
             Password     = PasswordManager.HashPassword(user.Password, out string salt),

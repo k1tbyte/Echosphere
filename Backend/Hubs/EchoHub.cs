@@ -9,8 +9,7 @@ namespace Backend.Hubs;
 public enum ERoomRole
 {
     Master,    
-    Member,    
-    Invited    
+    Member
 }
 
 
@@ -120,17 +119,8 @@ public class EchoHub : Hub
         
         if (room.Participants.Any(p => p.UserId == targetUserId))
         {
-            throw new HubException("User is already in the room or invited");
+            throw new HubException("User is already in the room");
         }
-        
-        var invite = new RoomParticipant
-        {
-            UserId = targetUserId,
-            Role = ERoomRole.Invited,
-            JoinedAt = DateTime.UtcNow
-        };
-        
-        room.Participants.Add(invite);
         
         if (UserConnections.TryGetValue(targetUserId, out var connections))
         {
@@ -147,58 +137,42 @@ public class EchoHub : Hub
         {
             throw new HubException("Unauthorized");
         }
-        
 
         if (!Rooms.TryGetValue(roomId, out var room))
         {
             throw new HubException("Room not found");
         }
         
-        var invite = room.Participants.FirstOrDefault(p => p.UserId == userId && p.Role == ERoomRole.Invited);
-        if (invite == null)
+        // check if the user is already in the room
+        foreach (var userRoom in Rooms.Values)
         {
-            throw new HubException("Invite not found");
+            if (userRoom.Participants.Any(p => p.UserId == userId))
+            {
+                // remove the user from the previous room
+                await _leaveRoom(userId, userRoom.RoomId).ConfigureAwait(false);
+            }
         }
         
-        invite.Role = ERoomRole.Member;
+        var invite = new RoomParticipant
+        {
+            UserId = userId,
+            Role = ERoomRole.Member,
+            JoinedAt = DateTime.UtcNow
+        };
+        
+        room.Participants.Add(invite);
         invite.ConnectionIds.Add(Context.ConnectionId);
         UserStatus[userId] = EUserOnlineStatus.InWatchParty;
         await Groups.AddToGroupAsync(Context.ConnectionId, roomId);
         
-        await Clients.Group(roomId).SendAsync("UserJoinedRoom", userId);
+        await Clients.Group(roomId).SendAsync("UserJoinedRoom", roomId, userId);
         
+        /*
         await Clients.Caller.SendAsync("RoomJoined", roomId, room.MasterId, 
-            room.Participants.Select(p => new { UserId = p.UserId, Role = p.Role }).ToList());
+            room.Participants.Select(p => new { UserId = p.UserId, Role = p.Role }).ToList());*/
     }
     
-    public async Task DeclineInvite(string roomId)
-    {
-        if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
-        {
-            throw new HubException("Unauthorized");
-        }
-        
-        if (!Rooms.TryGetValue(roomId, out var room))
-        {
-            throw new HubException("Room not found");
-        }
-        
-        var invite = room.Participants.FirstOrDefault(p => p.UserId == userId && p.Role == ERoomRole.Invited);
-        if (invite != null)
-        {
-            room.Participants.Remove(invite);
-            
-            if (UserConnections.TryGetValue(room.MasterId, out var masterConnections))
-            {
-                foreach (var connectionId in masterConnections)
-                {
-                    await Clients.Client(connectionId).SendAsync("InviteDeclined", roomId, userId);
-                }
-            }
-        }
-    }
-    
-    public async Task KickUser(string roomId, int targetUserId)
+    public async Task KickFromRoom(string roomId, int targetUserId)
     {
         if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
         {
@@ -226,21 +200,13 @@ public class EchoHub : Hub
             throw new HubException("You cannot kick yourself from the room");
         }
         
+        await Clients.Group(roomId).SendAsync("RoomUserKicked", roomId, targetUserId);
+        UserStatus[userId] = EUserOnlineStatus.Online;
         room.Participants.Remove(targetParticipant);
         
         foreach (var connectionId in targetParticipant.ConnectionIds)
         {
             await Groups.RemoveFromGroupAsync(connectionId, roomId);
-        }
-        
-        await Clients.Group(roomId).SendAsync("UserKicked", roomId, targetUserId);
-        UserStatus[userId] = EUserOnlineStatus.Online;
-        if (UserConnections.TryGetValue(targetUserId, out var connections))
-        {
-            foreach (var connectionId in connections)
-            {
-                await Clients.Client(connectionId).SendAsync("YouWereKicked", roomId);
-            }
         }
     }
     
@@ -250,7 +216,11 @@ public class EchoHub : Hub
         {
             throw new HubException("Unauthorized");
         }
-        
+        await _leaveRoom(userId, roomId).ConfigureAwait(false);
+    }
+
+    private async Task _leaveRoom(int userId, string roomId)
+    {
         if (!Rooms.TryGetValue(roomId, out var room))
         {
             return; 
@@ -380,6 +350,17 @@ public class EchoHub : Hub
         await Clients.OthersInGroup(roomId).SendAsync("ReceiveTimeSync", currentTime, userId);
     }
 
+    public async Task SendEvent(int userId, string action)
+    {
+        if (UserConnections.TryGetValue(userId, out var connections))
+        {
+            foreach (var connectionId in connections.Where(s => !string.IsNullOrEmpty(s)))
+            {
+                await Clients.Client(connectionId).SendAsync("ReceiveEvent", action);
+            }
+        }
+    }
+    
     // CONNECTION LIFETIME METHODS
     
     public override async Task OnConnectedAsync()
@@ -434,28 +415,27 @@ public class EchoHub : Hub
             foreach (var room in Rooms.Values)
             {
                 var participant = room.Participants.FirstOrDefault(p => p.UserId == userId);
-                if (participant != null)
-                {
-                    participant.ConnectionIds.Remove(Context.ConnectionId);
+                if (participant == null) continue;
+                
+                participant.ConnectionIds.Remove(Context.ConnectionId);
                     
-                    if (participant.ConnectionIds.Count == 0 && participant.Role == ERoomRole.Master)
+                if (participant.Role == ERoomRole.Master)
+                {
+                    // If the master disconnects, remove the room
+                    if (Rooms.TryRemove(room.RoomId, out _))
                     {
-                        var newMaster = room.Participants
-                            .FirstOrDefault(p => p.UserId != userId && p.Role == ERoomRole.Member 
-                                              && p.ConnectionIds.Count > 0);
-                        
-                        if (newMaster != null)
-                        {
-                            newMaster.Role = ERoomRole.Master;
-                            room.MasterId = newMaster.UserId;
-                            
-                            await Clients.Group(room.RoomId).SendAsync("NewRoomMaster", room.RoomId, newMaster.UserId);
-                        }
-                        else
-                        {
-
-                        }
+                        await Clients.Group(room.RoomId).SendAsync("RoomClosed", room.RoomId);
                     }
+
+                    break;
+                }
+                
+                if (participant.ConnectionIds.Count == 0)
+                {
+                    await Groups.RemoveFromGroupAsync(Context.ConnectionId, room.RoomId);
+                    room.Participants.Remove(participant);
+                    // If a member disconnects, notify others in the room
+                    await Clients.Group(room.RoomId).SendAsync("UserLeftRoom", room.RoomId, userId);
                 }
             }
         }
@@ -463,7 +443,7 @@ public class EchoHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
     
-    public async Task SendRoomMessage(string roomId, string message)
+    public async Task SendRoomEvent(string roomId, string type, object param)
     {
         if (!JwtService.GetUserIdFromHubContext(Context, out var userId))
         {
@@ -481,6 +461,17 @@ public class EchoHub : Hub
             throw new HubException("You are not a member of this room");
         }
         
-        await Clients.Group(roomId).SendAsync("RoomMessage", roomId, userId, message, DateTime.UtcNow);
+        foreach (var p in room.Participants)
+        {
+            if (p.UserId == userId)
+            {
+                continue; // skip self
+            }
+
+            foreach (var connectionId in p.ConnectionIds.Where(connectionId => !string.IsNullOrEmpty(connectionId)))
+            {
+                await Clients.Client(connectionId).SendAsync("RoomEvent", type, param);
+            }
+        }
     }
 }

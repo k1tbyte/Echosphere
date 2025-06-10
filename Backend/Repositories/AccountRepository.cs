@@ -57,7 +57,15 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
             await context.Users.AnyAsync(o => o.Email == user.Email))
             return null;
         
-        var addedUser = await context.Users.AddAsync(user).ConfigureAwait(false);
+        
+        var addedUser = await Set.AddAsync(new User()
+        {
+            Email = user.Email,
+            Username = user.Username,
+            Password = user.Password,
+            JoinedAt = user.JoinedAt,
+            PasswordSalt = user.PasswordSalt
+        }).ConfigureAwait(false);
         //We need to save to get the ID
         await context.SaveChangesAsync().ConfigureAwait(false);
         
