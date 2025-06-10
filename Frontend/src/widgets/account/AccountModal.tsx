@@ -34,9 +34,9 @@ export const AccountModal: FC = () => {
 
     useEffect(() => {
         if (user?.avatar) {
-            localStorage.setItem("avatar", user.avatar);
+            UsersService.storeUserAvatarUrl(user);
         }
-    }, [user?.avatar]);
+    }, [user]);
 
     const handleUploadAvatar = (f: File) => {
         if(isAvatarUploading) {
@@ -154,6 +154,7 @@ export const AccountModal: FC = () => {
         </div>;
     }
 
+    console.log(user)
     return (
         <div ref={contentRef} className="flex flex-col">
             <TabPanel

@@ -64,7 +64,7 @@ const UserProfileModal: FC<IUserProfileModalProps> = ({ userId }) => {
                 <h3 className="text-lg font-medium">Friends</h3>
                 {friends && friends.length > 0 ? (
                     <ScrollArea className="max-h-[400px] rounded-md border">
-                        <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-4 p-3">
                             {friends.map(friend => (
                                 <div key={friend.id} className="flex items-center gap-3">
                                     <Image
