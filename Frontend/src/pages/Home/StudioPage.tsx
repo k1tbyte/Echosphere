@@ -19,6 +19,7 @@ import {useVideosStore} from "@/store/videoStore";
 import {VideoSettingsSection} from "@/pages/Home/ui/VideoSettingsSection";
 import {PlyrSource, PlyrPlayer, PlyrInstance} from "@/widgets/player";
 import {Switch} from "@/shared/ui/Switch";
+import {useTitle} from "@/widgets/player/hooks/useTitle";
 
 export type TypeQuality = { value: string; label: string }[];
 const QUALITIES = [
@@ -118,6 +119,7 @@ export const StudioPage = () => {
     const notificationsStore = useNotificationsStore();
     const isLocalVideo = !!videoProps?.file;
     const schema = store.schema;
+    useTitle("Studio")
 
     useEffect(() => {
         if (!videoProps) {

@@ -15,6 +15,8 @@ import {EIcon, SvgIcon} from "@/shared/ui/Icon";
 import {clsx} from "clsx";
 import {FriendCard} from "@/pages/Friends/ui/FriendCard";
 import {Lobby} from "@/pages/Friends/ui/Lobby";
+import {useFriends} from "@/shared/hooks/useFriends";
+import {useTitle} from "@/widgets/player/hooks/useTitle";
 
 export const FriendsPage = () => {
     const [usersOffset, setUsersOffset] = useState(0);
@@ -24,6 +26,7 @@ export const FriendsPage = () => {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const filterRef = useRef<string>("");
     const [searchValue, setSearchValue] = useState("");
+    useTitle("Friends")
     
     const { data: session, status } = useSession({ required: true });
     
@@ -43,10 +46,7 @@ export const FriendsPage = () => {
         })
     );
     
-    const { data: friends, isLoading: isFriendsLoading } = useSWR(
-        session?.user.id ? `friends-${session.user.id}` : null, 
-        () => UsersService.getFriends(Number(session?.user.id))
-    );
+    const { data: friends, isLoading: isFriendsLoading } = useFriends(session?.user.id, true);
 
     // Update users list when new data is received
     useEffect(() => {
@@ -106,7 +106,7 @@ export const FriendsPage = () => {
                     Lobby
                 </Label>
                 <Separator className="my-2"/>
-                <Lobby friends={friends} userId={Number(session!.user.id)}/>
+                <Lobby/>
             </div>
             <div className="flex-1 mt-8 md:mt-0">
                 <Label className="text-xl">
@@ -138,7 +138,7 @@ export const FriendsPage = () => {
                             {allUsers.map(o => (
                                 <FriendCard
                                     key={o.id}
-                                    friends={friends}
+                                    friends={friends?.overall}
                                     user={o}
                                     userId={Number(session!.user.id)}
                                 />

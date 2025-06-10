@@ -45,7 +45,7 @@ const UserProfileModal: FC<IUserProfileModalProps> = ({ userId }) => {
 
     return (
         <div ref={contentRef} className="flex flex-col gap-3 ">
-            <div className="flex gap-4">
+            <div className="flex gap-4 p-3">
                 <Image
                     src={UsersService.getUserAvatarUrl(user, true)!}
                     alt={user.username}

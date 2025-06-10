@@ -1,38 +1,30 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { IVideoObject, VideosService, EVideoProvider } from "@/shared/services/videosService";
-import { PlyrPlayer, PlyrOptions } from "@/widgets/player";
-import { Spinner } from "@/shared/ui/Loader";
-import { Badge } from "@/shared/ui/Badge";
-import { Label } from "@/shared/ui/Label";
-import {
-    formatDuration,
-    formatDurationExtended,
-    formatFileSize,
-    formatTimeAgoPrecise,
-    getVideoQuality
-} from "@/shared/lib/formatters";
+import React, {useEffect, useState, useCallback } from 'react';
+import {useParams, useRouter} from 'next/navigation';
+import {EVideoProvider, IVideoObject, VideosService} from "@/shared/services/videosService";
+import {Spinner} from "@/shared/ui/Loader";
+import {Badge} from "@/shared/ui/Badge";
+import {Label} from "@/shared/ui/Label";
+import {formatDurationExtended, formatFileSize, formatTimeAgoPrecise, getVideoQuality} from "@/shared/lib/formatters";
 import Image from "next/image";
-import { UsersService } from "@/shared/services/usersService";
-import { openUserProfileModal } from "@/widgets/modals/UserProfileModal";
-import { EIcon, SvgIcon } from "@/shared/ui/Icon";
-import { Separator } from "@/shared/ui/Separator";
-import { ThumbsUp, Eye, Trash2, MinimizeIcon } from "lucide-react";
-import { useSession } from "next-auth/react";
-import { EUserRole } from "@/types/user-role";
-import { useBreadcrumbs } from "@/store/uiMetaStore";
-import { openConfirmationModal } from "@/widgets/modals/ConfirmationModal";
-import { toast, ToastVariant } from "@/shared/ui/Toast";
-import { Button } from "@/shared/ui/Button";
-import { useVideoPlayerStore } from "@/store/videoPlayerStore";
-
-const providers = [
-    "local",
-    "youtube",
-    "vimeo"
-] as const;
+import {UsersService} from "@/shared/services/usersService";
+import {openUserProfileModal} from "@/widgets/modals/UserProfileModal";
+import {Separator} from "@/shared/ui/Separator";
+import {Eye, ThumbsUp, Trash2} from "lucide-react";
+import {useSession} from "next-auth/react";
+import {EUserRole} from "@/types/user-role";
+import {useBreadcrumbs} from "@/store/uiMetaStore";
+import {openConfirmationModal} from "@/widgets/modals/ConfirmationModal";
+import {toast, ToastVariant} from "@/shared/ui/Toast";
+import {Button} from "@/shared/ui/Button";
+import {AppPlayer} from "@/pages/Video/AppPlayer";
+import {useEcho} from "@/providers/EchoProvider";
+import {useRoomStore} from "@/store/roomStore";
+import {ERoomEventType, TypeRoomEventCallback} from "@/shared/services/echoHubService";
+import {PlyrInstance} from "@/widgets/player";
+import {Head} from "@react-email/components";
+import {useTitle} from "@/widgets/player/hooks/useTitle";
 
 // Define type for PlyrSource including title property
 // This can be removed since we've updated the types in index.ts
@@ -40,25 +32,48 @@ const providers = [
     title?: string;
 }*/
 
+let eventTimerId = 0;
+
 export const VideoPage = () => {
     const params = useParams();
     const router = useRouter();
-    const { data: session } = useSession();
+    const { data: session, status } = useSession({ required: true });
     const { setBreadcrumbs } = useBreadcrumbs();
     const [video, setVideo] = useState<IVideoObject>();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string>();
+    const echo = useEcho();
+    const roomStore = useRoomStore();
+    const hub = echo?.echoHub;
+    const initialized = React.useRef(false);
+    const eventTimerIdRef = React.useRef<number>(0);
+    const lockerRef = React.useRef(false)
+    const playerRef = React.useRef<PlyrInstance | undefined | null>(null);
 
-    // Get player state from store
-    const { 
-        videoId: storedVideoId, 
-        source: storedSource, 
-        currentTime, 
-        setVideoData, 
-        setFloating, 
-        setPlayerInstance,
-        syncPlayerState
-    } = useVideoPlayerStore();
+    const sendEcho = () => {
+        if(lockerRef.current) {
+            return;
+        }
+
+        lockerRef.current = true;
+        hub!.sendRoomEvent(roomStore.roomId, ERoomEventType.VideoStateChange, {
+            currentTime: playerRef.current.currentTime,
+            isPlaying: playerRef.current.playing,
+            videoId: video?.id,
+            speed: playerRef.current.speed
+        }).finally(() => lockerRef.current = false);
+    }
+
+    const onReady = useCallback((player: PlyrInstance) => {
+        playerRef.current = player;
+
+        if (roomStore.roomId && (roomStore.isRoomOwner || roomStore.ownerId === session?.user.id)) {
+            player.on('play', () => sendEcho())
+            player.on('pause', () => sendEcho())
+            player.on('seeked', () => sendEcho())
+        }
+    },[]);
+
 
     useEffect(() => {
         const loadVideo = async () => {
@@ -96,12 +111,122 @@ export const VideoPage = () => {
         };
     }, [params?.id, setBreadcrumbs]);
 
+    useTitle(video?.title)
+
     // Clear breadcrumbs when navigating away
     useEffect(() => {
         return () => {
             setBreadcrumbs([]);
         };
     }, [setBreadcrumbs]);
+
+    useEffect(() => {
+        if(!hub || !session?.user || !video?.id) return;
+
+        if(roomStore.isRoomOwner || roomStore.ownerId === session.user.id) {
+            window.clearTimeout(eventTimerId);
+            eventTimerId = window.setTimeout(() => {
+                initialized.current = true;
+                hub.sendRoomEvent(roomStore.roomId, ERoomEventType.VideoOpen, {
+                    id: video?.id,
+                    title: video.title
+                })
+
+
+                window.clearInterval(eventTimerIdRef.current);
+                eventTimerIdRef.current = window.setInterval(() => {
+                    const player = playerRef.current;
+                    if(!player) {
+                        return;
+                    }
+                    sendEcho();
+                }, 1500);
+
+            }, 300); // Debounce to avoid sending too many events in a short time
+        }
+    }, [roomStore, hub, status, video,]);
+
+    useEffect(() => {
+        if(!hub) return;
+
+        const handleRoomEvent = (data: TypeRoomEventCallback) => {
+            const player = playerRef.current;
+            if(!player) {
+                return;
+            }
+
+            if(data.action === ERoomEventType.VideoStateChange) {
+                if(player.playing !== data.param.isPlaying) {
+                    if(data.param.isPlaying) {
+                        console.log("Playing video from room event");
+                        player.play();
+                    } else {
+                        console.log("Pausing video from room event");
+                        player.pause();
+                    }
+                }
+
+                const timeDiff = Math.abs(player.currentTime - data.param.currentTime);
+                if(timeDiff > 0.5 || isNaN(player.currentTime)) {
+                    console.log("Seeking video to", data.param.currentTime);
+                    player.currentTime = data.param.currentTime;
+                }
+                if(player.speed !== data.param.speed) {
+                    console.log("Changing video speed to", data.param.speed);
+                    player.speed = data.param.speed;
+                }
+            }
+        }
+
+        hub.OnRoomEvent.subscribe(handleRoomEvent);
+        return () => {
+            hub.OnRoomEvent.unsubscribe(handleRoomEvent);
+        }
+    }, [echo?.state]);
+
+    useEffect(() => {
+        return () => {
+            if(initialized.current) {
+                hub?.sendRoomEvent(roomStore.roomId, ERoomEventType.VideoClose, {
+                    id: video?.id,
+                    isVideoPublic: video?.isPublic
+                })
+            }
+            window.clearTimeout(eventTimerId);
+            window.clearInterval(eventTimerIdRef.current);
+        }
+    }, [video]);
+
+    useEffect(() => {
+       if(!video) {
+           return;
+       }
+
+       if(roomStore.currentVideo === undefined || (video.id === roomStore.currentVideo?.id && !roomStore.currentVideo.onPage)) {
+           roomStore.setCurrentVideo({
+               onPage: true,
+               title: video.title,
+               id: video.id
+           })
+       }
+
+       return () => {
+
+           if(roomStore.currentVideo?.onPage) {
+               setTimeout(() => {
+                   if(!roomStore.currentVideo) {
+                       return;
+                   }
+
+                   roomStore.setCurrentVideo( initialized.current ? null : {
+                       onPage: false,
+                       title: video.title,
+                       id: video.id
+                   })
+               }, 200)
+           }
+       }
+    },[video])
 
     const canDelete = session && (
         session.user.role === EUserRole.Admin || 
@@ -128,49 +253,8 @@ export const VideoPage = () => {
         });
     };
 
-    // Handle player ready
-    const handlePlayerReady = (player: any) => {
-        setPlayerInstance(player);
-        
-        // If we have a stored time position, set it
-        if (storedVideoId === params?.id && currentTime > 0) {
-            player.currentTime = currentTime;
-        }
-    };
 
-    // Handle minimize button click to enter floating mode
-    const handleMinimize = () => {
-        if (!video) return;
-        
-        // Save current player state before minimizing
-        syncPlayerState();
-        
-        // Activate floating mode with current video
-        setFloating(true);
-        
-        // Navigate back to home or previous page
-        router.back();
-    };
-
-    // Update video data in store whenever the video changes
-    useEffect(() => {
-        if (!video) return;
-        
-        const videoSource = {
-            type: "video" as const,
-            sources: [video.provider === EVideoProvider.Local ? {
-                src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/master.m3u8`,
-                type: "application/x-mpegURL",
-            } : {
-                src: video.videoUrl!, // id actually
-                provider: providers[video.provider]
-            }]
-        };
-        
-        setVideoData(video.id, videoSource, { title: video.title });
-    }, [video, setVideoData]);
-
-    if (isLoading) {
+    if (isLoading || status !== "authenticated") {
         return (
             <div className="flex-center py-8">
                 <Spinner />
@@ -193,45 +277,16 @@ export const VideoPage = () => {
 
     const quality = video.settings?.adaptive?.qualities[0] && getVideoQuality(video.settings.adaptive.qualities[0].height);
 
+
     return (
         <div className="container py-6 max-w-7xl mx-auto">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Video Player Section */}
                 <div className="lg:col-span-2">
-                    <div className="relative">
-                        <PlyrPlayer
-                            source={{
-                                type: "video" as const,
-                                sources: [video.provider === EVideoProvider.Local ? {
-                                    src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/master.m3u8`,
-                                    type: "application/x-mpegURL",
-                                } : {
-                                    src: video.videoUrl!, // id actually
-                                    provider: providers[video.provider]
-                                }]
-                            }}
-                            options={{
-                                controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
-                                settings: ['captions', 'quality', 'speed'],
-                                previewThumbnails: video.provider === EVideoProvider.Local ? {
-                                    src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/thumbnails.vtt`,
-                                    enabled: video.settings?.thumbnailsCaptureInterval! > 0
-                                } : {},
-                                title: video.title
-                            }}
-                            onReady={handlePlayerReady}
-                            className="border-border border rounded-lg"
-                        />
-                        <Button 
-                            variant="secondary" 
-                            size="sm" 
-                            className="absolute top-2 right-2 opacity-60 hover:opacity-100"
-                            onClick={handleMinimize}
-                        >
-                            <MinimizeIcon size={16} className="mr-1" />
-                            Minimize
-                        </Button>
-                    </div>
+                    <AppPlayer video={video} onReady={onReady}
+                               withFloating={!roomStore.roomId}
+                               controlled={!roomStore.roomId ||
+                        (roomStore.roomId && (roomStore.isRoomOwner || roomStore.ownerId === session?.user.id))}/>
 
                     {/* Video Info */}
                     <div className="mt-4">

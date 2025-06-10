@@ -122,7 +122,7 @@ export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
     };
 
     return (
-        <div ref={containerRef} onClick={handleClick} className="flex flex-col bg-background/50 rounded-md border hover:bg-secondary/30 transition-all hover:scale-105 hover:z-10 cursor-pointer">
+        <div ref={containerRef} className="flex flex-col bg-background/50 rounded-md border hover:bg-secondary/30 transition-all hover:scale-105 hover:z-10 cursor-pointer">
             <div className="relative w-full aspect-video border-b rounded-t-lg overflow-hidden">
                 {withPlayer ?
                     <PlyrPlayer
@@ -148,7 +148,10 @@ export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
                                 enabled: video.settings?.thumbnailsCaptureInterval! > 0
                             }
                         }}
-                    /> : getCoverFromStatus(video)
+                    /> :
+                    <div onClick={handleClick} className="w-full h-full relative">
+                        {getCoverFromStatus(video)}
+                    </div>
                 }
 
                 { !withPlayer &&

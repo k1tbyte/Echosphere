@@ -12,6 +12,7 @@ import {VideoCard, VideoCardWithContext} from "@/widgets/video/VideoCard";
 import {videoSortOptions} from "@/shared/constants/sortOptions";
 import {useSession} from "next-auth/react";
 import {EUserRole} from "@/types/user-role";
+import {useTitle} from "@/widgets/player/hooks/useTitle";
 
 export const VideosPage = () => {
     const [offset, setOffset] = useState(0);
@@ -24,6 +25,7 @@ export const VideosPage = () => {
     const [orderBy, setOrderBy] = useState<string>("CreatedAt");
     const [orderByDescending, setOrderByDescending] = useState(true);
     const {data: session, status} = useSession({ required: true });
+    useTitle("Videos")
 
     const resetPagination = () => {
         setOffset(0);

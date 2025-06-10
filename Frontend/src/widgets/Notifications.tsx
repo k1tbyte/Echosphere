@@ -13,6 +13,8 @@ import Image from "next/image";
 import {Badge} from "@/shared/ui/Badge";
 import {Spinner} from "@/shared/ui/Loader";
 import {toast, ToastVariant} from "@/shared/ui/Toast";
+import {useEcho} from "@/providers/EchoProvider";
+import {EchoHubService, EGlobalEventType, TypeGlobalEventCallback} from "@/shared/services/echoHubService";
 
 const defaultIcons = {
     info: <SvgIcon icon={EIcon.InfoCircleOutline} className="fill-foreground shrink-0" size={30}/>,
@@ -84,7 +86,7 @@ const Notification: FC<AppNotification> = ({ title, type, message, id, progressC
     )
 }
 
-const FriendshipNotification: FC<{ user: IUserSimpleDTO, userId: number }> = ({ user, userId }) => {
+const FriendshipNotification: FC<{ user: IUserSimpleDTO, userId: number, hub: EchoHubService }> = ({ user, userId, hub }) => {
     const removeNotification = useNotificationsStore((state) => state.removeNotification);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -94,6 +96,8 @@ const FriendshipNotification: FC<{ user: IUserSimpleDTO, userId: number }> = ({ 
             removeNotification("friendship-" + user.id.toString());
             toast.open({ variant: ToastVariant.Success, body: "You and " + user.username + " are now friends!" });
         }).finally(() => setIsLoading(false))
+        hub.sendEvent(user.id, EGlobalEventType.FriendsUpdate);
+        hub.sendEvent(userId, EGlobalEventType.FriendsUpdate);
     }
 
     const declineFriendship = () => {
@@ -101,12 +105,16 @@ const FriendshipNotification: FC<{ user: IUserSimpleDTO, userId: number }> = ({ 
         UsersService.deleteFriendship(userId, user.id).then(() => {
             removeNotification("friendship-" + user.id.toString());
         }).finally(() => setIsLoading(false))
+        hub.sendEvent(user.id, EGlobalEventType.FriendsUpdate);
     }
 
     return (
         <div className="flex gap-3">
-            <Image src={UsersService.getUserAvatarUrl(user, true)!} alt={user.username}
-                height={20} width={60} className={"border border-border rounded-md"}/>
+            <div>
+                <Image src={UsersService.getUserAvatarUrl(user, true)!} alt={user.username}
+                       height={20} width={60} className={"border border-border rounded-md"}/>
+            </div>
+
             <div className="text-xs w-full">
                 <Badge variant={"outline"} className="mr-2">
                     {user.username}
@@ -134,10 +142,13 @@ const FriendshipNotification: FC<{ user: IUserSimpleDTO, userId: number }> = ({ 
 }
 
 export const Notifications = () => {
-    const notifications = useNotificationsStore((state) => state.notifications);
+    const notificationsStore = useNotificationsStore();
     const clearNotifications = useNotificationsStore((state) => state.clearNotifications);
     const addNotification = useNotificationsStore((state) => state.addNotification);
+    const notifications = notificationsStore.notifications
     const notificationsCount = notifications.filter(n => !n.nonClosable).length;
+    const echoHub = useEcho();
+    const [forceUpdate, setForceUpdate] = useState(false);
 
     useEffect(() => {
         const session = getSession().then(async (o) => {
@@ -145,15 +156,33 @@ export const Notifications = () => {
                 return;
             }
             const result = await UsersService.getPendingFriendships(Number(o.user.id));
+            let friendRequests: AppNotification[] = [];
+          //  notificationsStore
             for (const user of result) {
-                addNotification({
+                friendRequests.push({
                     title: `New friend request`,
                     type: "info",
-                    message: <FriendshipNotification user={user} userId={Number(o.user.id)}/>,
-                }, "friendship-" + user.id.toString());
+                    timestamp: Date.now(),
+                    message: <FriendshipNotification hub={echoHub?.echoHub!} user={user} userId={Number(o.user.id)}/>,
+                    id: "friendship-" + user.id.toString(),
+                });
             }
+            notificationsStore.setNotifications(
+                notifications.filter(n => !n.id.startsWith("friendship-")).concat(friendRequests)
+            );
         })
-    }, []);
+
+        const onNotificationsUpdate = (data: TypeGlobalEventCallback) => {
+            if(data.action === EGlobalEventType.FriendsUpdate) {
+                setForceUpdate(prev => !prev);
+            }
+        };
+
+        echoHub?.echoHub?.OnReceiveEvent.subscribe(onNotificationsUpdate);
+        return () => {
+            echoHub?.echoHub?.OnReceiveEvent.unsubscribe(onNotificationsUpdate);
+        }
+    }, [forceUpdate]);
 
     return (
         <Popover>

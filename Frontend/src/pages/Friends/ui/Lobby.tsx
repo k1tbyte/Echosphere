@@ -2,30 +2,40 @@
 
 import {Badge} from "@/shared/ui/Badge";
 import {Button} from "@/shared/ui/Button";
-import {FC, useEffect, useState} from "react";
-import {EUserOnlineStatus, IFriendObjectMap, IUserSimpleDTO, UsersService} from "@/shared/services/usersService";
+import React, {FC, useEffect, useState} from "react";
+import {
+    EUserOnlineStatus,
+    IFriendObject,
+    IFriendObjectMap,
+    IUserSimpleDTO,
+    UsersService
+} from "@/shared/services/usersService";
 import {useRoomStore} from "@/store/roomStore";
 import {HubState, useEcho} from "@/providers/EchoProvider";
 import {Spinner} from "@/shared/ui/Loader";
 import {toast, ToastVariant} from "@/shared/ui/Toast";
-import {Copy} from "lucide-react";
+import {Copy, Crown } from "lucide-react";
 import {Label} from "@/shared/ui/Label";
 import {Separator} from "@/shared/ui/Separator";
 import Image from "next/image";
 import useSWR from "swr";
+import {useFriends} from "@/shared/hooks/useFriends";
+import {useSession} from "next-auth/react";
+import {ERoomRole, IParticipant} from "@/shared/services/echoHubService";
+import {cn} from "@/shared/lib/utils";
+import {useRouter} from "next/navigation";
 
-interface ILobbyProps {
-    friends: IFriendObjectMap | undefined;
-    userId: number;
-}
 
 interface ILobbyMemberProps {
     id: number;
     user?: IUserSimpleDTO;
-    onInvite?: (userId: number) => void;
+    participant?: IParticipant;
+    // @ts-ignore
+    onInvite?: (event: MouseEvent<HTMLButtonElement, MouseEvent> , userId: number) => void;
+    onKick?: (userId: number) => void;
 }
 
-const LobbyMember: FC<ILobbyMemberProps> = ({ id, user, onInvite }) => {
+const LobbyMember: FC<ILobbyMemberProps> = ({ id, user, participant, onInvite, onKick }) => {
     const { data, isLoading } = useSWR(`user-${id}`, () => {
         if(user) {
             return user;
@@ -40,8 +50,8 @@ const LobbyMember: FC<ILobbyMemberProps> = ({ id, user, onInvite }) => {
         );
     }
     return (
-        <div className="flex flex-y-center gap-2 mt-1 border-b pb-2 justify-between">
-            <div className="flex flex-y-center gap-2">
+        <div className="flex-y-center gap-2 mt-1 border-b pb-2 justify-between">
+            <div className="flex flex-y-center gap-2 w-full">
                 <div className="w-8 h-8 relative shrink-0">
                     <Image
                         src={UsersService.getUserAvatarUrl(data,true)!}
@@ -50,17 +60,31 @@ const LobbyMember: FC<ILobbyMemberProps> = ({ id, user, onInvite }) => {
                         className="rounded-full"
                     />
                     {/* @ts-ignore */}
-                    {data.onlineStatus === EUserOnlineStatus.Online &&
+                    {data.onlineStatus >= EUserOnlineStatus.Online &&
                         <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border border-secondary"/>
                     }
                 </div>
-                <Label className="text-sm text-wrap">
-                    {data.username}
-                </Label>
+                <div className="flex-y-center gap-1">
+                    { participant?.role === ERoomRole.Master &&
+                        <Crown className="text-amber-400" size={18} />
+                    }
+                    <Label className={cn("text-sm text-wrap", { "text-amber-400": participant?.role === ERoomRole.Master })}>
+                        {data.username}
+                    </Label>
+                </div>
+                { onKick &&
+                    <div className="w-full flex-y-center justify-end">
+                        <Button size={"auto"} className={"px-2 rounded py-0.5"} variant={"destructive"} onClick={() => onKick(id)}>
+                            Kick
+                        </Button>
+                    </div>
+                }
             </div>
 
             { onInvite && (
-                <Button className="px-3 py-0.5 rounded-sm" variant={"default"} size="auto">
+                <Button className="px-3 py-0.5 rounded-sm" variant={"default"} size="auto" onClick={(e) => {
+                    onInvite(e, id);
+                }}>
                     Invite
                 </Button>
             )
@@ -69,16 +93,22 @@ const LobbyMember: FC<ILobbyMemberProps> = ({ id, user, onInvite }) => {
     );
 }
 
-export const Lobby: FC<ILobbyProps> = ({ friends, userId }) => {
+export const Lobby: FC = () => {
     const roomStore = useRoomStore();
+    const { data: session, status } = useSession({ required: true })
     const echoContext = useEcho();
+    const { data, isLoading: isFriendsLoading } = useFriends(session?.user.id)
     const [loading, setLoading] = useState(false);
-    const [friendList, setFriendList] = useState<IFriendObjectMap>(friends ?? new Map());
+    const [friendList, setFriendList] = useState<IFriendObjectMap>(new Map());
+    const router = useRouter();
+
+    const hub = echoContext!.echoHub!;
 
     useEffect(() => {
         if(!echoContext?.echoHub) {
             return;
         }
+
 
         const onOnline = (userId: number) => {
             if(!friendList.has(userId)) {
@@ -118,16 +148,23 @@ export const Lobby: FC<ILobbyProps> = ({ friends, userId }) => {
     }, [echoContext]);
 
     useEffect(() => {
-        setFriendList(friends ?? new Map());
-    }, [friends]);
-
-    useEffect(() => {
         if(loading && roomStore.roomId) {
-            setLoading(false);
+            hub.getRoomParticipants(roomStore.roomId).then((o) => {
+                roomStore.setParticipants(o);
+                setLoading(false);
+            })
         }
     }, [roomStore]);
 
-    if(echoContext?.state !== HubState.Connected || loading) {
+    useEffect(() => {
+        if(!data?.friends) {
+            return;
+        }
+
+        setFriendList(data.overall);
+    }, [data]);
+
+    if(echoContext?.state !== HubState.Connected || loading || isFriendsLoading || status !== "authenticated") {
         return (
             <div className="w-full h-full flex-center flex-col gap-3">
                 <Spinner/>
@@ -139,10 +176,9 @@ export const Lobby: FC<ILobbyProps> = ({ friends, userId }) => {
         );
     }
 
-    const hub = echoContext.echoHub!;
-
     const createLobby = async () => {
         setLoading(true);
+        console.log(roomStore);
         await hub.createRoom()
     }
 
@@ -150,7 +186,7 @@ export const Lobby: FC<ILobbyProps> = ({ friends, userId }) => {
         return (
             <div className="w-full h-full flex-center flex-col">
                 <Badge variant={"outline"} className="p-3 text-center text-sm hover:bg-secondary/40 max-w-[400px]">
-                    { friends?.size !== 0 ?
+                    { data?.friends?.length !== 0 ?
                         <span className="pointer-events-none">
                             Create lobby and invite your friends over to watch the video together!
                         </span>
@@ -161,7 +197,7 @@ export const Lobby: FC<ILobbyProps> = ({ friends, userId }) => {
                     }
 
                 </Badge>
-                { friends?.size !== 0 &&
+                { data?.friends?.length !== 0 &&
                     <Button className={"mt-3 w-full max-w-40"} onClick={createLobby}>
                         Create lobby
                     </Button>
@@ -173,14 +209,16 @@ export const Lobby: FC<ILobbyProps> = ({ friends, userId }) => {
     return (
         <div className="w-full h-full flex-col gap-3">
             <div className="bg-secondary/30 p-3 rounded-sm">
-                <div className="flex flex-y-center gap-2">
-                    <Badge variant={"default"} className="text-nowrap">
+                <div className="flex items-center gap-2 w-full">
+                    <Badge variant={"default"} className="text-nowrap flex-none">
                         ID:
                     </Badge>
-                    <Badge variant={"outline"} className="shrink overflow-ellipsis">
-                        {roomStore.roomId}
-                    </Badge>
-                    <Button variant={"ghost"} size={"auto"} onClick={() =>{
+                    <div className="flex-1 min-w-0">
+                        <Badge variant={"outline"} className="w-full block truncate">
+                            {roomStore.roomId}
+                        </Badge>
+                    </div>
+                    <Button variant={"ghost"} size={"auto"} className="flex-none" onClick={() => {
                         navigator.clipboard.writeText(roomStore.roomId!);
                         toast.open({
                             body: "Room ID copied to clipboard!",
@@ -195,42 +233,80 @@ export const Lobby: FC<ILobbyProps> = ({ friends, userId }) => {
             <Label className="text-sm">
                 Members:
                 <small className="ml-1 text-muted-foreground">
-                    ({roomStore.users!.size + 1})
+                    ({roomStore.participants!.length})
                 </small>
             </Label>
 
-            <LobbyMember id={userId}/>
-            { [...roomStore.users.entries()].map(([userId, user]) => {
+            { roomStore.participants.map((p) => {
                 return (
                     <LobbyMember
-                        key={userId}
-                        id={userId}
+                        participant={p}
+                        onKick={(roomStore.ownerId === session!.user.id || roomStore.isRoomOwner) && p.userId != session!.user.id ?
+                            (userId) => {
+                                hub.kickFromRoom(roomStore.roomId!, userId);
+                            } : undefined
+                        }
+                        key={p.userId}
+                        id={p.userId}
                     />
                 )
             })
             }
 
             <div className="my-3"></div>
-            <Label className="text-sm">
-                Friends online:
-            </Label>
             {
                 [...friendList.entries()]
                     .filter(([_, friend]) => {
-                        return friend.user.onlineStatus === EUserOnlineStatus.Online &&
-                            !roomStore.users.has(friend.user.id);
+                        // @ts-ignore
+                        return friend.user.onlineStatus >= EUserOnlineStatus.Online &&
+                            !roomStore.participants.find(o => o.userId === friend.user.id);
                     })
-                    .map(([userId, friend]) => {
+                    .map(([userId, friend], i) => {
                         return (
+                            <React.Fragment key={userId}>
+                                {
+                                    i === 0 &&
+                                    <Label className="text-sm">
+                                        Friends online:
+                                    </Label>
+                                }
                                 <LobbyMember
-                                    key={userId}
                                     id={userId}
                                     user={friend.user}
-                                    onInvite={(i) => console.log("invite ", i)}
+                                    onInvite={(event, userId) => {
+                                        const button = event.target as HTMLButtonElement;
+                                        button.disabled = true;
+                                        button.style.opacity = "0.5";
+                                        hub.inviteToRoom(roomStore.roomId!, userId).finally(() =>
+                                            window.setTimeout(() => {
+                                                button.disabled = false;
+                                                button.style.opacity = "1";
+                                            }, 5000)
+                                        )
+                                    }}
                                 />
-
+                            </React.Fragment>
                         )
                     })
+            }
+
+            { roomStore.currentVideo && !roomStore.currentVideo.onPage &&
+                <div className="w-full flex items-center justify-between border border-border rounded-sm p-2 mt-2">
+                    <div className="flex flex-col text-sm min-w-0 flex-1">
+                        <small>Now watching:</small>
+                        <div className="w-full min-w-0 mt-0.5">
+                            <Badge className="truncate block w-full rounded bg-secondary/50" variant={"secondary"}>
+                                {roomStore.currentVideo.title}
+                            </Badge>
+                        </div>
+                    </div>
+
+                    <Button variant={"success"} size={"auto"} className={"px-3 rounded py-1 flex-none ml-3"} onClick={() => {
+                         router.push("/video/"+roomStore.currentVideo!.id)
+                    }}>
+                        Join
+                    </Button>
+                </div>
             }
 
 

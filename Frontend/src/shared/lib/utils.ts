@@ -21,3 +21,9 @@ export function toBase64(str: string): string {
         (data, byte) => data + String.fromCharCode(byte), ''
     ));
 }
+
+export function isTouchDevice() {
+    return (('ontouchstart' in window) ||
+        (navigator.maxTouchPoints > 0) ||
+        (navigator.msMaxTouchPoints > 0));
+}

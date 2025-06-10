@@ -106,7 +106,7 @@ export class VideosService {
         );
     }
 
-    public static async getVideoById(videoId: string, includeOwner?: boolean = true): Promise<IVideoObject> {
+    public static async getVideoById(videoId: string, includeOwner: boolean = true): Promise<IVideoObject> {
         const url = process.env.NEXT_PUBLIC_API_URL + '/video/getVideo?id=' + videoId + (includeOwner ? '&includeOwner=true' : '');
         const video = await fetcher.exceptJson<IVideoObject>(
             fetcher.getJson(url, null, true)

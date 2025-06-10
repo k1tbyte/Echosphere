@@ -27,6 +27,7 @@ import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} fr
 import {openConfirmationModal} from "@/widgets/modals/ConfirmationModal";
 import {toast, ToastVariant} from "@/shared/ui/Toast";
 import {videoSortOptions} from "@/shared/constants/sortOptions";
+import {useTitle} from "@/widgets/player/hooks/useTitle";
 
 
 /*export const VideoExample = () => {
@@ -70,6 +71,7 @@ export const HomePage = () => {
     const [currentFilter, setCurrentFilter] = React.useState("");
     const [orderBy, setOrderBy] = React.useState<string>("CreatedAt");
     const [orderByDescending, setOrderByDescending] = React.useState(true);
+    useTitle("Home")
 
     const resetPagination = React.useCallback(() => {
         setOffset(0);

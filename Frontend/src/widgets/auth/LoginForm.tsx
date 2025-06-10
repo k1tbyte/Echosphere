@@ -12,6 +12,7 @@ import {useRouter} from 'next/navigation';
 import {toast, ToastVariant} from "@/shared/ui/Toast";
 import {UsersService} from "@/shared/services/usersService";
 import {Checkbox} from "@/shared/ui/Checkbox";
+import {useTitle} from "@/widgets/player/hooks/useTitle";
 
 interface ILoginFormProps extends ComponentPropsWithoutRef<'form'> {
     callbackUrl: string;
@@ -27,6 +28,7 @@ export const LoginForm: FC<ILoginFormProps> = ({ className, callbackUrl }, ...pr
     const [error,setError] = useState("")
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
+    useTitle("Login")
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

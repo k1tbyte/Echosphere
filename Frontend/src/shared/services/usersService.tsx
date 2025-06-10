@@ -4,7 +4,8 @@ import {queryToSearchParams, IQueryParams } from "@/shared/services/queryHelper"
 
 export const enum EUserOnlineStatus {
     Offline = 0,
-    Online = 1
+    Online = 1,
+    InWatchParty = 2,
 }
 
 export interface IUserDTO {
@@ -77,7 +78,7 @@ export class UsersService {
                                    includeSent: boolean = true,
                                    includeReceived: boolean = true,
                                    offset: number = 0,
-                                   limit: number = 50): Promise<IFriendObjectMap> {
+                                   limit: number = 50) {
         const params = new URLSearchParams({
             userId: userId.toString(),
             includeSentRequests: includeSent.toString(),
@@ -110,8 +111,10 @@ export class UsersService {
             });
         });
 
-        return friendsMap;
-
+        return {
+            overall: friendsMap,
+            friends: result.friends,
+        }
     }
 
     public static async sendFriendship(fromId: number, toId: number): Promise<Response> {

@@ -106,6 +106,12 @@ export const usePlyrInstance = ({
         const initPlyr = async () => {
             if (wasInitializedRef.current && !isHlsSource(source)) return;
 
+            const handleOnReady = () => {
+                window.setTimeout(() => {
+                    onReady?.(playerRef.current);
+                }, 100);
+            }
+
             try {
                 // Clearing previous instances
                 if (playerRef.current) {
@@ -158,7 +164,7 @@ export const usePlyrInstance = ({
 
                     wasInitializedRef.current = true;
                     if (onReady) {
-                        playerRef.current.on('ready', () => onReady(playerRef.current))
+                        playerRef.current.on('ready', handleOnReady)
                     }
                     setIsLoaded(true);
 
@@ -232,7 +238,7 @@ export const usePlyrInstance = ({
 
                             // Call onReady only after adding qualities
                             if (onReady) {
-                                playerRef.current.on('ready', () => onReady(playerRef.current))
+                                playerRef.current.on('ready', handleOnReady)
                             }
                             setIsLoaded(true);
                         });
@@ -262,7 +268,7 @@ export const usePlyrInstance = ({
 
                         wasInitializedRef.current = true;
                         if (onReady) {
-                            playerRef.current.on('ready', () => onReady(playerRef.current))
+                            playerRef.current.on('ready', handleOnReady)
                         }
                         setIsLoaded(true);
                     }
@@ -275,9 +281,9 @@ export const usePlyrInstance = ({
                     playerRef.current = new Plyr(element, mergedOptions) as PlyrInstance;
 
                     wasInitializedRef.current = true;
-                    if (onReady) {
+/*                    if (onReady) {
                         onReady(playerRef.current);
-                    }
+                    }*/
                     setIsLoaded(true);
                 }
 

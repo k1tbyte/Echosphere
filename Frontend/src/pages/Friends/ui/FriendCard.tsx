@@ -6,6 +6,8 @@ import {Label} from "@/shared/ui/Label";
 import {Badge} from "@/shared/ui/Badge";
 import {EIcon, SvgIcon} from "@/shared/ui/Icon";
 import {Spinner} from "@/shared/ui/Loader";
+import {useEcho} from "@/providers/EchoProvider";
+import {EGlobalEventType} from "@/shared/services/echoHubService";
 
 export const FriendCard: FC<{user: IUserSimpleDTO, friends: IFriendObjectMap | undefined, userId: number}> = ({ user, friends, userId }) => {
     const friendRef = useRef(friends?.get(user.id));
@@ -13,6 +15,7 @@ export const FriendCard: FC<{user: IUserSimpleDTO, friends: IFriendObjectMap | u
     const [isSentRequest, setIsSentRequest] = useState(friendRef.current?.isSentRequest || false);
     const [isReceivedRequest, setIsReceivedRequest] = useState(friendRef.current?.isReceivedRequest || false);
     const [isLoading, setIsLoading] = useState(false);
+    const echoHub = useEcho();
 
     const removeFriend = async () => {
         setIsLoading(true);
@@ -23,6 +26,8 @@ export const FriendCard: FC<{user: IUserSimpleDTO, friends: IFriendObjectMap | u
         }).finally(() => {
             setIsLoading(false);
         })
+        echoHub?.echoHub?.sendEvent(user.id!, EGlobalEventType.FriendsUpdate);
+        echoHub?.echoHub?.sendEvent(userId, EGlobalEventType.FriendsUpdate);
     }
 
     const confirmFriendship = async () => {
@@ -34,6 +39,8 @@ export const FriendCard: FC<{user: IUserSimpleDTO, friends: IFriendObjectMap | u
         }).finally(() => {
             setIsLoading(false);
         })
+        echoHub?.echoHub?.sendEvent(user.id!, EGlobalEventType.FriendsUpdate);
+        echoHub?.echoHub?.sendEvent(userId, EGlobalEventType.FriendsUpdate);
     }
 
     const addFriend = async () => {
@@ -45,6 +52,8 @@ export const FriendCard: FC<{user: IUserSimpleDTO, friends: IFriendObjectMap | u
         }).finally(() => {
             setIsLoading(false);
         })
+
+        echoHub?.echoHub?.sendEvent(user.id!, EGlobalEventType.FriendsUpdate);
     }
 
 
@@ -61,7 +70,8 @@ export const FriendCard: FC<{user: IUserSimpleDTO, friends: IFriendObjectMap | u
                 </Label>
 
 
-                { user.onlineStatus === EUserOnlineStatus.Online &&
+                {/* @ts-ignore */}
+                { user.onlineStatus >= EUserOnlineStatus.Online &&
                     <Badge variant={"success"} className="ml-2">
                         <SvgIcon icon={EIcon.CircleFilled} size={10}/>
                         <span className="ml-1">Online</span>

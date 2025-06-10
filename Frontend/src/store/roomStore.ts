@@ -1,33 +1,39 @@
 import {IUserSimpleDTO} from "@/shared/services/usersService";
 import {create} from "zustand";
+import {IParticipant} from "@/shared/services/echoHubService";
+
+type TypeCurrentVideo = {
+    id: string,
+    title: string,
+    onPage: boolean
+}
 
 export interface IRoomState {
     roomId: string | null;
     isRoomOwner: boolean;
+    currentVideo?: TypeCurrentVideo;
     ownerId?: number; // Optional, if you want to track the owner
-    users: Map<number, IUserSimpleDTO>;
+    participants: IParticipant[];
     setRoomId: (roomId: string | null) => void;
     setIsRoomOwner: (isOwner: boolean) => void;
-    setUsers: (users: IUserSimpleDTO[]) => void;
+    setParticipants: (participants: IParticipant[]) => void;
+    setCurrentVideo: (video?: TypeCurrentVideo) => void;
     resetRoom: () => void;
 }
 
 export const useRoomStore = create<IRoomState>((set) => ({
         roomId: null,
         isRoomOwner: false,
-        users: new Map<number, IUserSimpleDTO>(),
+        participants: [],
 
         setRoomId: (roomId: string | null) => set({ roomId }),
+        setCurrentVideo: (video?: TypeCurrentVideo) => set({ currentVideo: video }),
         setIsRoomOwner: (isOwner: boolean) => set({ isRoomOwner: isOwner }),
-        setUsers: (users: IUserSimpleDTO[]) => {
-            const userMap = new Map<number, IUserSimpleDTO>();
-            users.forEach(user => userMap.set(user.id, user));
-            set({ users: userMap });
-        },
+        setParticipants: (participants: IParticipant[]) => set({ participants }),
         resetRoom: () => set({
             roomId: null,
             isRoomOwner: false,
-            users: new Map<number, IUserSimpleDTO>()
+            participants: []
         })
     })
 );

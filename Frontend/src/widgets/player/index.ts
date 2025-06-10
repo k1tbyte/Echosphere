@@ -1,7 +1,7 @@
 import {type CSSProperties, RefObject} from 'react';
 
 import type Plyr from "plyr";
-import { type Options, type SourceInfo, type Track } from "plyr";
+import { type Options, type SourceInfo, type Track, type Provider } from "plyr";
 
 // Re-export the FloatingPlayer component
 export { FloatingPlayer } from './FloatingPlayer';
@@ -14,6 +14,8 @@ export type PlyrSourceInfo = {
 };
 
 export type PlyrTrack = Track;
+
+export type PlyrProvider = Provider;
 
 export type PlyrSource = {
     type: "video" | "audio";

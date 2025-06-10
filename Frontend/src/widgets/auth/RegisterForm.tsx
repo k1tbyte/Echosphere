@@ -9,12 +9,14 @@ import Link from "next/link";
 import {auth} from "@/shared/services/authService";
 import { redirect } from 'next/navigation'
 import {cn} from "@/shared/lib/utils";
+import {useTitle} from "@/widgets/player/hooks/useTitle";
 
 export const RegisterForm: FC<ComponentPropsWithoutRef<'form'>> = ({ className }, ...props) => {
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isConfirmationSent, setIsConfirmationSent] = useState(false);
     const [emailDomain, setEmailDomain] = useState<string | null>(null);
+    useTitle("Sign up")
 
     if(isConfirmationSent) {
         return (

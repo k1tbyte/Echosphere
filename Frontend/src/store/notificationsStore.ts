@@ -17,6 +17,7 @@ export interface NotificationsStore {
     notifications: AppNotification[];
     clearNotifications: () => void;
     addNotification: (notification: Omit<AppNotification, 'id' | 'timestamp'>, id?:string) => string;
+    setNotifications: (notifications: AppNotification[]) => void;
     removeNotification: (id: string) => void;
 }
 
@@ -29,7 +30,7 @@ export const useNotificationsStore = create<NotificationsStore>((set) => ({
         ]
     })),
     addNotification: (notification, id?: string) => {
-        id = id ?? crypto.randomUUID();
+        id = id ? id : notification.id ?? crypto.randomUUID();
         const timestamp = Date.now();
         set((state) => ({
             notifications: [
@@ -41,6 +42,14 @@ export const useNotificationsStore = create<NotificationsStore>((set) => ({
             })
         }));
         return id;
+    },
+    setNotifications: (notifications) => {
+        set({
+            notifications: notifications.sort((a, b) => {
+                // @ts-ignore
+                return b.priority - a.priority || b.timestamp - a.timestamp;
+            })
+        });
     },
 
     removeNotification: (id) => {
