@@ -100,10 +100,10 @@ const handler = NextAuth({
                 try {
                     let refreshPromise: Promise<RefreshSession>;
                     if(refreshingUsers.has(idNumber)) {
-                        console.log("User is already being refreshed",token, idNumber);
+                     //   console.log("User is already being refreshed",token, idNumber);
                         refreshPromise = refreshingUsers.get(idNumber)!;
                     } else {
-                        console.log("Refreshing user with token", token, token.accessExp, Date.now() / 1000);
+                     //   console.log("Refreshing user with token", token, token.accessExp, Date.now() / 1000);
                         refreshPromise =  auth.refreshSession(token.apiRefreshToken, token.apiAccessToken)
                         refreshingUsers.set(idNumber, refreshPromise);
                     }

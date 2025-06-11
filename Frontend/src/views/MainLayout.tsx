@@ -23,7 +23,7 @@ export const MainLayout: FC<IMainLayoutProps> = ({ children, isAuthenticated }) 
                     {children}
                 </main>
             </div>
-            
+
             {/* Floating Player */}
             <FloatingPlayer />
         </div>
