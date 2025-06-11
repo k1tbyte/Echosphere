@@ -76,7 +76,7 @@ public class VideoRepository(AppDbContext context): BaseAsyncCrudRepository<Vide
     public async Task<List<Guid>> GetQueuedVideoIdsAsync()
     {
         return await context.Videos
-            .Where(v => v.Status == EVideoStatus.Queued)
+            .Where(v => v.Status == EVideoStatus.Queued || v.Status == EVideoStatus.Processing)
             .OrderBy(v => v.CreatedAt)
             .Select(v => v.Id)
             .ToListAsync();

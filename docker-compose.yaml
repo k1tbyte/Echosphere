@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: my_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: echosphere
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: echosphere
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    restart: always
+    ports:
+      - "9000:9000"  # S3 API
+      - "9001:9001"  # Web-console
+    environment:
+      MINIO_ROOT_USER: echosphere
+      MINIO_ROOT_PASSWORD: echosphere
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
+  backend:
+    build:
+      context: .
+      dockerfile: ./Backend/Dockerfile
+    container_name: echosphere_backend
+    restart: unless-stopped
+    ports:
+      - "6000:8080"
+      - "6001:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+    env_file:
+      - ./Backend/backend.env
+    depends_on:
+      postgres:
+        condition: service_started
+      minio:
+        condition: service_started
+    volumes:
+      - backend_data:/app/data
+volumes:
+  postgres_data:
+    external: true
+    name: archemperor_postgres_data
+  minio_data:
+  backend_data:

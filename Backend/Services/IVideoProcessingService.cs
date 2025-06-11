@@ -39,3 +39,13 @@ public interface IVideoProcessingService
     public Task ProcessVideoSingleQualityAsync(string inputFilePath, string outputPrefix, VideoSettingsConfig? config = null);
     public Task ProcessVideoMultiQualityAsync(string inputFilePath, string outputPrefix, VideoSettingsConfig? config = null);
 }
+public class VideoProcessingException : Exception
+{
+    public VideoProcessingException() { }
+
+    public VideoProcessingException(string message)
+        : base(message) { }
+
+    public VideoProcessingException(string message, Exception inner)
+        : base(message, inner) { }
+}

@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Runtime.InteropServices;
 using Backend.Data;
 using Backend.Services;
@@ -48,7 +49,7 @@ public class Program
         builder.Services.AddScoped<IVideoRepository,VideoRepository>();
         builder.Services.AddScoped<IPlaylistRepository,PlaylistRepository>();
         builder.Services.AddScoped<IPlaylistVideoRepository,PlaylistVideoRepository>();
-        builder.Services.AddSingleton<EmailService>();
+        /*builder.Services.AddSingleton<EmailService>();*/
         builder.Services.AddAutoMapper(typeof(MappingProfile));
         /*builder.Services.AddSingleton<VideoProcessingWorker>();
         builder.Services.AddHostedService(provider => provider.GetRequiredService<VideoProcessingWorker>());*/
@@ -116,8 +117,7 @@ public class Program
             _app.UseSwaggerUI();
         }
 
-          _app.UseHttpsRedirection();
-
+        _app.UseHttpsRedirection();
         _app.UseRouting();
         _app.UseCors("AllowFrontend");
         _app.UseAuthentication();
@@ -154,54 +154,100 @@ public class Program
         return string.Empty;
     }
     
+    
     private static void MapEnvToConfig(ConfigurationManager configuration)
     {
-        var path = CheckEnvPaths(".env.development.local", ".env.local", ".env");
+        var envDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        
+        LoadEnvFromFile(envDict);
+        
+        LoadEnvFromEnvironment(envDict);
+        
+        ApplyEnvToConfiguration(configuration, envDict);
+    }
 
+    private static void LoadEnvFromFile(Dictionary<string, string> envDict)
+    {
+        var path = CheckEnvPaths(".env.development.local", ".env.local", ".env");
+        
         if (string.IsNullOrEmpty(path))
         {
             return;
         }
         
-        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var text = File.ReadAllText(path);
-        var parts = text
-            .Split('\n')
-            .Where(o => !string.IsNullOrEmpty(o));
-        
-        foreach (var part in parts)
+        try
         {
-            var keyValueIndex = part.IndexOf('=');
-            if (keyValueIndex == -1)
-                continue;
+            var text = File.ReadAllText(path);
+            var lines = text
+                .Split('\n')
+                .Where(line => !string.IsNullOrWhiteSpace(line) && !line.TrimStart().StartsWith('#'));
             
-            var key = part[..keyValueIndex].Trim();
-            var value = part[(keyValueIndex + 1)..].Trim();
-            if (value.StartsWith('\"'))
+            foreach (var line in lines)
             {
-                value = value[1..];
+                var keyValueIndex = line.IndexOf('=');
+                if (keyValueIndex == -1)
+                    continue;
+                
+                var key = line[..keyValueIndex].Trim();
+                var value = line[(keyValueIndex + 1)..].Trim();
+                
+                if (value.StartsWith('"') && value.EndsWith('"') && value.Length > 1)
+                {
+                    value = value[1..^1];
+                }
+                else if (value.StartsWith('\'') && value.EndsWith('\'') && value.Length > 1)
+                {
+                    value = value[1..^1];
+                }
+                
+                envDict[key] = value;
             }
-            if (value.EndsWith('\"'))
-            {
-                value = value[..^1];
-            }
-            dict[key] = value;
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Could not read .env file at {path}: {ex.Message}");
+        }
+    }
 
+    private static void LoadEnvFromEnvironment(Dictionary<string, string> envDict)
+    {
+        var environmentVariables = Environment.GetEnvironmentVariables();
+        
+        foreach (DictionaryEntry envVar in environmentVariables)
+        {
+            var key = envVar.Key?.ToString();
+            var value = envVar.Value?.ToString();
+            
+            if (!string.IsNullOrEmpty(key) && value != null)
+            {
+                envDict[key] = value;
+            }
+        }
+    }
+
+    private static void ApplyEnvToConfiguration(ConfigurationManager configuration, Dictionary<string, string> envDict)
+    {
         foreach (var keyValue in configuration.AsEnumerable())
         {
-            if(keyValue.Value == null)
+            if (keyValue.Value == null)
                 continue;
             
-            Constants.ConfigEnvPlaceholderRegex().Replace(keyValue.Value, match =>
+            var newValue = Constants.ConfigEnvPlaceholderRegex().Replace(keyValue.Value, match =>
             {
-                if (dict.TryGetValue(match.Groups[1].Value, out var value))
+                var placeholderKey = match.Groups[1].Value;
+                
+                if (envDict.TryGetValue(placeholderKey, out var envValue))
                 {
-                    configuration[keyValue.Key] = value;
+                    return envValue;
                 }
-                    
-                return value!;
+                
+                return match.Value;
             });
+            
+            if (newValue != keyValue.Value)
+            {
+                configuration[keyValue.Key] = newValue;
+            }
         }
     }
 

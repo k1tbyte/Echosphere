@@ -16,7 +16,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     private readonly IS3FileService _fileService = fileService;
 
     [HttpPatch]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Update([FromBody] UserUpdateDTO entity)
@@ -81,7 +83,8 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         if (result == null)
             return NotFound();
         JwtService.GetUserRoleFromContext(HttpContext, out var role);
-        if (role == EUserRole.Admin)
+        JwtService.GetUserIdFromHttpContext(HttpContext, out var userId);
+        if (role == EUserRole.Admin || id == userId)
         {
             var userDto = mapper.Map<UserSimplifiedExtendedDTO>(result);
             return Ok(userDto);
@@ -93,19 +96,23 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         }
     }
     [HttpDelete]
-    [RequireRole(EUserRole.Admin)]
+#if !DEBUG
+        [RequireRole(EUserRole.Admin)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id)
     {
-        var success = await accountRepository.DeleteById(id);
+        var success = await accountRepository.WithAutoSave().DeleteById(id);
         if (!success)
             return NotFound();
         return NoContent();
     }
     
     [HttpPost]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> SendFriendship([FromBody] FriendshipRequestDTO dto)
     {
@@ -134,13 +141,15 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpPost]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> AcceptFriendship([FromBody] FriendshipRequestDTO dto)
     {
         try
         {
-            await accountRepository.AcceptFriendshipAsync(dto.UserId, dto.FriendId);
+            await accountRepository.WithAutoSave().AcceptFriendshipAsync(dto.UserId, dto.FriendId);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -155,13 +164,15 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpPost]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RejectFriendship([FromBody] FriendshipRequestDTO dto)
     {
         try
         {
-            await accountRepository.DeleteFriendshipAsync(dto.UserId, dto.FriendId);
+            await accountRepository.WithAutoSave().DeleteFriendshipAsync(dto.UserId, dto.FriendId);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -175,13 +186,15 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpPost]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteFriend([FromBody] FriendshipRequestDTO dto)
     {
         try
         {
-            await accountRepository.DeleteFriendshipAsync(dto.UserId, dto.FriendId);
+            await accountRepository.WithAutoSave().DeleteFriendshipAsync(dto.UserId, dto.FriendId);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -253,7 +266,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpPatch]
-    [RequireRole(EUserRole.Admin)]
+#if !DEBUG
+        [RequireRole(EUserRole.Admin)]
+#endif
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -273,13 +288,15 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
             return NoContent();
         }
         user.Role = dto.NewRole;
-        await accountRepository.Update(user);
+        await accountRepository.WithAutoSave().Update(user);
         return NoContent();
     }
     
     
     [HttpGet]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     public async Task<List<UserSimplifiedDTO>> GetPendingFriends(int userId, bool fromYou = false)
     {
@@ -287,7 +304,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpGet]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFriends(int userId,bool includeSentRequests, bool includeReceivedRequests, int offset=0, int limit=50)
     {
@@ -351,7 +370,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpPost]
-    [RequireRole(EUserRole.User)]
+#if !DEBUG
+        [RequireRole(EUserRole.User)]
+#endif
     [ProducesResponseType( StatusCodes.Status200OK)]
     [ProducesResponseType( StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -372,12 +393,12 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
                 var info= await _fileService.TryGetObjectInfoAsync("avatars", user.Avatar);
                 if (info != null)
                 {
-                    await _fileService.DeleteObjectAsync("avatars", user.Avatar);
+                    await _fileService.DeleteObjectOrFolderAsync("avatars", user.Avatar);
                 }
             }
             await _fileService.PutObjectAsync(Request.Body, "avatars", objName, (int)Request.ContentLength.Value);
             user.Avatar = objName;
-            await accountRepository.Update(user);
+            await accountRepository.WithAutoSave().Update(user);
             return NoContent();
         }
         catch (Exception ex)
