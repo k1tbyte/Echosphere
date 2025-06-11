@@ -1,4 +1,6 @@
-import {AuthPage} from "@/pages/AuthPage";
+import {AuthPage} from "@/views/AuthPage";
 
-export default AuthPage;
+export default function Page() {
+  return <AuthPage />;
+}
 
