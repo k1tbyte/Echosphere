@@ -1,9 +1,26 @@
+using System.Collections;
+using System.Runtime.InteropServices;
 using Backend.Data;
+using Backend.Services;
 using Microsoft.AspNetCore.HttpOverrides;
+using System.Text;
+using System.Text.Json;
+using Backend.Data.Entities;
+using Backend.Hubs;
+using Backend.Repositories;
+using Backend.Repositories.Abstraction;
+using Backend.Utils;
+using Backend.Workers;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.IdentityModel.Tokens;
+using Minio;
+using Xabe.FFmpeg;
+using AutoMapper;
 
 namespace Backend;
 
-internal static class Program
+public class Program
 {
     private static WebApplication _app = null!;
     
@@ -15,27 +32,99 @@ internal static class Program
         builder.Services.AddControllers().AddJsonOptions(options =>
         {
             options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+            options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
         });
-        
+
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGen();
+        builder.Services.AddMemoryCache();
+        builder.Services.AddSignalR();
         builder.Services.Configure<RouteOptions>(o => o.LowercaseUrls = true);
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddDbContext<AppDbContext>();
+        builder.Services.AddScoped<JwtService>();
+        builder.Services.AddScoped<IAccountRepository,AccountRepository>();
+        builder.Services.AddScoped<IVideoRepository,VideoRepository>();
+        builder.Services.AddScoped<IPlaylistRepository,PlaylistRepository>();
+        builder.Services.AddScoped<IPlaylistVideoRepository,PlaylistVideoRepository>();
+        /*builder.Services.AddSingleton<EmailService>();*/
+        builder.Services.AddAutoMapper(typeof(MappingProfile));
+        /*builder.Services.AddSingleton<VideoProcessingWorker>();
+        builder.Services.AddHostedService(provider => provider.GetRequiredService<VideoProcessingWorker>());*/
+        builder.Services.AddHostedService<VideoProcessingWorker>();
+        builder.Services.Configure<KestrelServerOptions>(options => {
+            options.ConfigureHttpsDefaults(httpsOptions =>
+            {
+                httpsOptions.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 |
+                                            System.Security.Authentication.SslProtocols.Tls13;
+            });
+    
+            options.ConfigureEndpointDefaults(listenOptions => {
+                listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+            });
+            
+            options.AllowSynchronousIO = true;
+        });
+
+
+        builder.Services.AddSingleton<IMinioClient>(sp =>
+        {
+            var config = builder.Configuration.GetSection("Minio");
+            return new MinioClient()
+                .WithEndpoint(config["Endpoint"].Replace("https://", "").Replace("http://", ""))
+                .WithCredentials(config["Username"], config["Password"])
+                .WithSSL(bool.Parse(config["WithSSL"]))
+                .Build();
+        });
+        builder.Services.AddScoped<IS3FileService, MinioFileService>();
+        builder.Services.AddScoped<IVideoProcessingService, XabeFfmpegService>();
+        
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowFrontend", policy =>
+            {
+                var frontendUrl = builder.Configuration["Frontend:URL"];
+                if (!string.IsNullOrEmpty(frontendUrl))
+                {
+                    policy.WithOrigins(frontendUrl)
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
+                }
+            });
+
+            /*
+            options.AddPolicy("AllowAll", policy =>
+            {
+                policy.AllowAnyHeader()
+                    .AllowAnyMethod().AllowCredentials();
+            });*/
+        });
         
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
+        ConfigureAuthentication(builder);
+        ConfigureFFmpeg(builder.Configuration);
         _app = builder.Build();
 
 // Configure the HTTP request pipeline.
         if (_app.Environment.IsDevelopment())
         {
             _app.MapOpenApi();
+            _app.UseSwagger();
+            _app.UseSwaggerUI();
         }
 
         _app.UseHttpsRedirection();
-
+        _app.UseRouting();
+        _app.UseCors("AllowFrontend");
+        _app.UseAuthentication();
         _app.UseAuthorization();
         _app.MapControllers();
+        _app.MapHub<EchoHub>("/hubs/echo")
+            .RequireAuthorization();
         
         // For reverse proxy support
         _app.UseForwardedHeaders(new ForwardedHeadersOptions
@@ -47,63 +136,177 @@ internal static class Program
         _app.Run();
     }
     
+    private static string CheckEnvPaths(params string[] paths)
+    {
+        foreach (var path in paths)
+        {
+            if (File.Exists(path))
+            {
+                return path;
+            }
+            #if DEBUG
+            if (File.Exists(Path.Combine("../../../", path)))
+            {
+                return Path.Combine("../../../", path);
+            }
+            #endif
+        }
+        return string.Empty;
+    }
+    
+    
     private static void MapEnvToConfig(ConfigurationManager configuration)
     {
-        var path = File.Exists(".env") ? ".env" 
-#if DEBUG
-            : File.Exists("../../../.env") ? "../../../.env" 
-#endif
-            : null;
+        var envDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        
+        LoadEnvFromFile(envDict);
+        
+        LoadEnvFromEnvironment(envDict);
+        
+        ApplyEnvToConfiguration(configuration, envDict);
+    }
 
-        if (path == null)
+    private static void LoadEnvFromFile(Dictionary<string, string> envDict)
+    {
+        var path = CheckEnvPaths(".env.development.local", ".env.local", ".env");
+        
+        if (string.IsNullOrEmpty(path))
         {
             return;
         }
         
-        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var text = File.ReadAllText(path);
-        var parts = text
-            .Split('\n')
-            .Where(o => !string.IsNullOrEmpty(o));
-        
-        foreach (var part in parts)
+        try
         {
-            var keyValueIndex = part.IndexOf('=');
-            if (keyValueIndex == -1)
-                continue;
+            var text = File.ReadAllText(path);
+            var lines = text
+                .Split('\n')
+                .Where(line => !string.IsNullOrWhiteSpace(line) && !line.TrimStart().StartsWith('#'));
             
-            var key = part[..keyValueIndex].Trim();
-            var value = part[(keyValueIndex + 1)..].Trim();
-            if (value.StartsWith('\"'))
+            foreach (var line in lines)
             {
-                value = value[1..];
-            }
-            if (value.EndsWith('\"'))
-            {
-                value = value[..^1];
-            }
-            dict[key] = value;
-        }
-
-        foreach (var keyValue in configuration.AsEnumerable())
-        {
-            if(keyValue.Value == null)
-                continue;
-            
-            Constants.ConfigEnvPlaceholderRegex().Replace(keyValue.Value, match =>
-            {
-                if (dict.TryGetValue(match.Groups[1].Value, out var value))
+                var keyValueIndex = line.IndexOf('=');
+                if (keyValueIndex == -1)
+                    continue;
+                
+                var key = line[..keyValueIndex].Trim();
+                var value = line[(keyValueIndex + 1)..].Trim();
+                
+                if (value.StartsWith('"') && value.EndsWith('"') && value.Length > 1)
                 {
-                    configuration[keyValue.Key] = value;
+                    value = value[1..^1];
                 }
-                    
-                return value!;
-            });
+                else if (value.StartsWith('\'') && value.EndsWith('\'') && value.Length > 1)
+                {
+                    value = value[1..^1];
+                }
+                
+                envDict[key] = value;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Could not read .env file at {path}: {ex.Message}");
         }
     }
 
-    private static void ConfigureAuthStrategy()
+    private static void LoadEnvFromEnvironment(Dictionary<string, string> envDict)
     {
-        // TODO: Implement authentication strategy
+        var environmentVariables = Environment.GetEnvironmentVariables();
+        
+        foreach (DictionaryEntry envVar in environmentVariables)
+        {
+            var key = envVar.Key?.ToString();
+            var value = envVar.Value?.ToString();
+            
+            if (!string.IsNullOrEmpty(key) && value != null)
+            {
+                envDict[key] = value;
+            }
+        }
+    }
+
+    private static void ApplyEnvToConfiguration(ConfigurationManager configuration, Dictionary<string, string> envDict)
+    {
+        foreach (var keyValue in configuration.AsEnumerable())
+        {
+            if (keyValue.Value == null)
+                continue;
+            
+            var newValue = Constants.ConfigEnvPlaceholderRegex().Replace(keyValue.Value, match =>
+            {
+                var placeholderKey = match.Groups[1].Value;
+                
+                if (envDict.TryGetValue(placeholderKey, out var envValue))
+                {
+                    return envValue;
+                }
+                
+                return match.Value;
+            });
+            
+            if (newValue != keyValue.Value)
+            {
+                configuration[keyValue.Key] = newValue;
+            }
+        }
+    }
+
+    private static void ConfigureAuthentication(WebApplicationBuilder builder)
+    {
+        builder.Services.AddAuthentication(o =>
+        {
+            o.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            o.DefaultChallengeScheme    = JwtBearerDefaults.AuthenticationScheme;
+            o.DefaultScheme             = JwtBearerDefaults.AuthenticationScheme;
+        }).AddJwtBearer(o =>
+        {
+            o.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidIssuer              = _app.Configuration["JwtSettings:Issuer"],
+                IssuerSigningKey         = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(_app.Configuration["JwtSettings:Key"]!)),
+                ValidateIssuer           = true,
+                ValidateAudience = false,
+                ValidateIssuerSigningKey = true,
+                ValidateLifetime         = false,
+            };
+            
+            o.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = (context) =>
+                {
+                    var path = context.HttpContext.Request.Path;
+                    if (!path.StartsWithSegments("/hubs"))
+                    {
+                        return Task.CompletedTask; 
+                    }
+
+                    context.Token = context.Request.Query["access_token"];
+                    
+                    if (string.IsNullOrEmpty(context.Token))
+                    {
+                        var authHeader = context.Request.Headers.Authorization.ToString();
+                        if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
+                        {
+                            context.Token = authHeader.Substring("Bearer ".Length);
+                        }
+                    }
+                    
+                    return Task.CompletedTask;
+                }
+            };
+        });
+    }
+
+    private static void ConfigureFFmpeg(ConfigurationManager configuration)
+    {
+        string? ffmpegPath = configuration["ffmpeg:Path"];
+        if (string.IsNullOrEmpty(ffmpegPath))
+        {
+            ffmpegPath = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? "C:\\ffmpeg\\bin"
+                : "/usr/bin";
+        }
+        FFmpeg.SetExecutablesPath(ffmpegPath);
     }
 }

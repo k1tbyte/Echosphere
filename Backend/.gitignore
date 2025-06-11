@@ -1,4 +1,6 @@
 ﻿bin
 obj
 
-.env
+.env*
+!.env.example
+/backend.env
