@@ -1,3 +1,3 @@
-import { StudioPage } from "@/pages/Home/StudioPage";
+import { StudioPage } from "@/views/Home/StudioPage";
 
 export default StudioPage;

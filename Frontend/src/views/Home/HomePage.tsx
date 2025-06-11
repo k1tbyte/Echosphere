@@ -1,11 +1,10 @@
 "use client";
 
-import React, {useEffect, useRef} from 'react';
+import React, { useRef} from 'react';
 import {Separator} from "@/shared/ui/Separator";
 import {useRouter} from 'next/navigation';
 import {useNavigationStore} from "@/store/navigationStore";
-import {VideoDropZone} from "@/pages/Home/ui/VideoDropZone";
-import {PlyrPlayer} from "@/widgets/player";
+import {VideoDropZone} from "@/views/Home/ui/VideoDropZone";
 import useSWR from 'swr'
 import {VideosService} from "@/shared/services/videosService";
 import {Spinner} from "@/shared/ui/Loader";

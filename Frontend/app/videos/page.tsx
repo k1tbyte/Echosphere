@@ -1,3 +1,3 @@
-import {VideosPage} from "@/pages/Videos/VideosPage";
+import {VideosPage} from "@/views/Videos/VideosPage";
 
 export default  VideosPage;

@@ -49,7 +49,7 @@ const AppPlayerComponent: FC<IAppPlayerProps> = ( { video, onReady, controlled, 
 
         if(!controlled) {
             const progress = player.elements.controls?.querySelector(".plyr__progress") as HTMLDivElement
-            const onPointerDown = (e) => {
+            const onPointerDown = (e: PointerEvent) => {
                 e.stopPropagation();
                 e.preventDefault();
             }

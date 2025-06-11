@@ -1,3 +1,3 @@
-import { FriendsPage } from "@/pages/Friends/FriendsPage";
+import { FriendsPage } from "@/views/Friends/FriendsPage";
 
 export default FriendsPage;

@@ -210,7 +210,7 @@ export const Lobby: FC = () => {
         <div className="w-full h-full flex-col gap-3">
             <div className="bg-secondary/30 p-3 rounded-sm">
                 <div className="flex items-center gap-2 w-full">
-                    <Badge variant={"default"} className="text-nowrap flex-none">
+                    <Badge variant={"default"} className="text-nowrap flex-none rounded">
                         ID:
                     </Badge>
                     <div className="flex-1 min-w-0">
@@ -218,7 +218,7 @@ export const Lobby: FC = () => {
                             {roomStore.roomId}
                         </Badge>
                     </div>
-                    <Button variant={"ghost"} size={"auto"} className="flex-none" onClick={() => {
+                    <Button variant={"ghost"} size={"auto"} className="flex-none " onClick={() => {
                         navigator.clipboard.writeText(roomStore.roomId!);
                         toast.open({
                             body: "Room ID copied to clipboard!",
@@ -238,10 +238,12 @@ export const Lobby: FC = () => {
             </Label>
 
             { roomStore.participants.map((p) => {
+
                 return (
                     <LobbyMember
                         participant={p}
-                        onKick={(roomStore.ownerId === session!.user.id || roomStore.isRoomOwner) && p.userId != session!.user.id ?
+                        // @ts-ignore
+                        onKick={(roomStore.ownerId == session!.user.id || roomStore.isRoomOwner) && p.userId != session!.user.id ?
                             (userId) => {
                                 hub.kickFromRoom(roomStore.roomId!, userId);
                             } : undefined

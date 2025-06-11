@@ -18,7 +18,7 @@ import {useBreadcrumbs} from "@/store/uiMetaStore";
 import {openConfirmationModal} from "@/widgets/modals/ConfirmationModal";
 import {toast, ToastVariant} from "@/shared/ui/Toast";
 import {Button} from "@/shared/ui/Button";
-import {AppPlayer} from "@/pages/Video/AppPlayer";
+import {AppPlayer} from "@/views/Video/AppPlayer";
 import {useEcho} from "@/providers/EchoProvider";
 import {useRoomStore} from "@/store/roomStore";
 import {ERoomEventType, TypeRoomEventCallback} from "@/shared/services/echoHubService";
@@ -51,7 +51,7 @@ export const VideoPage = () => {
     const playerRef = React.useRef<PlyrInstance | undefined | null>(null);
 
     const sendEcho = () => {
-        if(lockerRef.current) {
+        if(lockerRef.current || !roomStore.roomId || !playerRef.current) {
             return;
         }
 
@@ -67,7 +67,7 @@ export const VideoPage = () => {
     const onReady = useCallback((player: PlyrInstance) => {
         playerRef.current = player;
 
-        if (roomStore.roomId && (roomStore.isRoomOwner || roomStore.ownerId === session?.user.id)) {
+        if (roomStore.roomId && (roomStore.isRoomOwner || roomStore.ownerId === Number(session?.user.id))) {
             player.on('play', () => sendEcho())
             player.on('pause', () => sendEcho())
             player.on('seeked', () => sendEcho())
@@ -121,13 +121,13 @@ export const VideoPage = () => {
     }, [setBreadcrumbs]);
 
     useEffect(() => {
-        if(!hub || !session?.user || !video?.id) return;
+        if(!hub || !session?.user || !video?.id || !roomStore.roomId) return;
 
-        if(roomStore.isRoomOwner || roomStore.ownerId === session.user.id) {
+        if(roomStore.isRoomOwner || roomStore.ownerId === Number(session.user.id)) {
             window.clearTimeout(eventTimerId);
             eventTimerId = window.setTimeout(() => {
                 initialized.current = true;
-                hub.sendRoomEvent(roomStore.roomId, ERoomEventType.VideoOpen, {
+                hub.sendRoomEvent(roomStore.roomId!, ERoomEventType.VideoOpen, {
                     id: video?.id,
                     title: video.title
                 })
@@ -186,7 +186,7 @@ export const VideoPage = () => {
 
     useEffect(() => {
         return () => {
-            if(initialized.current) {
+            if(initialized.current && roomStore.roomId) {
                 hub?.sendRoomEvent(roomStore.roomId, ERoomEventType.VideoClose, {
                     id: video?.id,
                     isVideoPublic: video?.isPublic
@@ -214,11 +214,7 @@ export const VideoPage = () => {
 
            if(roomStore.currentVideo?.onPage) {
                setTimeout(() => {
-                   if(!roomStore.currentVideo) {
-                       return;
-                   }
-
-                   roomStore.setCurrentVideo( initialized.current ? null : {
+                   roomStore.setCurrentVideo( initialized.current ? undefined : {
                        onPage: false,
                        title: video.title,
                        id: video.id
@@ -286,7 +282,7 @@ export const VideoPage = () => {
                     <AppPlayer video={video} onReady={onReady}
                                withFloating={!roomStore.roomId}
                                controlled={!roomStore.roomId ||
-                        (roomStore.roomId && (roomStore.isRoomOwner || roomStore.ownerId === session?.user.id))}/>
+                        (!!roomStore.roomId && (roomStore.isRoomOwner || roomStore.ownerId === Number(session?.user.id)))}/>
 
                     {/* Video Info */}
                     <div className="mt-4">

@@ -1,4 +1,4 @@
 
-import {HomePage} from "@/pages/Home/HomePage";
+import {HomePage} from "@/views/Home/HomePage";
 
 export default HomePage;

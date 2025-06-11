@@ -13,8 +13,8 @@ import {Input} from "@/shared/ui/Input";
 import {Button} from "@/shared/ui/Button";
 import {EIcon, SvgIcon} from "@/shared/ui/Icon";
 import {clsx} from "clsx";
-import {FriendCard} from "@/pages/Friends/ui/FriendCard";
-import {Lobby} from "@/pages/Friends/ui/Lobby";
+import {FriendCard} from "@/views/Friends/ui/FriendCard";
+import {Lobby} from "@/views/Friends/ui/Lobby";
 import {useFriends} from "@/shared/hooks/useFriends";
 import {useTitle} from "@/widgets/player/hooks/useTitle";
 

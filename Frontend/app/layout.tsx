@@ -6,7 +6,7 @@ import "../globals.css";
 import {Providers} from "@/providers";
 import {ModalsHost} from "@/shared/ui/Modal";
 import {useSession} from "next-auth/react";
-import {MainLayout} from "@/pages/MainLayout";
+import {MainLayout} from "@/views/MainLayout";
 import {getServerSession} from "next-auth";
 
 const geistSans = Geist({

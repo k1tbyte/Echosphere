@@ -5,7 +5,7 @@ import {DropZone, DropZoneProps} from "@/widgets/dropzone";
 import {createFileFingerprint} from "@/shared/lib/cryptography";
 import {modal} from "@/shared/ui/Modal";
 import {VideoUploadService} from "@/shared/services/videoUploadService";
-import {ResumeVideoUploadModal} from "@/pages/Home/ui/ResumeVideoUploadModal";
+import {ResumeVideoUploadModal} from "@/views/Home/ui/ResumeVideoUploadModal";
 
 // @ts-ignore
 export const VideoDropZone: FC<DropZoneProps & { successcallback: (file: File) => void }> =

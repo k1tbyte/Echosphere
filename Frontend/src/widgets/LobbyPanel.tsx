@@ -8,7 +8,7 @@ import {IUserDTO, IUserSimpleDTO, UsersService} from "@/shared/services/usersSer
 import {EchoHubService, ERoomEventType, ERoomRole} from "@/shared/services/echoHubService";
 import Image from "next/image";
 import {Button} from "@/shared/ui/Button";
-import {Lobby} from "@/pages/Friends/ui/Lobby";
+import {Lobby} from "@/views/Friends/ui/Lobby";
 import {getSession} from "next-auth/react";
 import { useRouter} from "next/navigation";
 import {useSettingsStore} from "@/store/settingsStore";
@@ -134,7 +134,7 @@ const LobbyPanelComponent = () => {
                     type: "info",
                     // @ts-ignore
                     id: notificationId,
-                    message: <RoomInvite user={o} roomId={roomId} onAccept={acceptInvite}/>,
+                    message: <RoomInvite user={o} notificationId={notificationId} onAccept={acceptInvite}/>,
                 })
 
                 toast.open({
@@ -200,7 +200,7 @@ const LobbyPanelComponent = () => {
                         router.back();
                     }
                 }
-                store.setCurrentVideo(null)
+                store.setCurrentVideo(undefined)
             }
         }
 

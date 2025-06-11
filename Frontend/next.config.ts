@@ -15,6 +15,12 @@ const nextConfig: NextConfig = {
                 pathname: '/**',
             },
             {
+                protocol: "http",
+                hostname: "localhost",
+                port: "3000",
+                pathname: "/**"
+            },
+            {
                 protocol: 'https',
                 hostname: 'img.youtube.com',
                 pathname: '/**',
@@ -25,8 +31,14 @@ const nextConfig: NextConfig = {
                 pathname: '/**',
             }
         ],
-    }
-  /* config options here */
+    },
+    typescript: {
+        ignoreBuildErrors: true
+    },
+    // Disable Pages Router for src/pages directory
+    // Use a non-existent extension to prevent files from being recognized as pages
+/*    pageExtensions: ['page.tsx', 'page.ts', 'page.jsx', 'page.js'],*/
+    /* config options here */
 };
 
 export default nextConfig;

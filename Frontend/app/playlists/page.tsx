@@ -1,3 +1,3 @@
-import { PlaylistsPage } from "@/pages/Playlists/PlaylistsPage";
+import { PlaylistsPage } from "@/views/Playlists/PlaylistsPage";
 
 export default  PlaylistsPage;
