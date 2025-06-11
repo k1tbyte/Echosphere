@@ -24,7 +24,7 @@ public abstract class BaseCrudController<T>(ICrudRepository<T> repository)
     }
 
 #if !DEBUG
-    [RequireRole(UserAccessRights.Admin)]
+    [RequireRole(EUserRole.Admin)]
 #endif
     [HttpPatch]
     public virtual void Update([FromBody] T entity)
@@ -33,7 +33,7 @@ public abstract class BaseCrudController<T>(ICrudRepository<T> repository)
     }
 
 #if !DEBUG
-    [RequireRole(UserAccessRights.Admin)]
+    [RequireRole(EUserRole.Admin)]
 #endif
     [HttpDelete]
     public virtual void Delete(int id)

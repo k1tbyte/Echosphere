@@ -31,15 +31,15 @@ services:
     build:
       context: .
       dockerfile: ./Backend/Dockerfile
-    container_name: echosphere_backend
+    container_name: backend
     restart: unless-stopped
     ports:
-      - "6000:8080"
-      - "6001:8081"
+      - "8080:8080"
+      - "8081:8081"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
     env_file:
-      - ./Backend/backend.env
+      - ./Backend/.env.production
     depends_on:
       postgres:
         condition: service_started
@@ -47,6 +47,19 @@ services:
         condition: service_started
     volumes:
       - backend_data:/app/data
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    env_file:
+      - ./Frontend/.env.production
 volumes:
   postgres_data:
     external: true
