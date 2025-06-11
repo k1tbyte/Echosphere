@@ -108,7 +108,7 @@ export const usePlyrInstance = ({
 
             const handleOnReady = () => {
                 window.setTimeout(() => {
-                    onReady?.(playerRef.current);
+                    onReady?.(playerRef.current!);
                 }, 100);
             }
 
@@ -301,6 +301,7 @@ export const usePlyrInstance = ({
                     if (hasProvider) {
                         playerRef.current.source = {
                             type: source.type,
+                            // @ts-ignore
                             sources: source.sources
                         };
                     } else if (isHlsSource(source)) {
@@ -352,6 +353,7 @@ export const usePlyrInstance = ({
                 if (hasProvider) {
                     playerRef.current.source = {
                         type: source.type,
+                        // @ts-ignore
                         sources: source.sources
                     };
                 } else if (isHlsSource(source)) {

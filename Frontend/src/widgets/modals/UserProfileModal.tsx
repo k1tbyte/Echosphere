@@ -22,9 +22,7 @@ const UserProfileModal: FC<IUserProfileModalProps> = ({ userId }) => {
                 setUser(userData);
                 
                 const friendsData = await UsersService.getFriends(userId);
-                setFriends(Array.from(friendsData.values())
-                    .filter(f => f.isFriend)
-                    .map(f => f.user));
+                setFriends(friendsData.friends)
             } catch (error) {
                 console.error('Failed to load user data:', error);
             } finally {
