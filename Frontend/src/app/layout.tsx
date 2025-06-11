@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import {getCheckeredClass} from "@/shared/ui/Container/CheckeredContainer";
 import {ToastsHost} from "@/shared/ui/Toast";
-import "../globals.css";
+import "../../globals.css";
 import {Providers} from "@/providers";
 import {ModalsHost} from "@/shared/ui/Modal";
-import {useSession} from "next-auth/react";
 import {MainLayout} from "@/views/MainLayout";
 import {getServerSession} from "next-auth";
 
@@ -39,7 +38,9 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased [background-size:50px_50px] ${getCheckeredClass()}`}
       >
         <Providers>
-          <MainLayout isAuthenticated={isAuthenticated} children={children}/>
+          <MainLayout isAuthenticated={isAuthenticated}>
+            {children}
+          </MainLayout>
           <ModalsHost/>
           <ToastsHost/>
         </Providers>
