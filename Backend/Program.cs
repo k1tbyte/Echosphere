@@ -80,7 +80,7 @@ public class Program
                 .Build();
         });
         builder.Services.AddScoped<IS3FileService, MinioFileService>();
-        builder.Services.AddScoped<IVideoProcessingService, XabeFfmpegService>();
+        builder.Services.AddScoped<IVideoProcessingService, FFmpegProcessingService>();
         
         builder.Services.AddCors(options =>
         {
@@ -314,6 +314,6 @@ public class Program
                 ? "C:\\ffmpeg\\bin"
                 : "/usr/bin";
         }
-        FFmpeg.SetExecutablesPath(ffmpegPath);
+        FFmpegProcessingService.SetExecutablesPath(ffmpegPath, "ffmpeg");
     }
 }

@@ -2,7 +2,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Backend.Data.Entities;
-using Xabe.FFmpeg;
+using Backend.Services;
 
 namespace Backend.Utils;
 
@@ -369,7 +369,7 @@ public static partial class FFmpegTools
             using var process = new Process();
             process.StartInfo = new ProcessStartInfo
             {
-                FileName = FFmpeg.ExecutablesPath + "/ffmpeg",
+                FileName = FFmpegProcessingService.ExecutablesPath + "/ffmpeg",
                 Arguments = arg,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
@@ -514,7 +514,7 @@ public static partial class FFmpegTools
         using var process = new Process();
         process.StartInfo = new ProcessStartInfo
         {
-            FileName = FFmpeg.ExecutablesPath + "/ffmpeg",
+            FileName = FFmpegProcessingService.ExecutablesPath + "/ffmpeg",
             Arguments = arguments,
             UseShellExecute = false,
             RedirectStandardOutput = true,
