@@ -4,8 +4,8 @@ FROM oven/bun:1 AS base
 FROM base AS deps
 WORKDIR /app
 
-# Copy package.json and lock file
-COPY package.json bun.lock ./
+# Copy package.json
+COPY package.json ./
 
 # Install dependencies with Bun
 RUN bun install

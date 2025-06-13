@@ -24,7 +24,7 @@ import {useRoomStore} from "@/store/roomStore";
 import {ERoomEventType, TypeRoomEventCallback} from "@/shared/services/echoHubService";
 import {PlyrInstance} from "@/widgets/player";
 import {Head} from "@react-email/components";
-import {useTitle} from "@/widgets/player/hooks/useTitle";
+import {useTitle} from "@/shared/hooks/useTitle";
 
 // Define type for PlyrSource including title property
 // This can be removed since we've updated the types in index.ts

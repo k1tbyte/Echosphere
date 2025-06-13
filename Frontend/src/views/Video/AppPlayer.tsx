@@ -2,15 +2,11 @@ import {EVideoProvider, IVideoObject} from "@/shared/services/videosService";
 import React, {FC, useCallback, useEffect} from "react";
 import {Button} from "@/shared/ui/Button";
 import {MinimizeIcon, Trash2} from "lucide-react";
-import {Separator} from "@/shared/ui/Separator";
-import {openUserProfileModal} from "@/widgets/modals/UserProfileModal";
-import Image from "next/image";
-import {UsersService} from "@/shared/services/usersService";
-import {formatTimeAgoPrecise} from "@/shared/lib/formatters";
 import {PlyrInstance, PlyrPlayer} from "@/widgets/player";
 import {useVideoPlayerStore} from "@/store/videoPlayerStore";
 import {useParams, useRouter} from "next/navigation";
 import {isTouchDevice} from "@/shared/lib/utils";
+import {API_URL} from "@/shared/lib/fetcher";
 
 interface IAppPlayerProps {
     video: IVideoObject;
@@ -82,7 +78,7 @@ const AppPlayerComponent: FC<IAppPlayerProps> = ( { video, onReady, controlled, 
         const videoSource = {
             type: "video" as const,
             sources: [video.provider === EVideoProvider.Local ? {
-                src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/master.m3u8`,
+                src: `${API_URL}/video/resource/${video.id}/master.m3u8`,
                 type: "application/x-mpegURL",
             } : {
                 src: video.videoUrl!, // id actually
@@ -106,7 +102,7 @@ const AppPlayerComponent: FC<IAppPlayerProps> = ( { video, onReady, controlled, 
                 source={{
                     type: "video" as const,
                     sources: [video.provider === EVideoProvider.Local ? {
-                        src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/master.m3u8`,
+                        src: `${API_URL}/video/resource/${video.id}/master.m3u8`,
                         type: "application/x-mpegURL",
                     } : {
                         src: video.videoUrl!, // id actually
@@ -117,7 +113,7 @@ const AppPlayerComponent: FC<IAppPlayerProps> = ( { video, onReady, controlled, 
                     controls: controls,
                     settings: settings,
                     previewThumbnails: video.provider === EVideoProvider.Local ? {
-                        src: `${process.env.NEXT_PUBLIC_API_URL}/video/resource/${video.id}/thumbnails.vtt`,
+                        src: `${API_URL}/video/resource/${video.id}/thumbnails.vtt`,
                         enabled: video.settings?.thumbnailsCaptureInterval! > 0
                     } : {},
                     title: video.title,

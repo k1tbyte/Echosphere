@@ -1,6 +1,6 @@
 "use client";
 
-import {useTitle} from "@/widgets/player/hooks/useTitle";
+import {useTitle} from "@/shared/hooks/useTitle";
 
 export const PlaylistsPage = () => {
     useTitle("Playlists")

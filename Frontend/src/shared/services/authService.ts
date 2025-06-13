@@ -1,12 +1,10 @@
-import { getSession, signOut } from "next-auth/react";
+import { getSession } from "next-auth/react";
 
-import fetcher  from "@/shared/lib/fetcher"
-
-const url = process.env.NEXT_PUBLIC_API_URL;
+import fetcher, {API_URL} from "@/shared/lib/fetcher"
 
 export const auth = {
     login: async (email: string, password: string, remember: boolean) => {
-        return await fetcher.postJson(url + '/auth/login', { email, password, remember },
+        return await fetcher.postJson(API_URL + '/auth/login', { email, password, remember },
             {
                 cache: 'no-store',
             }
@@ -14,7 +12,7 @@ export const auth = {
     },
     logout: async (refreshToken: string, accessToken: string) => {
         const session = await getSession();
-        return await fetcher.postJson(url + '/auth/logout', { refreshToken },
+        return await fetcher.postJson(API_URL + '/auth/logout', { refreshToken },
             {
                 cache: 'no-store',
                 headers: {
@@ -24,7 +22,7 @@ export const auth = {
         );
     },
     refreshSession: async (refreshToken: string, accessToken: string) => {
-        const response = await fetcher.postJson(url + '/auth/refreshSession', { refreshToken, accessToken });
+        const response = await fetcher.postJson(API_URL + '/auth/refreshSession', { refreshToken, accessToken });
 
         return (await response.json()) as {
             accessToken: string;
@@ -32,7 +30,7 @@ export const auth = {
         }
     },
     signup: async (username: string, email: string, password: string) => {
-        let response = await fetcher.postJson(url + '/auth/signup', {  username, email, password });
+        const response = await fetcher.postJson(API_URL + '/auth/signup', {  username, email, password });
 
         const token = (await response.json()).confirmationToken;
 
@@ -43,7 +41,7 @@ export const auth = {
         await fetcher.postJson('/api/auth/send-confirmation', { email, token });
     },
     confirmEmail: async (token: string) => {
-        const response = await fetcher.postJson(url + '/auth/confirmEmail', { token });
+        const response = await fetcher.postJson(API_URL + '/auth/confirmEmail', { token });
 
         return (await response.json()) as {
             refreshToken: string;

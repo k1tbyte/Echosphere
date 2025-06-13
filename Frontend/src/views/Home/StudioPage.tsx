@@ -19,7 +19,7 @@ import {useVideosStore} from "@/store/videoStore";
 import {VideoSettingsSection} from "@/views/Home/ui/VideoSettingsSection";
 import {PlyrSource, PlyrPlayer, PlyrInstance} from "@/widgets/player";
 import {Switch} from "@/shared/ui/Switch";
-import {useTitle} from "@/widgets/player/hooks/useTitle";
+import {useTitle} from "@/shared/hooks/useTitle";
 
 export type TypeQuality = { value: string; label: string }[];
 const QUALITIES = [
@@ -197,9 +197,7 @@ export const StudioPage = () => {
             setIsInitialized(true);
         }
 
-        const handleMetadata = (e: any) => {
-            const video = e.target as HTMLVideoElement;
-            video.removeEventListener('loadedmetadata', handleMetadata);
+        const handleMetadata = (video: HTMLVideoElement) => {
             videoProps.width = video.videoWidth;
             videoProps.height = video.videoHeight;
             videoProps.duration = video.duration;
@@ -212,7 +210,19 @@ export const StudioPage = () => {
         }
 
         const videoElement = playerContainerRef.current?.querySelector('video');
-        videoElement?.addEventListener('loadedmetadata', handleMetadata);
+
+        if(!videoElement)  {
+            console.error("Video player not found");
+            return;
+        }
+
+        if(videoElement.duration) {
+            handleMetadata(videoElement)
+            return;
+        }
+
+        videoElement.addEventListener('loadedmetadata',
+            (e) => handleMetadata(e.target as HTMLVideoElement), { once: true });
     }
 
     useEffect(() => {

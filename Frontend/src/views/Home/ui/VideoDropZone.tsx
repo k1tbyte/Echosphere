@@ -21,13 +21,17 @@ export const VideoDropZone: FC<DropZoneProps & { successcallback: (file: File) =
             file.fingerprint = fingerprint;
             const pending = VideoUploadService.getSavedUploadState(fingerprint);
             if(pending) {
-                const video = await VideoUploadService.getVideo(pending.videoId);
-                modal.open( {
-                    title: "Continue uploading video",
-                    // @ts-ignore
-                    body: <ResumeVideoUploadModal video={video} file={file}/>
-                });
-                return;
+                try {
+                    const video = await VideoUploadService.getVideo(pending.videoId);
+                    modal.open( {
+                        title: "Continue uploading video",
+                        // @ts-ignore
+                        body: <ResumeVideoUploadModal video={video} file={file}/>
+                    });
+                    return;
+                } catch {
+                    VideoUploadService.clearUploadState(fingerprint);
+                }
             }
 
             successcallback(file);

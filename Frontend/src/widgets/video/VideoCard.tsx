@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/shared/ui/ContextMenu";
 import {openConfirmationModal} from "@/widgets/modals/ConfirmationModal";
 import {toast, ToastVariant} from "@/shared/ui/Toast";
+import {API_URL} from "@/shared/lib/fetcher";
 
 interface IVideoCardProps {
     video: IVideoObject;
@@ -121,7 +122,6 @@ export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
         router.push(`/video/${video.id}`);
     };
 
-    console.log(process.env.NEXT_PUBLIC_API_URL + `/video/resource/${video.id}/preview`);
     return (
         <div ref={containerRef} className="flex flex-col bg-background/50 rounded-md border hover:bg-secondary/30 transition-all hover:scale-105 hover:z-10 cursor-pointer">
             <div className="relative w-full aspect-video border-b rounded-t-lg overflow-hidden">
@@ -130,7 +130,7 @@ export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
                         source={{
                             type: "video",
                             sources: [ video.provider === EVideoProvider.Local ? {
-                                src: process.env.NEXT_PUBLIC_API_URL + `/video/resource/${video.id}/master.m3u8`,
+                                src: API_URL + `/video/resource/${video.id}/master.m3u8`,
                                 type: "application/x-mpegURL",
                             } : {
                                 src: video.videoUrl!, // id actually
@@ -145,7 +145,7 @@ export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
                             hideControls: false,
                             autoplay: true,
                             previewThumbnails: {
-                                src: process.env.NEXT_PUBLIC_API_URL + `/video/resource/${video.id}/thumbnails.vtt`,
+                                src: API_URL + `/video/resource/${video.id}/thumbnails.vtt`,
                                 enabled: video.settings?.thumbnailsCaptureInterval! > 0
                             }
                         }}
@@ -198,7 +198,7 @@ export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
                         e.stopPropagation()
                         openUserProfileModal(video.ownerSimplified!.id);
                     }}>
-                        <Image src={UsersService.getUserAvatarUrl(video.ownerSimplified!)!}
+                        <Image src={UsersService.getUserAvatarUrl(video.ownerSimplified!, true)!}
                                alt={video.ownerSimplified?.username!}
                                width={40} height={40} className={"rounded-full border border-border" + (isOwned ? " border-green-400" : " ")}
                         />

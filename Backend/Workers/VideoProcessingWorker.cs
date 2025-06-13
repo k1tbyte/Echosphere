@@ -92,15 +92,15 @@ public class VideoProcessingWorker(IServiceScopeFactory scopeFactory) : Backgrou
                 catch (VideoProcessingException e)
                 {
                     Enqueue(videoId);
-                    Console.WriteLine(e.Message);
+                    Console.WriteLine(e);
                 }
                 catch (IOException e)
                 {
-                    Console.WriteLine($"Error deleting video file {videoPath}: {e.Message}");
+                    Console.WriteLine($"Error deleting video file {videoPath}: {e}");
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine($"Error {videoPath}: {e.Message}");
+                    Console.WriteLine($"Error {videoPath}: {e}");
                 }
             }
             

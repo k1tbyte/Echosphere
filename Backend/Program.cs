@@ -17,6 +17,7 @@ using Microsoft.IdentityModel.Tokens;
 using Minio;
 using Xabe.FFmpeg;
 using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend;
 
@@ -108,6 +109,12 @@ public class Program
         ConfigureAuthentication(builder);
         ConfigureFFmpeg(builder.Configuration);
         _app = builder.Build();
+        
+        using (var scope = _app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Database.Migrate();
+        }
 
 // Configure the HTTP request pipeline.
         if (_app.Environment.IsDevelopment())

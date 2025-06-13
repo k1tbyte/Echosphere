@@ -330,7 +330,11 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
 
                 i++;
             }
-            status = EVideoStatus.Queued;
+
+            if (videoBytesProcessed == video.Size!.Value)
+            {
+                status = EVideoStatus.Queued;
+            }
         }
         catch (Exception e)
         {
@@ -437,6 +441,11 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         if(request.SizeBytes is null or <= 0)
         {   
             return BadRequest("Video size must be specified");
+        }
+
+        if (request.Duration is null or <= 0)
+        {
+            return BadRequest("Video duration must be specified");
         }
         
         var directory = Path.Combine(Constants.UploadsFolderPath, id.ToString());

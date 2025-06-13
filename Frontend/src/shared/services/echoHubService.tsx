@@ -4,6 +4,7 @@ import {useRoomStore} from "@/store/roomStore";
 import {IUserSimpleDTO} from "@/shared/services/usersService";
 import {EventEmitter} from "@/shared/lib/observer/eventEmitter";
 import {IObservable} from "@/shared/lib/observer/IObservable";
+import {BACKEND_URL} from "@/shared/lib/fetcher";
 
 export enum EGlobalEventType {
     FriendsUpdate = "FriendsUpdate",
@@ -80,7 +81,7 @@ export class EchoHubService {
         console.log("Starting connection to the echo hub...");
         if (!this.connection) {
             this.connection = new HubConnectionBuilder()
-                .withUrl(process.env.NEXT_PUBLIC_BACKEND_URL + "/hubs/echo", {
+                .withUrl(BACKEND_URL + "/hubs/echo", {
                     accessTokenFactory(): string | Promise<string> {
                         return session.accessToken
                     },

@@ -12,7 +12,7 @@ import {useRouter} from 'next/navigation';
 import {toast, ToastVariant} from "@/shared/ui/Toast";
 import {UsersService} from "@/shared/services/usersService";
 import {Checkbox} from "@/shared/ui/Checkbox";
-import {useTitle} from "@/widgets/player/hooks/useTitle";
+import {useTitle} from "@/shared/hooks/useTitle";
 
 interface ILoginFormProps extends ComponentPropsWithoutRef<'form'> {
     callbackUrl: string;

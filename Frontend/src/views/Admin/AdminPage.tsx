@@ -5,7 +5,7 @@ import { Tab, TabPanel } from "@/shared/ui/Tabs";
 import { useRouter, useSearchParams } from 'next/navigation';
 import { UsersTab } from './UsersTab';
 import { ServerTab } from './ServerTab';
-import {useTitle} from "@/widgets/player/hooks/useTitle";
+import {useTitle} from "@/shared/hooks/useTitle";
 
 export const AdminPage = () => {
     const router = useRouter();

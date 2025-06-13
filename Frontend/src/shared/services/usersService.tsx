@@ -1,5 +1,5 @@
 import {EUserRole} from "@/types/user-role";
-import fetcher, {send} from "@/shared/lib/fetcher";
+import fetcher, {API_URL, IMAGES_URL, send} from "@/shared/lib/fetcher";
 import {queryToSearchParams, IQueryParams } from "@/shared/services/queryHelper";
 
 export const enum EUserOnlineStatus {
@@ -48,14 +48,14 @@ let userAvatarUrl: string | null | undefined = undefined;
 export class UsersService {
     public static async getUserById(userId: number): Promise<IUserDTO> {
         const result =  await fetcher.exceptJson<IUserDTO>(fetcher.getJson(
-            process.env.NEXT_PUBLIC_API_URL + '/user/get/' + userId, null, true
+            API_URL + '/user/get/' + userId, null, true
         ));
 
         return result;
     }
 
     public static async uploadAvatar(file: File): Promise<Response> {
-        return send(process.env.NEXT_PUBLIC_API_URL + '/user/uploadAvatar', {
+        return send(API_URL + '/user/uploadAvatar', {
                 method: 'POST',
                 body: await file.arrayBuffer(),
                 headers: {
@@ -66,7 +66,7 @@ export class UsersService {
     }
 
     public static async getUsers(query: IQueryParams) {
-        const url = process.env.NEXT_PUBLIC_API_URL + '/user/getUsers';
+        const url = API_URL + '/user/getUsers';
         const params = queryToSearchParams(query);
 
         return await fetcher.exceptJson<IUserSimpleDTO[]>(
@@ -88,7 +88,7 @@ export class UsersService {
         });
 
         const result = await fetcher.exceptJson<IUserFriendsDTO>(
-            fetcher.getJson(process.env.NEXT_PUBLIC_API_URL + '/user/getFriends?' + params.toString(), null, true)
+            fetcher.getJson(API_URL + '/user/getFriends?' + params.toString(), null, true)
         );
 
         const friendsMap = new Map<number, IFriendObject>();
@@ -119,7 +119,7 @@ export class UsersService {
 
     public static async sendFriendship(fromId: number, toId: number): Promise<Response> {
         return fetcher.postJson(
-            process.env.NEXT_PUBLIC_API_URL + '/user/sendFriendship', {
+            API_URL + '/user/sendFriendship', {
                 userId: fromId,
                 friendId: toId
             }, null, true
@@ -128,7 +128,7 @@ export class UsersService {
 
     public static async deleteFriendship(fromId: number, toId: number): Promise<Response> {
         return fetcher.postJson(
-            process.env.NEXT_PUBLIC_API_URL + '/user/rejectFriendship', {
+            API_URL + '/user/rejectFriendship', {
                 userId: fromId,
                 friendId: toId
             }, null, true
@@ -137,7 +137,7 @@ export class UsersService {
 
     public static async confirmFriendship(fromId: number, toId: number): Promise<Response> {
         return fetcher.postJson(
-            process.env.NEXT_PUBLIC_API_URL + '/user/acceptFriendship', {
+            API_URL + '/user/acceptFriendship', {
                 userId: fromId,
                 friendId: toId
             }, null, true
@@ -147,20 +147,20 @@ export class UsersService {
     public static async getPendingFriendships(userId: number): Promise<IUserSimpleDTO[]> {
         return fetcher.exceptJson<IUserSimpleDTO[]>(
             fetcher.getJson(
-                process.env.NEXT_PUBLIC_API_URL + '/user/getPendingFriends?userId=' + userId, null, true
+                API_URL + '/user/getPendingFriends?userId=' + userId, null, true
             )
         );
     }
 
     public static async updateUser(user: IUserDTO & { password?: string, oldPassword?: string }): Promise<Response> {
         return fetcher.patchJson(
-            process.env.NEXT_PUBLIC_API_URL + '/user/update', user, null, true
+            API_URL + '/user/update', user, null, true
         );
     }
 
     public static async deleteUser(userId: number): Promise<Response> {
         return send(
-            process.env.NEXT_PUBLIC_API_URL + '/user/delete' + '?id=' + userId, {
+            API_URL + '/user/delete' + '?id=' + userId, {
                 method: 'DELETE',
             }, true
         );
@@ -168,7 +168,7 @@ export class UsersService {
 
     public static getUserAvatarUrl(user: IUserDTO | IUserSimpleDTO, withFallback: boolean = false): string | null {
         if (user.avatar) {
-            return process.env.NEXT_PUBLIC_API_URL + '/user/avatar?userId=' + user.id;
+            return IMAGES_URL + '/user/avatar?userId=' + user.id;
         }
         if(withFallback) {
             return `https://ui-avatars.com/api/?name=${user.username}.svg`;

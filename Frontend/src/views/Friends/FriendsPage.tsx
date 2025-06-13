@@ -16,7 +16,7 @@ import {clsx} from "clsx";
 import {FriendCard} from "@/views/Friends/ui/FriendCard";
 import {Lobby} from "@/views/Friends/ui/Lobby";
 import {useFriends} from "@/shared/hooks/useFriends";
-import {useTitle} from "@/widgets/player/hooks/useTitle";
+import {useTitle} from "@/shared/hooks/useTitle";
 
 export const FriendsPage = () => {
     const [usersOffset, setUsersOffset] = useState(0);

@@ -7,9 +7,8 @@ import {Input} from "@/shared/ui/Input/Input";
 import {EIcon, SvgIcon} from "@/shared/ui/Icon";
 import Link from "next/link";
 import {auth} from "@/shared/services/authService";
-import { redirect } from 'next/navigation'
 import {cn} from "@/shared/lib/utils";
-import {useTitle} from "@/widgets/player/hooks/useTitle";
+import {useTitle} from "@/shared/hooks/useTitle";
 
 export const RegisterForm: FC<ComponentPropsWithoutRef<'form'>> = ({ className }, ...props) => {
     const [error, setError] = useState<string | null>(null);
@@ -123,7 +122,7 @@ export const RegisterForm: FC<ComponentPropsWithoutRef<'form'>> = ({ className }
                     </span>
                 </div>
                 <Button variant="outline" className="w-full">
-                    <SvgIcon icon={EIcon.Google}/>
+                    <SvgIcon icon={EIcon.Google} size={15}/>
                     Continue with Google
                 </Button>
             </div>

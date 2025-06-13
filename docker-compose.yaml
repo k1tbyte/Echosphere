@@ -62,7 +62,5 @@ services:
       - ./Frontend/.env.production
 volumes:
   postgres_data:
-    external: true
-    name: archemperor_postgres_data
   minio_data:
   backend_data:

@@ -2,6 +2,15 @@ import {toast, ToastVariant} from "@/shared/ui/Toast";
 import {isClientSide} from "@/store/uiMetaStore";
 import {getSession} from "next-auth/react";
 
+
+export const BACKEND_URL = isClientSide ?
+    process.env.NEXT_PUBLIC_BACKEND_URL :
+    process.env.INTERNAL_BACKEND_URL;
+
+export const API_URL = BACKEND_URL + "/api/v2"
+
+export const IMAGES_URL = "/images-proxy/api/v2"
+
 type TypeFetcher = {
     postJson: (url: string, data: object, props?: RequestInit | null, authorized?: boolean) => Promise<Response>;
     getJson: (url: string, props?: RequestInit | null, authorized?: boolean) => Promise<Response>;
@@ -64,7 +73,7 @@ export const send = async (url: string, init: RequestInit, authorized?: boolean,
 
 const fetcher: TypeFetcher = {
     postJson: async (url: string, data: object, props?: RequestInit | null, authorized?: boolean) => {
-        let headers = props?.headers || {};
+        const headers = props?.headers || {};
         // @ts-ignore
         headers['Content-Type'] = 'application/json';
         return await send(url, {
@@ -75,7 +84,7 @@ const fetcher: TypeFetcher = {
         }, authorized);
     },
     getJson: async (url: string, props?: RequestInit | null, authorized?: boolean) => {
-        let headers = props?.headers || {};
+        const headers = props?.headers || {};
         // @ts-ignore
         headers['Content-Type'] = 'application/json';
          return await send(url, {
@@ -85,7 +94,7 @@ const fetcher: TypeFetcher = {
         }, authorized);
     },
     patchJson: async (url: string, data: object, props?: RequestInit | null, authorized?: boolean) => {
-        let headers = props?.headers || {};
+        const headers = props?.headers || {};
         // @ts-ignore
         headers['Content-Type'] = 'application/json';
         return await send(url, {

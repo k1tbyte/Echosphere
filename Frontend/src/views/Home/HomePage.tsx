@@ -26,7 +26,7 @@ import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} fr
 import {openConfirmationModal} from "@/widgets/modals/ConfirmationModal";
 import {toast, ToastVariant} from "@/shared/ui/Toast";
 import {videoSortOptions} from "@/shared/constants/sortOptions";
-import {useTitle} from "@/widgets/player/hooks/useTitle";
+import {useTitle} from "@/shared/hooks/useTitle";
 
 
 /*export const VideoExample = () => {
@@ -37,7 +37,7 @@ import {useTitle} from "@/widgets/player/hooks/useTitle";
                 source={{
                     type: "video",
                     sources: [{
-                        src:  process.env.NEXT_PUBLIC_API_URL + "/video/resource/c1f03f22-4caa-4c33-b23b-bde768deaf56/master.m3u8",
+                        src:  API_URL + "/video/resource/c1f03f22-4caa-4c33-b23b-bde768deaf56/master.m3u8",
                         type: "application/x-mpegURL"
                     }]
                 }}
@@ -45,7 +45,7 @@ import {useTitle} from "@/widgets/player/hooks/useTitle";
                     controls: [ 'play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen' ],
                     settings: [ 'captions', 'quality', 'speed', 'loop' ],
                     previewThumbnails: {
-                        src: process.env.NEXT_PUBLIC_API_URL + "/video/resource/c1f03f22-4caa-4c33-b23b-bde768deaf56/thumbnails.vtt",
+                        src: API_URL + "/video/resource/c1f03f22-4caa-4c33-b23b-bde768deaf56/thumbnails.vtt",
                         enabled: true
                     }
                 }}

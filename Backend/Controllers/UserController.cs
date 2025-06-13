@@ -348,9 +348,9 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     }
     
     [HttpGet]
-#if !DEBUG
+/*#if !DEBUG
         [RequireRole(EUserRole.User)]
-#endif
+#endif*/
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(string) ,StatusCodes.Status500InternalServerError)]

@@ -1,5 +1,5 @@
 import {toast, ToastVariant} from '../ui/Toast';
-import fetcher, {send} from "@/shared/lib/fetcher";
+import fetcher, {API_URL, send} from "@/shared/lib/fetcher";
 import {IVideoPropsSchema} from "@/store/videoStore";
 import {toBase64} from "@/shared/lib/utils";
 import {IVideoSettingsDTO} from "@/shared/services/videosService";
@@ -46,8 +46,6 @@ const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB
 
 export class VideoUploadService {
     private static readonly UPLOAD_STATE_PREFIX = "video_upload_";
-    private static readonly API_URL = process.env.NEXT_PUBLIC_API_URL!;
-
 
     public static async startNewUploadFile(
         file: File,
@@ -87,7 +85,7 @@ export class VideoUploadService {
     ): Promise<string | null> {
         const infoParam = encodeURIComponent(toBase64(JSON.stringify(metadata)));
 
-        const url = `${this.API_URL}/video/initiateupload?info=${infoParam}`;
+        const url = `${API_URL}/video/initiateupload?info=${infoParam}`;
 
         try {
             // If there is a preview, send it in the request body
@@ -133,87 +131,85 @@ export class VideoUploadService {
             startPosition = (await this.getVideo(videoId)).uploadSize as number;
         }
 
-        let actualStartPosition = startPosition;
-
-        const fileSlice = file.slice(actualStartPosition);
+        const actualStartPosition = startPosition;
         const totalBytes = file.size;
-
         let uploadedBytes = actualStartPosition;
-        const updateInterval = 1000;
-        let lastUpdateTime = 0;
+        let position = actualStartPosition;
 
-        const readableStream = new ReadableStream({
-            async start(controller) {
-                let position = actualStartPosition;
-                onProgress?.({
-                    bytesUploaded: uploadedBytes, totalBytes, percent: Math.round((uploadedBytes / totalBytes) * 100),
-                    videoId, state: EUploadProgressState.Started });
-
-                while (position < file.size) {
-                    const end = Math.min(position + CHUNK_SIZE, file.size);
-                    const chunk = file.slice(position, end);
-
-                    const buffer = await chunk.arrayBuffer();
-                    controller.enqueue(new Uint8Array(buffer));
-
-                    const speedPerSecond = (end - position) / ((Date.now() - lastUpdateTime) / 1000);
-                    position = end;
-                    uploadedBytes = position;
-
-                    const now = Date.now();
-                    if (onProgress && now - lastUpdateTime > updateInterval) {
-                        lastUpdateTime = now;
-                        onProgress({
-                            bytesUploaded: uploadedBytes,
-                            totalBytes: totalBytes,
-                            speed: speedPerSecond,
-                            percent: Math.round((uploadedBytes / totalBytes) * 100),
-                            videoId: videoId,
-                            state: EUploadProgressState.Uploading
-                        });
-                    }
-/*                    // throttle for test purposes
-                    await new Promise(resolve => setTimeout(resolve, 777));*/
-                }
-
-                controller.close();
-            }
+        onProgress?.({
+            bytesUploaded: uploadedBytes,
+            totalBytes,
+            percent: Math.round((uploadedBytes / totalBytes) * 100),
+            videoId,
+            state: EUploadProgressState.Started
         });
 
-        const url = `${this.API_URL}/video/continueupload?id=${videoId}&from=${actualStartPosition}`;
+        while (position < file.size) {
+            const end = Math.min(position + CHUNK_SIZE, file.size);
+            const chunk = file.slice(position, end);
 
-        const response = await send(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/octet-stream',
-            },
-            body: readableStream,
-            // @ts-ignore
-            duplex: 'half',
-        }, true, true);
+            const url = `${API_URL}/video/continueupload?id=${videoId}&from=${position}`;
 
-        if (!response.ok) {
-            if (response.status === 409) {
-                // Conflict - server specifies a different position
-                const data = await response.json();
-                // Repeat loading from the correct position
-                return this.continueUpload(file, videoId, fingerprint, data.uploadSize, onProgress);
+            try {
+                const response = await send(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/octet-stream',
+                    },
+                    body: chunk,
+                }, true, true);
+
+                if (!response.ok) {
+                    if (response.status === 409) {
+                        const data = await response.json();
+                        return this.continueUpload(file, videoId, fingerprint, data.uploadSize, onProgress);
+                    }
+                    throw new Error(`Failed to continue upload: ${response.status} ${response.statusText}`);
+                }
+
+                position = end;
+                uploadedBytes = position;
+
+                onProgress?.({
+                    bytesUploaded: uploadedBytes,
+                    totalBytes,
+                    percent: Math.round((uploadedBytes / totalBytes) * 100),
+                    videoId,
+                    state: EUploadProgressState.Uploading
+                });
+
+            } catch (error) {
+                onProgress?.({
+                    bytesUploaded: uploadedBytes,
+                    totalBytes,
+                    percent: 0,
+                    videoId,
+                    state: EUploadProgressState.Error
+                });
+                toast.open({
+                    variant: ToastVariant.Error,
+                    // @ts-ignore
+                    body: `Failed to continue upload: ${error.message}`
+                });
+                throw error;
             }
-
-            onProgress?.({ bytesUploaded: uploadedBytes, totalBytes: totalBytes, percent: 0, videoId, state: EUploadProgressState.Error });
-            toast.open({ variant: ToastVariant.Error, body: `Failed to continue upload: ${response.statusText}` });
-            throw new Error(`Failed to continue upload: ${response.status} ${response.statusText}`);
         }
 
         this.clearUploadState(fingerprint);
-        onProgress?.({ bytesUploaded: totalBytes, totalBytes, percent: 100, videoId, state: EUploadProgressState.Completed });
+        onProgress?.({
+            bytesUploaded: totalBytes,
+            totalBytes,
+            percent: 100,
+            videoId,
+            state: EUploadProgressState.Completed
+        });
 
         return videoId;
     }
 
     public static async getVideo(videoId: string) {
         const response = await fetcher.getJson(
-            `${this.API_URL}/video/getbyid?id=${videoId}`, null, true
+            `${API_URL}/video/getVideo?id=${videoId}`, null, true
         );
 
         if (!response.ok) {
@@ -316,7 +312,7 @@ export class VideoUploadService {
 
     public static async getVideoSettingsSchema(): Promise<IVideoPropsSchema> {
         const response = fetcher.getJson(
-            `${this.API_URL}/video/settingsschema`, null, true
+            `${API_URL}/video/settingsschema`, null, true
         );
         return await fetcher.exceptJson<IVideoPropsSchema>(response);
     }
