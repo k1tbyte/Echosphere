@@ -156,7 +156,7 @@ export const Notifications = () => {
                 return;
             }
             const result = await UsersService.getPendingFriendships(Number(o.user.id));
-            let friendRequests: AppNotification[] = [];
+            const friendRequests: AppNotification[] = [];
           //  notificationsStore
             for (const user of result) {
                 friendRequests.push({
@@ -178,9 +178,9 @@ export const Notifications = () => {
             }
         };
 
-        echoHub?.echoHub?.OnReceiveEvent.subscribe(onNotificationsUpdate);
+        EchoHubService.OnReceiveEvent.subscribe(onNotificationsUpdate);
         return () => {
-            echoHub?.echoHub?.OnReceiveEvent.unsubscribe(onNotificationsUpdate);
+            EchoHubService.OnReceiveEvent.unsubscribe(onNotificationsUpdate);
         }
     }, [forceUpdate]);
 

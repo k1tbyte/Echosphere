@@ -27,12 +27,16 @@ export const useRoomStore = create<IRoomState>((set) => ({
         participants: [],
 
         setRoomId: (roomId: string | null) => set({ roomId }),
-        setCurrentVideo: (video?: TypeCurrentVideo) => set({ currentVideo: video }),
+        setCurrentVideo: (video?: TypeCurrentVideo) => {
+            console.log("Setting current video:", video);
+            set({currentVideo: video});
+        },
         setIsRoomOwner: (isOwner: boolean) => set({ isRoomOwner: isOwner }),
         setParticipants: (participants: IParticipant[]) => set({ participants }),
         resetRoom: () => set({
             roomId: null,
             isRoomOwner: false,
+            currentVideo: undefined,
             participants: []
         })
     })

@@ -359,7 +359,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         try
         {
             var user = await accountRepository.Get(userId);
-            if (user == null) return NotFound();
+            if (user?.Avatar == null) return NotFound();
             return await DownloadFromBucket("avatars", user.Avatar);
         }
         catch (Exception e)
@@ -368,6 +368,7 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
         }
 
     }
+    
     
     [HttpPost]
 #if !DEBUG
@@ -379,15 +380,19 @@ public class UserController(IAccountRepository accountRepository, IS3FileService
     public async Task<IActionResult> UploadAvatar(){
         try
         {
-            if(Request.ContentLength is null or <= 0)
-            {
-                return BadRequest(new { error = "No file uploaded or file is empty." });
-            }
             var objName = Guid.NewGuid().ToString();
             JwtService.GetUserIdFromHttpContext(HttpContext, out var userId);
             var user= await accountRepository.Get(userId);
             if(user == null)
                 return NotFound();
+            
+            if(Request.ContentLength is null or <= 0)
+            {
+                user.Avatar = null;
+                await accountRepository.WithAutoSave().Update(user);
+                return NoContent();
+            }
+            
             if (!String.IsNullOrWhiteSpace(user.Avatar))
             {
                 var info= await _fileService.TryGetObjectInfoAsync("avatars", user.Avatar);

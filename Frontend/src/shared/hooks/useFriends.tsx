@@ -2,7 +2,7 @@ import useSWR from "swr";
 import {UsersService} from "@/shared/services/usersService";
 import {useEcho} from "@/providers/EchoProvider";
 import {useEffect} from "react";
-import {EGlobalEventType, TypeGlobalEventCallback} from "@/shared/services/echoHubService";
+import {EchoHubService, EGlobalEventType, TypeGlobalEventCallback} from "@/shared/services/echoHubService";
 
 
 export const useFriends = (userId?: string | number, withRequests: boolean = false) => {
@@ -27,10 +27,10 @@ export const useFriends = (userId?: string | number, withRequests: boolean = fal
             }
         }
 
-        hub.echoHub.OnReceiveEvent.subscribe(onFriendsUpdate);
+        EchoHubService.OnReceiveEvent.subscribe(onFriendsUpdate);
 
         return () => {
-            hub.echoHub?.OnReceiveEvent.unsubscribe(onFriendsUpdate);
+            EchoHubService.OnReceiveEvent.unsubscribe(onFriendsUpdate);
         }
     }, [hub, mutate]);
 

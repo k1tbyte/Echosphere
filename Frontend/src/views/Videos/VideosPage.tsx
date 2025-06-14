@@ -160,8 +160,8 @@ export const VideosPage = () => {
                             const isOwned = localId === video.ownerSimplified?.id;
                             return (
                                 isOwned || session?.user.role >= EUserRole.Admin ?
-                                <VideoCardWithContext key={video.id} video={video} isOwned={isOwned} setVideos={setAllVideos} /> :
-                                <VideoCard key={video.id} video={video} isOwned={isOwned}/>
+                                <VideoCardWithContext key={video.id} videoObject={video} isOwned={isOwned} setVideos={setAllVideos} /> :
+                                <VideoCard key={video.id} videoObject={video} isOwned={isOwned}/>
                             );
                         })}
                     </div>

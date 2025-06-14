@@ -105,12 +105,15 @@ const LobbyPanelComponent = () => {
         }
 
         const handleRoomClosed = (roomId: string) => {
-            if(store.roomId === roomId) {
-                store.resetRoom();
-                toast.open({
-                    body: "The room you were in has been closed",
-                    variant: ToastVariant.Warning
-                });
+            const isOwner = store.isRoomOwner;
+            store.resetRoom();
+            toast.open({
+                body: "The room you were in has been closed",
+                variant: ToastVariant.Warning
+            });
+
+            if(!isOwner) {
+                router.push('/home')
             }
         }
 
@@ -187,6 +190,7 @@ const LobbyPanelComponent = () => {
                 })
             }
             else if(action === ERoomEventType.VideoClose) {
+                store.setCurrentVideo(undefined)
                 if (window.location.pathname.endsWith(`/video/${param.id}`)) {
                     toast.open({
                         body: param.isVideoPublic ?
@@ -197,10 +201,9 @@ const LobbyPanelComponent = () => {
                     })
 
                     if(!param.isVideoPublic) {
-                        router.back();
+                        router.push("/home");
                     }
                 }
-                store.setCurrentVideo(undefined)
             }
         }
 

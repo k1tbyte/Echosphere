@@ -21,6 +21,7 @@ using Microsoft.Extensions.Caching.Memory;
 namespace Backend.Controllers;
 
 [Route(Constants.DefaultRoutePattern)]
+[RequestSizeLimit(5L * 1024 * 1024 * 1024)]
 public class VideoController(IS3FileService s3FileService,IVideoRepository videoRepository,
     IS3FileService fileService,
     IAccountRepository accountRepository,IMemoryCache memoryCache,IMapper mapper): BaseFileController(fileService)
@@ -65,9 +66,9 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
 #endif
     [ProducesResponseType(typeof(VideoDTO),StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<Video>> GetVideo(Guid id, bool fetchOwner = false)
+    public async Task<ActionResult<Video>> GetVideo(Guid id, bool includeOwner = false)
     {
-        var video = await videoRepository.GetVideoByIdAsync(id, fetchOwner);
+        var video = await videoRepository.GetVideoByIdAsync(id, includeOwner);
         if (video == null)
             return NotFound();
         if (VideoRepository.CheckVideoAccess(HttpContext, video))
@@ -96,9 +97,15 @@ public class VideoController(IS3FileService s3FileService,IVideoRepository video
         {
             return Forbid();
         }
+
+        var tempPath = Path.Combine(Constants.UploadsFolderPath, id.ToString());
+        if (Directory.Exists(tempPath))
+        {
+            Directory.Delete(tempPath, true);
+        }
         
         var success = await videoRepository.WithAutoSave().DeleteById(id);
-        await s3FileService.DeleteObjectOrFolderAsync(BucketName, id.ToString());
+        await s3FileService.DeleteObjectOrFolderAsync(BucketName, id.ToString() + '/');
         if (!success)
             return NotFound();
         return NoContent();

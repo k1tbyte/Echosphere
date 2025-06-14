@@ -8,6 +8,7 @@ import {BACKEND_URL} from "@/shared/lib/fetcher";
 
 export enum EGlobalEventType {
     FriendsUpdate = "FriendsUpdate",
+    VideoStatusChanged = "VideoStatusChanged"
 }
 
 export enum ERoomEventType {
@@ -26,7 +27,7 @@ export interface IParticipant {
     role: ERoomRole;
 }
 
-export type TypeGlobalEventCallback = { action: EGlobalEventType }
+export type TypeGlobalEventCallback = { action: EGlobalEventType, data: any }
 export type TypeRoomEventCallback = { action: ERoomEventType, param: any }
 
 export class EchoHubService {
@@ -43,7 +44,7 @@ export class EchoHubService {
     public readonly OnNewRoomMaster = new EventEmitter<{ roomId: string, newMasterId: number }>();
     public readonly OnRoomDeleted = new EventEmitter<string>();
     public readonly OnRoomClosed = new EventEmitter<string>();
-    public readonly OnReceiveEvent = new EventEmitter<TypeGlobalEventCallback>();
+    public static readonly OnReceiveEvent = new EventEmitter<TypeGlobalEventCallback>();
     public readonly OnRoomUserKicked = new EventEmitter<{ roomId: string, userId: number }>();
     public readonly OnRoomEvent = new EventEmitter<TypeRoomEventCallback>();
 
@@ -165,8 +166,8 @@ export class EchoHubService {
             this.OnUserOffline.emit(userId);
         });
 
-        this.connection.on('ReceiveEvent', (action) => {
-            this.OnReceiveEvent.emit({ action });
+        this.connection.on('ReceiveEvent', (action, data) => {
+            EchoHubService.OnReceiveEvent.emit({ action, data });
         });
     }
 

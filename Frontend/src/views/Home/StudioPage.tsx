@@ -148,10 +148,6 @@ export const StudioPage = () => {
                     type: 'video/mp4'
                 }]
             });
-
-            if (videoProps.previewUrl) {
-                setThumbnailUrl(videoProps.previewUrl);
-            }
         } else {
             redirect('/home');
         }
@@ -185,15 +181,22 @@ export const StudioPage = () => {
 
     const handleOnReady = (o: PlyrInstance) => {
         if(!isLocalVideo) {
-            window.setTimeout(() => {
+            window.setTimeout(async () => {
                 if(!o.embed) {
                     return;
                 }
-
-                // @ts-ignore
-                videoProps.title = o.config.title
-                titleInputRef.current!.value = videoProps.title;
-            }, 1000)
+                for(let i = 0; i < 15; i++) {
+                    // @ts-ignore
+                    videoProps.title = o.config.title
+                    titleInputRef.current!.value = videoProps.title;
+                    videoProps.previewUrl = o.poster;
+                    setThumbnailUrl(o.poster);
+                    if(o.poster && videoProps.title) {
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 400));
+                }
+            }, 500)
             setIsInitialized(true);
         }
 
@@ -212,7 +215,6 @@ export const StudioPage = () => {
         const videoElement = playerContainerRef.current?.querySelector('video');
 
         if(!videoElement)  {
-            console.error("Video player not found");
             return;
         }
 

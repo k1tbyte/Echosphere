@@ -1,7 +1,7 @@
-import React, {FC, useEffect, useRef} from "react";
+import React, {FC, useEffect, useRef, useState} from "react";
 import {EVideoProvider, EVideoStatus, IVideoObject, VideosService} from "@/shared/services/videosService";
 import {formatDuration, formatFileSize, formatTimeAgoPrecise, getVideoQuality} from "@/shared/lib/formatters";
-import {PlyrPlayer, type PlyrProvider } from "@/widgets/player";
+import {PlyrPlayer, type PlyrProvider} from "@/widgets/player";
 import Image from "next/image";
 import {Badge} from "@/shared/ui/Badge";
 import {Label} from "@/shared/ui/Label";
@@ -9,14 +9,16 @@ import {EIcon, SvgIcon} from "@/shared/ui/Icon";
 import {Progress} from "@/shared/ui/Progress/Progress";
 import {UsersService} from "@/shared/services/usersService";
 import {openUserProfileModal} from "@/widgets/modals/UserProfileModal";
-import { useRouter } from "next/navigation";
+import {useRouter} from "next/navigation";
 import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/shared/ui/ContextMenu";
 import {openConfirmationModal} from "@/widgets/modals/ConfirmationModal";
 import {toast, ToastVariant} from "@/shared/ui/Toast";
 import {API_URL} from "@/shared/lib/fetcher";
+import {VideoUploadService} from "@/shared/services/videoUploadService";
+import {EchoHubService, EGlobalEventType, TypeGlobalEventCallback} from "@/shared/services/echoHubService";
 
 interface IVideoCardProps {
-    video: IVideoObject;
+    videoObject: IVideoObject;
     isOwned?: boolean;
 }
 
@@ -28,11 +30,14 @@ const providers: PlyrProvider[] = [
     "vimeo"
 ]
 
-const getCoverFromStatus = (video: IVideoObject) => {
+const getCoverFromStatus = (video: IVideoObject, setImageError: any) => {
     switch (video.status) {
         case EVideoStatus.Ready:
             return (
                 <Image  loading={"lazy"}
+                        onError={() => {
+                            setImageError(true);
+                        }}
                     className="object-cover"
                     src={VideosService.getVideoPreviewUrl(video)}
                     alt={video.title}
@@ -76,10 +81,51 @@ const getCoverFromStatus = (video: IVideoObject) => {
     }
 }
 
-export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
+export const VideoCard: FC<IVideoCardProps> = ({ videoObject, isOwned = true }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [withPlayer, setWithPlayer] = React.useState(false);
+    const [video, setVideo] = React.useState<IVideoObject>(videoObject);
+    const [imageError, setImageError] = useState(false);
     const router = useRouter();
+
+    useEffect(() => {
+
+        const onEvent = (event: TypeGlobalEventCallback) => {
+            console.log("Received event:", JSON.stringify(event));
+            if(event.action !== EGlobalEventType.VideoStatusChanged || event.data.videoId !== videoObject.id) {
+                return;
+            }
+
+            setVideo(prev => {
+                return {...prev, status: event.data.status};
+            })
+        }
+
+        if(videoObject.status === EVideoStatus.Pending) {
+            VideoUploadService.OnUploadProgress.set(videoObject.id, (progress) => {
+                let status = EVideoStatus.Pending;
+                if(progress.bytesUploaded === progress.totalBytes) {
+                    status = EVideoStatus.Queued;
+                    VideoUploadService.OnUploadProgress.delete(videoObject.id);
+                }
+
+                setVideo(prev => ({
+                    ...prev,
+                    status: status,
+                    uploadSize: progress.bytesUploaded
+                }));
+            });
+        }
+
+        if(videoObject.status !== EVideoStatus.Ready) {
+            EchoHubService.OnReceiveEvent.subscribe(onEvent)
+        }
+
+        return () => {
+            VideoUploadService.OnUploadProgress.delete(videoObject.id);
+            EchoHubService.OnReceiveEvent.unsubscribe(onEvent);
+        }
+    }, []);
 
     useEffect(() => {
         if(!containerRef.current || video.status != EVideoStatus.Ready) return;
@@ -115,15 +161,19 @@ export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
     const quality = getVideoQuality(video.settings?.adaptive?.qualities[0].height);
 
     const handleClick = (e: React.MouseEvent) => {
-        // Don't navigate if clicking on the owner's profile
-        if ((e.target as HTMLElement).closest('.owner-profile')) {
+        // Don't navigate if clicking on the owner's profile or mini-player controls
+        if ((e.target as HTMLElement).closest('.owner-profile') ||
+            (e.target as HTMLElement).closest('.plyr-react-container') ||
+            video.status !== EVideoStatus.Ready) {
             return;
         }
         router.push(`/video/${video.id}`);
     };
 
     return (
-        <div ref={containerRef} className="flex flex-col bg-background/50 rounded-md border hover:bg-secondary/30 transition-all hover:scale-105 hover:z-10 cursor-pointer">
+        <div ref={containerRef}
+             onClick={handleClick}
+             className="flex flex-col bg-background/50 rounded-md border hover:bg-secondary/30 transition-all hover:scale-105 hover:z-10 cursor-pointer">
             <div className="relative w-full aspect-video border-b rounded-t-lg overflow-hidden">
                 {withPlayer ?
                     <PlyrPlayer
@@ -150,9 +200,10 @@ export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
                             }
                         }}
                     /> :
-                    <div onClick={handleClick} className="w-full h-full relative">
-                        {getCoverFromStatus(video)}
-                    </div>
+                    getCoverFromStatus(video, (state) => {
+                        videoObject.previewUrl = "/images/preview-fallback.jpg"
+                        setImageError(state);
+                    })
                 }
 
                 { !withPlayer &&
@@ -165,7 +216,7 @@ export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
 
                         { quality &&
                             <div className="flex gap-2 absolute left-2 top-2 bg-background rounded-sm">
-                                <Badge variant={"default"} className={`${quality.color}`}>
+                                <Badge variant={"outline"} className={`${quality.color}`}>
                                     {quality.label}
                                 </Badge>
                             </div>
@@ -240,16 +291,16 @@ export const VideoCard: FC<IVideoCardProps> = ({ video, isOwned = true }) => {
 };
 
 export const VideoCardWithContext: FC<IVideoCardProps & { setVideos: React.Dispatch<React.SetStateAction<IVideoObject[]>> }> =
-    ({ video, isOwned, setVideos }) => {
+    ({ videoObject, isOwned, setVideos }) => {
 
     const onDelete = () => {
         openConfirmationModal({
-            body: `Are you sure you want to delete the video "${video.title}"? Uploaded by ${video.ownerSimplified?.username}`,
+            body: `Are you sure you want to delete the video "${videoObject.title}"? Uploaded by ${videoObject.ownerSimplified?.username}`,
             destructiveYes: true,
             onYes: () => {
-                VideosService.deleteVideo(video.id)
+                VideosService.deleteVideo(videoObject.id)
                     .then(() => {
-                        setVideos(prev => prev.filter(v => v.id !== video.id));
+                        setVideos(prev => prev.filter(v => v.id !== videoObject.id));
                     })
                     .catch(() => {
                         toast.open({
@@ -264,7 +315,7 @@ export const VideoCardWithContext: FC<IVideoCardProps & { setVideos: React.Dispa
         return  (
                 <ContextMenu>
                 <ContextMenuTrigger>
-                    <VideoCard key={video.id} video={video}
+                    <VideoCard key={videoObject.id} videoObject={videoObject}
                                isOwned={isOwned}/>
                 </ContextMenuTrigger>
                 <ContextMenuContent className="w-52">

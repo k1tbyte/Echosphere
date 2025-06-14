@@ -64,7 +64,8 @@ public class AccountRepository(AppDbContext context, JwtService jwtAuth, IMemory
             Username = user.Username,
             Password = user.Password,
             JoinedAt = user.JoinedAt,
-            PasswordSalt = user.PasswordSalt
+            PasswordSalt = user.PasswordSalt,
+            Role = user.Id == 1 ? EUserRole.Admin : EUserRole.User
         }).ConfigureAwait(false);
         //We need to save to get the ID
         await context.SaveChangesAsync().ConfigureAwait(false);

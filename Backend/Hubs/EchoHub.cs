@@ -36,7 +36,7 @@ public class EchoHub : Hub
     private static readonly ConcurrentDictionary<int, EUserOnlineStatus> UserStatus = new();
     
     // UserConnections: userId -> set<ConnectionId>
-    private static readonly ConcurrentDictionary<int, HashSet<string>> UserConnections = new();
+    public static readonly ConcurrentDictionary<int, HashSet<string>> UserConnections = new();
     
     // Rooms: roomId -> Room
     private static readonly ConcurrentDictionary<string, Room> Rooms = new();

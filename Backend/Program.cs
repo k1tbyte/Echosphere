@@ -46,6 +46,7 @@ public class Program
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddDbContext<AppDbContext>();
         builder.Services.AddScoped<JwtService>();
+        builder.Services.AddScoped<NotificationsService>();
         builder.Services.AddScoped<IAccountRepository,AccountRepository>();
         builder.Services.AddScoped<IVideoRepository,VideoRepository>();
         builder.Services.AddScoped<IPlaylistRepository,PlaylistRepository>();
@@ -56,6 +57,8 @@ public class Program
         builder.Services.AddHostedService(provider => provider.GetRequiredService<VideoProcessingWorker>());*/
         builder.Services.AddHostedService<VideoProcessingWorker>();
         builder.Services.Configure<KestrelServerOptions>(options => {
+            options.Limits.KeepAliveTimeout = TimeSpan.FromHours(10);
+            /*options.Limits.MaxRequestBodySize = 5 * 1024 * 1024; // 5 GB*/
             options.ConfigureHttpsDefaults(httpsOptions =>
             {
                 httpsOptions.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 |
@@ -110,11 +113,13 @@ public class Program
         ConfigureFFmpeg(builder.Configuration);
         _app = builder.Build();
         
+        #if !DEBUG
         using (var scope = _app.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             db.Database.Migrate();
         }
+        #endif
 
 // Configure the HTTP request pipeline.
         if (_app.Environment.IsDevelopment())
@@ -124,7 +129,9 @@ public class Program
             _app.UseSwaggerUI();
         }
 
+        #if DEBUG
         _app.UseHttpsRedirection();
+        #endif
         _app.UseRouting();
         _app.UseCors("AllowFrontend");
         _app.UseAuthentication();

@@ -28,7 +28,7 @@ export const EmailConfirmation = ({ confirmationUrl}: {confirmationUrl: string})
                 width: '100%',
                 maxWidth: '580px',
             }}>
-                <Section style={{
+{/*                <Section style={{
                     padding: '25px 0',
                     textAlign: 'center' as const,
                 }}>
@@ -41,7 +41,7 @@ export const EmailConfirmation = ({ confirmationUrl}: {confirmationUrl: string})
                             margin: '0 auto',
                         }}
                     />
-                </Section>
+                </Section>*/}
 
                 <Section style={{
                     backgroundColor: '#111111',

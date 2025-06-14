@@ -23,7 +23,6 @@ import {useEcho} from "@/providers/EchoProvider";
 import {useRoomStore} from "@/store/roomStore";
 import {ERoomEventType, TypeRoomEventCallback} from "@/shared/services/echoHubService";
 import {PlyrInstance} from "@/widgets/player";
-import {Head} from "@react-email/components";
 import {useTitle} from "@/shared/hooks/useTitle";
 
 // Define type for PlyrSource including title property
@@ -81,6 +80,7 @@ export const VideoPage = () => {
 
             try {
                 const videoData = await VideosService.getVideoById(params.id as string, true);
+                console.log(videoData)
                 setVideo(videoData);
                 
                 // Update breadcrumbs to only show video title

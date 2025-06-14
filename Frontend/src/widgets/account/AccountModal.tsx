@@ -3,9 +3,9 @@
 import {FC, useEffect, useState} from "react";
 import {Button} from "@/shared/ui/Button";
 import {modal, ModalSeparator, useModalActions} from "@/shared/ui/Modal";
-import {useSession, signOut } from "next-auth/react";
+import {signOut, useSession} from "next-auth/react";
 import Image from "next/image";
-import {Plus, Lock, User, Save} from "lucide-react";
+import {Lock, Plus, Save, User} from "lucide-react";
 import {Label} from "@/shared/ui/Label";
 import {Loader} from "@/shared/ui/Loader";
 import {toast, ToastVariant} from "@/shared/ui/Toast";
@@ -14,6 +14,8 @@ import {Input} from "@/shared/ui/Input";
 import {DropZone} from "@/widgets/dropzone";
 import useSWR from "swr";
 import {UsersService} from "@/shared/services/usersService";
+import {EIcon, SvgIcon} from "@/shared/ui/Icon";
+import {IconButton} from "@/shared/ui/Icon/SvgIcon";
 
 export const AccountModal: FC = () => {
     const { data: session, status } = useSession();
@@ -33,9 +35,7 @@ export const AccountModal: FC = () => {
     );
 
     useEffect(() => {
-        if (user?.avatar) {
-            UsersService.storeUserAvatarUrl(user);
-        }
+        UsersService.storeUserAvatarUrl(user);
     }, [user]);
 
     const handleUploadAvatar = (f: File) => {
@@ -66,7 +66,7 @@ export const AccountModal: FC = () => {
                 });
             })
             .then(async () => {
-                await mutate(); // Refresh user data
+                await mutate(undefined, { revalidate: true }); // Refresh user data
                 toast.open({
                     body: "Avatar successfully updated!",
                     variant: ToastVariant.Success
@@ -76,6 +76,23 @@ export const AccountModal: FC = () => {
                 setIsAvatarUploading(false);
             });
     };
+
+    const handleClearAvatar = () => {
+        setIsAvatarUploading(true);
+        UsersService.uploadAvatar(undefined)
+            .catch((err) => {
+                toast.open({
+                    body: "Failed to remove avatar.",
+                    variant: ToastVariant.Error
+                });
+            })
+            .then(async () => {
+                await mutate(undefined, { revalidate: true }); // Refresh user data
+            })
+            .finally(() => {
+                setIsAvatarUploading(false);
+            });
+    }
 
     const handleProfileSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -154,7 +171,6 @@ export const AccountModal: FC = () => {
         </div>;
     }
 
-    console.log(user)
     return (
         <div ref={contentRef} className="flex flex-col">
             <TabPanel
@@ -171,31 +187,35 @@ export const AccountModal: FC = () => {
                     children={
                         <form onSubmit={handleProfileSubmit} className="flex flex-col gap-5 w-full">
                             <div className="flex flex-col md:flex-row gap-5 items-center md:items-start w-full">
-                                <div className="relative mx-auto md:mx-0">
-                                    {(user?.avatar) ? (
-                                        <div className="relative">
+                                <div className="relative mx-auto md:mx-0 w-[100px] h-[100px] shrink-0">
+                                    {(user?.avatar) && (
+                                        <div className="relative shrink-0">
                                             <Image
                                                 src={UsersService.getUserAvatarUrl(user)!}
                                                 alt="User avatar"
-                                                width={120}
-                                                height={120}
+                                                width={100}
+                                                height={100}
                                                 loading={"lazy"}
-                                                className="rounded-md border border-border object-cover"
+                                                className="rounded-md border border-border object-cover shrink-0"
                                             />
                                             {isAvatarUploading && (
                                                 <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-md">
                                                     <Loader variant="dots" size="sm" />
                                                 </div>
                                             )}
+                                            <IconButton
+                                                icon={EIcon.Close} size={16}
+                                                className="absolute top-1.5 right-1.5 bg-red-500 rounded p-0.5"
+                                                onClick={handleClearAvatar}/>
                                         </div>
-                                    ) : (
-                                        <DropZone
-                                            className="w-[120px] h-[120px] hover:bg-accent/30 transition-colors flex-center"
-                                            promptText={""}
-                                            icon={isAvatarUploading ? <Loader variant="dots" size="sm" /> : <Plus size={32} className="text-muted-foreground" />}
-                                            onFileDrop={handleUploadAvatar}
-                                        />
                                     )}
+
+                                    <DropZone
+                                        className="hover:bg-accent/30 transition-colors flex-center"
+                                        promptText={""} overlay={!!user?.avatar}
+                                        icon={isAvatarUploading ? <Loader variant="dots" size="sm" /> : <Plus size={32} className="text-muted-foreground" />}
+                                        onFileDrop={handleUploadAvatar}
+                                    />
                                 </div>
 
                                 <div className="flex flex-col gap-4 flex-grow min-w-0 w-full">

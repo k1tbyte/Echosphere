@@ -1,7 +1,9 @@
 ﻿using System.Collections.Concurrent;
 using Backend.Data.Entities;
+using Backend.Hubs;
 using Backend.Repositories.Abstraction;
 using Backend.Services;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Workers;
@@ -61,6 +63,9 @@ public class VideoProcessingWorker(IServiceScopeFactory scopeFactory) : Backgrou
                 try
                 {
                     var videoRepository = scope.ServiceProvider.GetRequiredService<IVideoRepository>();
+                    var notificationService = scope.ServiceProvider.GetRequiredService<NotificationsService>();
+     
+                    
                     var video = await videoRepository.GetVideoByIdAsync(videoId);
                     if (video != null)
                     {
@@ -71,6 +76,11 @@ public class VideoProcessingWorker(IServiceScopeFactory scopeFactory) : Backgrou
                             case EVideoStatus.Queued:
                                 video.Status = EVideoStatus.Processing;
                                 await videoRepository.WithAutoSave().Update(video);
+                                await notificationService.SendEvent(video.OwnerId, "VideoStatusChanged", new
+                                {
+                                    videoId,
+                                    status = EVideoStatus.Processing
+                                });
                                 break;
                         }
                         try
@@ -85,6 +95,11 @@ public class VideoProcessingWorker(IServiceScopeFactory scopeFactory) : Backgrou
 
                         video.Status = EVideoStatus.Ready;
                         await videoRepository.WithAutoSave().Update(video);
+                        await notificationService.SendEvent(video.OwnerId, "VideoStatusChanged", new
+                        {
+                            videoId,
+                            status = EVideoStatus.Ready
+                        });
                     }
 
                     Directory.Delete(directory, true);

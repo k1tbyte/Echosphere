@@ -243,7 +243,7 @@ export const Lobby: FC = () => {
                     <LobbyMember
                         participant={p}
                         // @ts-ignore
-                        onKick={(roomStore.ownerId == session!.user.id || roomStore.isRoomOwner) && p.userId != session!.user.id ?
+                        onKick={(roomStore.ownerId === Number(session!.user.id) || roomStore.isRoomOwner) && p.userId != session!.user.id ?
                             (userId) => {
                                 hub.kickFromRoom(roomStore.roomId!, userId);
                             } : undefined

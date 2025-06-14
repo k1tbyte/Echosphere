@@ -1,6 +1,7 @@
 import {EUserRole} from "@/types/user-role";
 import fetcher, {API_URL, IMAGES_URL, send} from "@/shared/lib/fetcher";
 import {queryToSearchParams, IQueryParams } from "@/shared/services/queryHelper";
+import {EventEmitter} from "@/shared/lib/observer/eventEmitter";
 
 export const enum EUserOnlineStatus {
     Offline = 0,
@@ -46,6 +47,8 @@ export type IFriendObjectMap = Map<number, IFriendObject>;
 let userAvatarUrl: string | null | undefined = undefined;
 
 export class UsersService {
+    public static readonly OnAvatarUpdated = new EventEmitter<string | undefined>();
+
     public static async getUserById(userId: number): Promise<IUserDTO> {
         const result =  await fetcher.exceptJson<IUserDTO>(fetcher.getJson(
             API_URL + '/user/get/' + userId, null, true
@@ -54,10 +57,10 @@ export class UsersService {
         return result;
     }
 
-    public static async uploadAvatar(file: File): Promise<Response> {
+    public static async uploadAvatar(file?: File): Promise<Response> {
         return send(API_URL + '/user/uploadAvatar', {
                 method: 'POST',
-                body: await file.arrayBuffer(),
+                body: file ? await file.arrayBuffer() : undefined,
                 headers: {
                     'Content-Type': 'application/octet-stream',
                 }
@@ -167,7 +170,7 @@ export class UsersService {
     }
 
     public static getUserAvatarUrl(user: IUserDTO | IUserSimpleDTO, withFallback: boolean = false): string | null {
-        if (user.avatar) {
+        if (user?.avatar) {
             return IMAGES_URL + '/user/avatar?userId=' + user.id;
         }
         if(withFallback) {
@@ -197,5 +200,6 @@ export class UsersService {
         } else {
             localStorage.removeItem(`user-avatar`);
         }
+        this.OnAvatarUpdated.emit(userAvatarUrl);
     }
 }

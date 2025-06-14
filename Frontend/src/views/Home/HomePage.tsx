@@ -201,7 +201,7 @@ export const HomePage = () => {
                         {allVideos?.map((video) => (
                             <ContextMenu key={video.id}>
                                 <ContextMenuTrigger>
-                                    <VideoCard video={video} />
+                                    <VideoCard videoObject={video} />
                                 </ContextMenuTrigger>
                                 <ContextMenuContent className="w-52">
                                     <ContextMenuItem className="text-red-400 font-medium"
@@ -266,11 +266,11 @@ export const HomePage = () => {
             <VideoDropZone overlay successcallback={(f) => {
                 setData({ file: f });
                 router.push('/home/studio');
-            }}>
+            }} className={"fixed"}>
             </VideoDropZone>
 
             <Button variant={"outline"} size={"auto"} className="fixed md:bottom-6 md:right-6 right-4 bottom-4 z-30 rounded-full p-1.5 md:p-3"
-                    href={"home/studio"}>
+                    onClick={() => router.push("home/studio")}>
                 <SvgIcon icon={EIcon.Plus} size={25}/>
             </Button>
         </div>

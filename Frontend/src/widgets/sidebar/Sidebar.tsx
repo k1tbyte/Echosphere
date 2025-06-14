@@ -67,8 +67,18 @@ const SidebarComponent: FC<ComponentProps<'div'>> = ({ className, ...props }) =>
 
     const [isPhone, setIsPhone] = useState(false);
     const [isSmall, setIsSmall] = useState(false);
-
+    const [avatar, setAvatar] = useState({ url: UsersService.getLocalUserAvatarUrl() });
     const [isInitialized, setIsInitialized] = useState(false);
+
+    useEffect(() => {
+        const avatarChanged = (avatarUrl: string) => {
+            setAvatar({ url: avatarUrl });
+        }
+        UsersService.OnAvatarUpdated.subscribe(avatarChanged);
+        return () => {
+            UsersService.OnAvatarUpdated.unsubscribe(avatarChanged);
+        }
+    }, []);
 
     useEffect(() => {
         const checkScreenSize = () => {
@@ -187,7 +197,7 @@ const SidebarComponent: FC<ComponentProps<'div'>> = ({ className, ...props }) =>
                             <div className="p-3 flex gap-3 items-center hover:bg-accent/30 transition-colors rounded-xs cursor-pointer border-t-border border-t overflow-clip">
                                 <div className="flex shrink-0 gap-3 items-center">
                                     <Image
-                                        src={UsersService.getLocalUserAvatarUrl() ?? `https://ui-avatars.com/api/?name=${session?.user.username}.svg`}
+                                        src={avatar.url ?? `https://ui-avatars.com/api/?name=${session?.user.username}.svg`}
                                         alt="Avatar"
                                         width={45}
                                         height={45}

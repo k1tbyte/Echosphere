@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from 'react';
+import {useRef, useState, useCallback, useEffect, useImperativeHandle} from 'react';
 import { Upload, AlertCircle } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
@@ -13,6 +13,7 @@ export interface DropZoneProps extends React.HTMLAttributes<HTMLDivElement> {
     promptText?: string;
     description?: string;
     icon?: React.ReactNode;
+    inputRef?: React.RefObject<HTMLInputElement>;
 
     overlay?: boolean;
 }
@@ -24,6 +25,7 @@ export const DropZone = ({
                              icon,
                              overlay = false,
                              onFileDrop,
+                             inputRef,
                              className,
                              ...props
                          }: DropZoneProps) => {
@@ -35,7 +37,10 @@ export const DropZone = ({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dragCounterRef = useRef<number>(0);
     const errorTimerRef = useRef<NodeJS.Timeout | null>(null);
-
+    useImperativeHandle(inputRef, () => {
+        return fileInputRef.current;
+    });
+    
     const handleFile = useCallback((file: File) => {
         if (errorTimerRef.current) {
             clearTimeout(errorTimerRef.current);
@@ -67,6 +72,12 @@ export const DropZone = ({
             setState('idle');
         }
     }, [onFileDrop, overlay]);
+
+    useEffect(() => {
+        if(overlay && isVisible) {
+            setIsVisible(false)
+        }
+    }, [isVisible, overlay]);
 
     const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();

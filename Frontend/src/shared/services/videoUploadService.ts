@@ -46,6 +46,7 @@ const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB
 
 export class VideoUploadService {
     private static readonly UPLOAD_STATE_PREFIX = "video_upload_";
+    public static readonly OnUploadProgress = new Map<string, ProgressCallback>();
 
     public static async startNewUploadFile(
         file: File,
@@ -119,7 +120,105 @@ export class VideoUploadService {
         }
     }
 
+    public static async continueUpload(
+        file: File,
+        videoId: string,
+        fingerprint: string,
+        startPosition?: number,
+        onProgress?: ProgressCallback
+    ): Promise<string> {
+        if(startPosition === undefined || startPosition === null) {
+            startPosition = (await this.getVideo(videoId)).uploadSize as number;
+        }
 
+        const actualStartPosition = startPosition ?? 0;
+
+        const fileSlice = file.slice(actualStartPosition);
+        const totalBytes = file.size;
+
+        let uploadedBytes = actualStartPosition;
+        const updateInterval = 1000;
+        let lastUpdateTime = 0;
+
+        const onProgressChanged = (progress: UploadProgress) => {
+            onProgress?.(progress);
+            console.log(`Upload progress: ${progress.percent}% (${progress.bytesUploaded}/${progress.totalBytes} bytes)`, videoId);
+
+            if(this.OnUploadProgress.has(videoId)) {
+                this.OnUploadProgress.get(videoId)!(progress);
+            }
+        }
+
+        const readableStream = new ReadableStream({
+            async start(controller) {
+                let position = actualStartPosition;
+                onProgressChanged({
+                    bytesUploaded: uploadedBytes, totalBytes, percent: Math.round((uploadedBytes / totalBytes) * 100),
+                    videoId, state: EUploadProgressState.Started });
+
+                while (position < file.size) {
+                    const end = Math.min(position + CHUNK_SIZE, file.size);
+                    const chunk = file.slice(position, end);
+
+                    const buffer = await chunk.arrayBuffer();
+                    controller.enqueue(new Uint8Array(buffer));
+
+                    const speedPerSecond = (end - position) / ((Date.now() - lastUpdateTime) / 1000);
+                    position = end;
+                    uploadedBytes = position;
+
+                    const now = Date.now();
+                    if (now - lastUpdateTime > updateInterval) {
+                        lastUpdateTime = now;
+                        onProgressChanged({
+                            bytesUploaded: uploadedBytes,
+                            totalBytes: totalBytes,
+                            speed: speedPerSecond,
+                            percent: Math.round((uploadedBytes / totalBytes) * 100),
+                            videoId: videoId,
+                            state: EUploadProgressState.Uploading
+                        });
+                    }
+/*                                        // throttle for test purposes
+                                        await new Promise(resolve => setTimeout(resolve, 777));*/
+                }
+
+                controller.close();
+            }
+        });
+
+        const url = `${API_URL}/video/continueupload?id=${videoId}&from=${actualStartPosition}`;
+
+        const response = await send(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/octet-stream',
+            },
+            body: readableStream,
+            // @ts-ignore
+            duplex: 'half',
+        }, true, true);
+
+        if (!response.ok) {
+            if (response.status === 409) {
+                // Conflict - server specifies a different position
+                const data = await response.json();
+                // Repeat loading from the correct position
+                return this.continueUpload(file, videoId, fingerprint, data.uploadSize, onProgress);
+            }
+
+            onProgressChanged({ bytesUploaded: uploadedBytes, totalBytes: totalBytes, percent: 0, videoId, state: EUploadProgressState.Error });
+            toast.open({ variant: ToastVariant.Error, body: `Failed to continue upload: ${response.statusText}` });
+            throw new Error(`Failed to continue upload: ${response.status} ${response.statusText}`);
+        }
+
+        this.clearUploadState(fingerprint);
+        onProgressChanged({ bytesUploaded: totalBytes, totalBytes, percent: 100, videoId, state: EUploadProgressState.Completed });
+
+        return videoId;
+    }
+
+/*
     public static async continueUpload(
         file: File,
         videoId: string,
@@ -206,6 +305,7 @@ export class VideoUploadService {
 
         return videoId;
     }
+*/
 
     public static async getVideo(videoId: string) {
         const response = await fetcher.getJson(
