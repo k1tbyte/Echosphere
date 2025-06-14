@@ -77,7 +77,7 @@ export const DropZone = ({
         if(overlay && isVisible) {
             setIsVisible(false)
         }
-    }, [isVisible, overlay]);
+    }, [overlay]);
 
     const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();

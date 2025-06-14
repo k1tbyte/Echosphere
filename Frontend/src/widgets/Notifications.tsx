@@ -60,7 +60,7 @@ const Notification: FC<AppNotification> = ({ title, type, message, id, progressC
                         }
                     </>
                 }
-                { progress &&
+                { progress >= 0 &&
                     <div className="mt-1">
                         { processMsg &&
                             <Label className="text-muted-foreground text-[10px]">

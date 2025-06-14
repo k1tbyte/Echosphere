@@ -3,6 +3,7 @@ import fetcher, {API_URL, send} from "@/shared/lib/fetcher";
 import {IVideoPropsSchema} from "@/store/videoStore";
 import {toBase64} from "@/shared/lib/utils";
 import {IVideoSettingsDTO} from "@/shared/services/videosService";
+import {getSession} from "next-auth/react";
 
 export enum EUploadProgressState {
     Started = 0,
@@ -132,90 +133,114 @@ export class VideoUploadService {
         }
 
         const actualStartPosition = startPosition ?? 0;
-
         const fileSlice = file.slice(actualStartPosition);
         const totalBytes = file.size;
 
-        let uploadedBytes = actualStartPosition;
-        const updateInterval = 1000;
-        let lastUpdateTime = 0;
+        const token = (await getSession()).accessToken
 
-        const onProgressChanged = (progress: UploadProgress) => {
-            onProgress?.(progress);
-            console.log(`Upload progress: ${progress.percent}% (${progress.bytesUploaded}/${progress.totalBytes} bytes)`, videoId);
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            const url = `${API_URL}/video/continueupload?id=${videoId}&from=${actualStartPosition}`;
 
-            if(this.OnUploadProgress.has(videoId)) {
-                this.OnUploadProgress.get(videoId)!(progress);
-            }
-        }
+            const onProgressChanged = (progress: UploadProgress) => {
+                onProgress?.(progress);
+                console.log(`Upload progress: ${progress.percent}% (${progress.bytesUploaded}/${progress.totalBytes} bytes)`, videoId);
 
-        const readableStream = new ReadableStream({
-            async start(controller) {
-                let position = actualStartPosition;
-                onProgressChanged({
-                    bytesUploaded: uploadedBytes, totalBytes, percent: Math.round((uploadedBytes / totalBytes) * 100),
-                    videoId, state: EUploadProgressState.Started });
-
-                while (position < file.size) {
-                    const end = Math.min(position + CHUNK_SIZE, file.size);
-                    const chunk = file.slice(position, end);
-
-                    const buffer = await chunk.arrayBuffer();
-                    controller.enqueue(new Uint8Array(buffer));
-
-                    const speedPerSecond = (end - position) / ((Date.now() - lastUpdateTime) / 1000);
-                    position = end;
-                    uploadedBytes = position;
-
-                    const now = Date.now();
-                    if (now - lastUpdateTime > updateInterval) {
-                        lastUpdateTime = now;
-                        onProgressChanged({
-                            bytesUploaded: uploadedBytes,
-                            totalBytes: totalBytes,
-                            speed: speedPerSecond,
-                            percent: Math.round((uploadedBytes / totalBytes) * 100),
-                            videoId: videoId,
-                            state: EUploadProgressState.Uploading
-                        });
-                    }
-/*                                        // throttle for test purposes
-                                        await new Promise(resolve => setTimeout(resolve, 777));*/
+                if(this.OnUploadProgress.has(videoId)) {
+                    this.OnUploadProgress.get(videoId)!(progress);
                 }
-
-                controller.close();
             }
+
+            xhr.open('POST', url);
+            xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+            xhr.upload.addEventListener('progress', (event) => {
+                if (event.lengthComputable) {
+                    const uploadedBytes = actualStartPosition + event.loaded;
+                    const percent = Math.round((uploadedBytes / totalBytes) * 100);
+                    const progress = {
+                        bytesUploaded: uploadedBytes,
+                        totalBytes,
+                        percent,
+                        videoId,
+                        // @ts-ignore
+                        speed: event.loaded / ((Date.now() - xhr.timeStart) / 1000),
+                        state: EUploadProgressState.Uploading
+                    };
+
+                    onProgressChanged(progress);
+                }
+            });
+
+            // Начало загрузки
+            xhr.upload.addEventListener('loadstart', () => {
+                // @ts-ignore
+                xhr.timeStart = Date.now();
+                const progress = {
+                    bytesUploaded: actualStartPosition,
+                    totalBytes,
+                    percent: Math.round((actualStartPosition / totalBytes) * 100),
+                    videoId,
+                    state: EUploadProgressState.Started
+                };
+                onProgressChanged(progress);
+            });
+
+            xhr.addEventListener('load', () => {
+                if (xhr.status === 200) {
+                    this.clearUploadState(fingerprint);
+                    const progress = {
+                        bytesUploaded: totalBytes,
+                        totalBytes,
+                        percent: 100,
+                        videoId,
+                        state: EUploadProgressState.Completed
+                    };
+                    onProgressChanged(progress);
+
+                    resolve(videoId);
+                } else if (xhr.status === 409) {
+                    // Conflict - server specifies a different position
+                    const data = JSON.parse(xhr.responseText);
+                    // Repeat loading from the correct position
+                    this.continueUpload(file, videoId, fingerprint, data.uploadSize, onProgress)
+                        .then(resolve)
+                        .catch(reject);
+                } else {
+                    const progress = {
+                        bytesUploaded: actualStartPosition,
+                        totalBytes,
+                        percent: 0,
+                        videoId,
+                        state: EUploadProgressState.Error
+                    };
+
+                    onProgressChanged(progress);
+
+                    toast.open({ variant: ToastVariant.Error, body: `Failed to continue upload: ${xhr.statusText}` });
+                    reject(new Error(`Failed to continue upload: ${xhr.status} ${xhr.statusText}`));
+                }
+            });
+
+            xhr.addEventListener('error', () => {
+                const progress = {
+                    bytesUploaded: actualStartPosition,
+                    totalBytes,
+                    percent: 0,
+                    videoId,
+                    state: EUploadProgressState.Error
+                };
+
+                onProgressChanged(progress);
+
+                toast.open({ variant: ToastVariant.Error, body: 'Network error occurred during upload' });
+                reject(new Error('Network error occurred during upload'));
+            });
+
+            // Отправка файла
+            xhr.send(fileSlice);
         });
-
-        const url = `${API_URL}/video/continueupload?id=${videoId}&from=${actualStartPosition}`;
-
-        const response = await send(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/octet-stream',
-            },
-            body: readableStream,
-            // @ts-ignore
-            duplex: 'half',
-        }, true, true);
-
-        if (!response.ok) {
-            if (response.status === 409) {
-                // Conflict - server specifies a different position
-                const data = await response.json();
-                // Repeat loading from the correct position
-                return this.continueUpload(file, videoId, fingerprint, data.uploadSize, onProgress);
-            }
-
-            onProgressChanged({ bytesUploaded: uploadedBytes, totalBytes: totalBytes, percent: 0, videoId, state: EUploadProgressState.Error });
-            toast.open({ variant: ToastVariant.Error, body: `Failed to continue upload: ${response.statusText}` });
-            throw new Error(`Failed to continue upload: ${response.status} ${response.statusText}`);
-        }
-
-        this.clearUploadState(fingerprint);
-        onProgressChanged({ bytesUploaded: totalBytes, totalBytes, percent: 100, videoId, state: EUploadProgressState.Completed });
-
-        return videoId;
     }
 
 /*
