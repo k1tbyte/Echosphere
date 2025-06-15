@@ -13,6 +13,7 @@ import {toast, ToastVariant} from "@/shared/ui/Toast";
 import {UsersService} from "@/shared/services/usersService";
 import {Checkbox} from "@/shared/ui/Checkbox";
 import {useTitle} from "@/shared/hooks/useTitle";
+import {Badge} from "@/shared/ui/Badge";
 
 interface ILoginFormProps extends ComponentPropsWithoutRef<'form'> {
     callbackUrl: string;
@@ -86,6 +87,39 @@ export const LoginForm: FC<ILoginFormProps> = ({ className, callbackUrl }, ...pr
                     Enter your email below to login to your account
                 </p>
             </div>
+
+            <div className="flex flex-col">
+                <small>Test credentials (click to copy):</small>
+                <div className="flex gap-2 mt-2">
+                    <small>Email:</small>
+                    <Badge variant={"default"} className="cursor-pointer" onClick={() => {
+                        navigator.clipboard.writeText("test@gmail.com").then(() => {
+                            toast.open({
+                                body: "Copied!",
+                                variant: ToastVariant.Success
+                            })
+                        })
+                    }}>
+                        test@gmail.com
+                    </Badge>
+                </div>
+                <div className="flex gap-2 mt-1">
+                    <small>Password:</small>
+                    <Badge variant={"default"} className="cursor-pointer" onClick={() => {
+                        navigator.clipboard.writeText("testpassword123456789").then(() => {
+                            toast.open({
+                                body: "Copied!",
+                                variant: ToastVariant.Success
+                            })
+                        })
+                    }}>
+                        testpassword123456789
+                    </Badge>
+                </div>
+
+            </div>
+
+
             <div className="grid gap-6">
                 <div className="grid gap-2">
                     <Label htmlFor="email">Email</Label>
@@ -115,7 +149,12 @@ export const LoginForm: FC<ILoginFormProps> = ({ className, callbackUrl }, ...pr
             Or continue with
           </span>
                 </div>
-                <Button variant="outline" className="w-full" disabled={isLoading}>
+                <Button type={"button"} onClick={() => {
+                    toast.open({
+                        body: "Not implemented yet :)",
+                        variant: ToastVariant.Warning
+                    })
+                }} variant="outline" className="w-full" disabled={isLoading}>
                     <SvgIcon icon={EIcon.Google} size={15}/>
                     Login with Google
                 </Button>

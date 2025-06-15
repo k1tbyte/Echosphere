@@ -9,6 +9,7 @@ import Link from "next/link";
 import {auth} from "@/shared/services/authService";
 import {cn} from "@/shared/lib/utils";
 import {useTitle} from "@/shared/hooks/useTitle";
+import {toast, ToastVariant} from "@/shared/ui/Toast";
 
 export const RegisterForm: FC<ComponentPropsWithoutRef<'form'>> = ({ className }, ...props) => {
     const [error, setError] = useState<string | null>(null);
@@ -121,7 +122,12 @@ export const RegisterForm: FC<ComponentPropsWithoutRef<'form'>> = ({ className }
                         Or continue with
                     </span>
                 </div>
-                <Button variant="outline" className="w-full">
+                <Button type={"button"} onClick={() => {
+                    toast.open({
+                        body: "Not implemented yet :)",
+                        variant: ToastVariant.Warning
+                    })
+                }} variant="outline" className="w-full">
                     <SvgIcon icon={EIcon.Google} size={15}/>
                     Continue with Google
                 </Button>
